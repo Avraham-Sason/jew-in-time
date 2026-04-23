@@ -1,0 +1,65 @@
+import { Location, Zmanim } from './zmanim';
+
+export type Nusach = 'ashkenaz' | 'sefard' | 'edot_hamizrach' | 'chabad';
+
+export type HalachicOpinion = 'GRA' | 'MA';
+
+export type UserSettings = {
+  nusach: Nusach;
+  halachicOpinions: { ksSofZman: HalachicOpinion };
+  inIsrael: boolean;
+};
+
+export type TimeType =
+  | 'fixed-moment'
+  | 'range-within-day'
+  | 'all-day'
+  | 'sunset-trigger'
+  | 'date-range'
+  | 'monthly-window'
+  | 'annual-seasonal';
+
+export type MitzvahCategory =
+  | 'daily-morning'
+  | 'daily-afternoon'
+  | 'daily-evening'
+  | 'daily-allday'
+  | 'weekly'
+  | 'seasonal'
+  | 'learning';
+
+export type SkipContext = 'shabbat' | 'yomtov' | 'cholHamoed' | 'fastDay';
+
+export type ReminderAnchor = 'start' | 'end';
+
+export type Reminder = {
+  anchor: ReminderAnchor;
+  offsetMin: number;
+  label: string;
+  skipIfDone?: boolean;
+};
+
+export type MitzvahWindow = {
+  start: Date;
+  end: Date;
+} | null;
+
+export type ComputeContext = {
+  date: Date;
+  location: Location;
+  settings: UserSettings;
+  zmanim: Zmanim;
+};
+
+export type Mitzvah = {
+  id: string;
+  name: { he: string; en?: string };
+  icon: string;
+  timeType: TimeType;
+  category: MitzvahCategory;
+  computeWindow: (ctx: ComputeContext) => MitzvahWindow;
+  defaultReminders: Reminder[];
+  skipOn: SkipContext[];
+  nuschaotSupported: Nusach[];
+  description?: { he: string; en?: string };
+};
