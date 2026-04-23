@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>יהודי כשר — Hi-Fi</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="hifi/components.jsx"></script>
+<script type="text/babel" src="hifi/screens.jsx"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080F1A; overflow: hidden; font-family: Heebo, sans-serif; }
+  #root { width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "dark": false,
+  "showAnnotations": false
+}/*EDITMODE-END*/;
+
+function TweaksPanel({ dark, setDark, annotations, setAnnotations }) {
+  return (
+    <div style={{
+      position:'fixed', bottom:24, left:24, zIndex:9999,
+      background: dark ? '#1C2B3A' : '#fff',
+      borderRadius:18, padding:'18px 22px',
+      boxShadow:'0 12px 40px rgba(0,0,0,0.25)',
+      fontFamily:'Heebo, sans-serif', direction:'rtl',
+      minWidth:210, border:`1px solid ${dark ? '#253547' : '#E5DDD0'}`,
+      animation:'fadeIn 0.2s ease',
+    }}>
+      <div style={{ fontSize:13, fontWeight:800, color: dark ? '#EDE7DB' : '#1C2B4A', marginBottom:14, letterSpacing:0.3 }}>Tweaks</div>
+      {[
+        { label:'מצב לילה', val:dark,        set:setDark        },
+        { label:'הערות עיצוב', val:annotations, set:setAnnotations },
+      ].map(({ label, val, set }) => (
+        <div key={label} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+          <span style={{ fontSize:12, color: dark ? '#7A8A99' : '#555' }}>{label}</span>
+          <div
+            onClick={() => {
+              set(!val);
+              const key = label === 'מצב לילה' ? 'dark' : 'showAnnotations';
+              window.parent.postMessage({ type:'__edit_mode_set_keys', edits:{ [key]: !val } }, '*');
+            }}
+            style={{
+              width:44, height:26, borderRadius:13, cursor:'pointer',
+              background: val ? '#C9922A' : (dark ? '#253547' : '#DDD5C5'),
+              position:'relative', transition:'background 0.2s',
+            }}
+          >
+            <div style={{
+              position:'absolute', top:3, width:20, height:20,
+              borderRadius:'50%', background:'#fff',
+              transition:'left 0.2s', left: val ? 20 : 2,
+              boxShadow:'0 1px 4px rgba(0,0,0,0.22)',
+            }}/>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DesignNote({ children, dark }) {
+  return (
+    <div style={{
+      background: dark ? '#1F3347' : '#FFFBF0',
+      border:`1px dashed ${dark ? '#D4A030' : '#C9922A'}55`,
+      borderRadius:10, padding:'8px 12px',
+      fontSize:11, color: dark ? '#C9922A' : '#9A6A10',
+      lineHeight:1.5, maxWidth:180,
+      fontFamily:'Heebo, sans-serif',
+    }}>{children}</div>
+  );
+}
+
+function Artboard({ children, t, dark, notes, label }) {
+  return (
+    <div style={{ display:'flex', gap:20, alignItems:'flex-start' }}>
+      <div style={{
+        display:'flex', alignItems:'center', justifyContent:'center',
+        padding:28,
+        background: dark ? '#0A1520' : '#EDE7DB',
+        borderRadius:20,
+      }}>
+        {children}
+      </div>
+      {notes && (
+        <div style={{ display:'flex', flexDirection:'column', gap:8, paddingTop:28 }}>
+          {notes.map((n, i) => <DesignNote key={i} dark={dark}>{n}</DesignNote>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  const [dark,        setDark]        = useState(TWEAK_DEFAULTS.dark);
+  const [annotations, setAnnotations] = useState(TWEAK_DEFAULTS.showAnnotations);
+  const [showTweaks,  setShowTweaks]  = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.data?.type === '__activate_edit_mode')   setShowTweaks(true);
+      if (e.data?.type === '__deactivate_edit_mode') setShowTweaks(false);
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type:'__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const tL = T_LIGHT;
+  const tD = T_DARK;
+  const t  = dark ? tD : tL;
+
+  const homeNotes = [
+    '★ כרטיסים ממוינים לפי דחיפות — האדום ראשון',
+    '⏱ TimeRibbon: ירוק→כתום→אדום לפי % שנשאר',
+    '✓ לחיצה על כפתור → אנימציית נעשה! + מעבר לרשימת הושלמו',
+    '📊 Counter בHeader: 2/7 מצוות הושלמו',
+  ];
+  const scheduleNotes = [
+    '📅 Toggle יום / שבוע / חודש',
+    '🔴 קו אדום = עכשיו בציר הזמן',
+    'זמנים הלכתיים באפור, מצוות בכהה',
+    '● ● ● דוט צבעוני לפי סטטוס',
+  ];
+  const libraryNotes = [
+    '🏷 פילטר לפי קטגוריה',
+    '🔘 Toggle לכל מצווה בזמן אמת',
+    '＋ כפתור הוספת מצווה חדשה',
+  ];
+  const detailNotes = [
+    '🎗 Gradient ribbon ויזואלי לחלון הזמן',
+    '📣 רשימת תזכורות הניתנת לעריכה',
+    '＋ הוסף תזכורת — dashed border זהב',
+    '✕ לחיצה = מחיקת תזכורת בודדת',
+  ];
+  const onboardingNotes = [
+    '4 שלבים: ברוכים הבאים → נוסח → מיקום+הרשאות → מוכן',
+    '← לחיצה מעבירה שלב קדימה (אינטראקטיבי!)',
+    'Dots מחוון מיקום שלב',
+  ];
+
+  return (
+    <>
+      <DesignCanvas title="יהודי כשר — Hi-Fi">
+
+        {/* ── HOME SCREEN ── */}
+        <DCSection id="home" title="🏠 מסך הבית">
+          <DCArtboard id="home-light" label="Light Mode" width={440} height={660}>
+            <div style={{ display:'flex', gap:20, alignItems:'flex-start', padding:28, background:'#EDE7DB', borderRadius:16, }}>
+              <HomeScreen t={tL} isDark={false}/>
+              {annotations && (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {homeNotes.map((n,i) => <DesignNote key={i} dark={false}>{n}</DesignNote>)}
+                </div>
+              )}
+            </div>
+          </DCArtboard>
+          <DCArtboard id="home-dark" label="Dark Mode" width={440} height={660}>
+            <div style={{ display:'flex', gap:20, alignItems:'flex-start', padding:28, background:'#0A1520', borderRadius:16, }}>
+              <HomeScreen t={tD} isDark={true}/>
+              {annotations && (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {homeNotes.map((n,i) => <DesignNote key={i} dark={true}>{n}</DesignNote>)}
+                </div>
+              )}
+            </div>
+          </DCArtboard>
+        </DCSection>
+
+        {/* ── SUPPORTING SCREENS ── */}
+        <DCSection id="support" title="📱 מסכי תמיכה">
+          <DCArtboard id="schedule" label="לוח זמנים" width={440} height={660}>
+            <div style={{ display:'flex', gap:20, alignItems:'flex-start', padding:28, background: dark ? '#0A1520' : '#EDE7DB', borderRadius:16, }}>
+              <ScheduleScreen t={t} isDark={dark}/>
+              {annotations && (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {scheduleNotes.map((n,i) => <DesignNote key={i} dark={dark}>{n}</DesignNote>)}
+                </div>
+              )}
+            </div>
+          </DCArtboard>
+          <DCArtboard id="library" label="מצוות שלי" width={440} height={660}>
+            <div style={{ display:'flex', gap:20, alignItems:'flex-start', padding:28, background: dark ? '#0A1520' : '#EDE7DB', borderRadius:16, }}>
+              <LibraryScreen t={t}/>
+              {annotations && (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {libraryNotes.map((n,i) => <DesignNote key={i} dark={dark}>{n}</DesignNote>)}
+                </div>
+              )}
+            </div>
+          </DCArtboard>
+          <DCArtboard id="detail" label="הגדרות מצווה" width={440} height={660}>
+            <div style={{ display:'flex', gap:20, alignItems:'flex-start', padding:28, background: dark ? '#0A1520' : '#EDE7DB', borderRadius:16, }}>
+              <DetailScreen t={t} isDark={dark}/>
+              {annotations && (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {detailNotes.map((n,i) => <DesignNote key={i} dark={dark}>{n}</DesignNote>)}
+                </div>
+              )}
+            </div>
+          </DCArtboard>
+        </DCSection>
+
+        {/* ── ONBOARDING ── */}
+        <DCSection id="onboarding" title="🚀 Onboarding — אינטראקטיבי">
+          <DCArtboard id="ob" label="זרימת Onboarding (לחץ המשך ←)" width={460} height={660}>
+            <div style={{ display:'flex', gap:20, alignItems:'flex-start', padding:28, background: dark ? '#0A1520' : '#EDE7DB', borderRadius:16, }}>
+              <OnboardingFlow t={t} isDark={dark}/>
+              {annotations && (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {onboardingNotes.map((n,i) => <DesignNote key={i} dark={dark}>{n}</DesignNote>)}
+                </div>
+              )}
+            </div>
+          </DCArtboard>
+        </DCSection>
+
+      </DesignCanvas>
+
+      {showTweaks && (
+        <TweaksPanel
+          dark={dark}         setDark={setDark}
+          annotations={annotations} setAnnotations={setAnnotations}
+        />
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
