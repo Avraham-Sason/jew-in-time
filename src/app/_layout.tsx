@@ -1,3 +1,4 @@
+import 'expo-dev-client';
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
 import { I18nManager, View, ActivityIndicator, Platform } from 'react-native';
