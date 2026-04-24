@@ -18,15 +18,15 @@ export const radius = {
 
 export const elevation = {
   card: {
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 14,
+    x: 0,
+    y: 2,
+    blur: 14,
     elevation: 2,
   },
   raised: {
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 20,
+    x: 0,
+    y: 4,
+    blur: 20,
     elevation: 4,
   },
 } as const;

@@ -58,7 +58,7 @@ export const ZmanimService = {
 
   getCandleLighting(date: Date, loc: Location, opts: CandleLightingOptions): Date {
     const cal = buildCalendar(date, loc);
-    const shkia = toDate(cal.getSunset());
+    const shkia = toDate(cal.getSeaLevelSunset());
     const minutes = opts.minutesBefore ?? (loc.inIsrael ? 18 : 20);
     return new Date(shkia.getTime() - minutes * 60_000);
   },

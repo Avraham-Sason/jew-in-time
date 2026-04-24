@@ -46,7 +46,7 @@ function buildTriggerTime(reminder: Reminder, window: { start: Date; end: Date }
 
 function shouldSkip(mitzvah: Mitzvah, date: Date, location: Location): boolean {
   if (!mitzvah.skipOn.length) return false;
-  if (mitzvah.skipOn.includes('shabbat') && HebcalService.isShabbat(date)) return true;
+  if (mitzvah.skipOn.includes('shabbat') && HebcalService.isShabbat(date, location)) return true;
   if (mitzvah.skipOn.includes('yomtov') && HebcalService.isYomTov(date, location)) return true;
   return false;
 }
@@ -86,6 +86,8 @@ async function scheduleOne(
   if (!window) return;
   const now = Date.now();
   const completed = useCompletionsStore.getState().isDone(mitzvah.id, date);
+  const skipped = useCompletionsStore.getState().isSkipped(mitzvah.id, date);
+  if (skipped) return;
   const reminders = remindersFor(mitzvah);
 
   for (let i = 0; i < reminders.length; i++) {
@@ -112,26 +114,48 @@ async function scheduleOne(
   }
 }
 
+async function scheduleAllImpl(
+  fromDate: Date,
+  activeMitzvot: Mitzvah[],
+  location: Location,
+  settings: UserSettings,
+): Promise<void> {
+  if (!hasNotificationPermission()) return;
+  const today = new Date(fromDate);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const pending = await Notifications.getAllScheduledNotificationsAsync();
+  const days = pending.length > PENDING_LIMIT ? [today] : [today, tomorrow];
+
+  for (const d of days) {
+    for (const m of activeMitzvot) {
+      await scheduleOne(m, d, location, settings);
+    }
+  }
+}
+
 export const NotificationScheduler = {
+  inFlight: null as Promise<void> | null,
+
+  async withLock(task: () => Promise<void>): Promise<void> {
+    if (this.inFlight) return this.inFlight;
+    const run = task().finally(() => {
+      if (this.inFlight === run) {
+        this.inFlight = null;
+      }
+    });
+    this.inFlight = run;
+    return run;
+  },
+
   async scheduleAll(
     fromDate: Date = new Date(),
     activeMitzvot: Mitzvah[] = enabledMitzvot(),
     location: Location = useUserStore.getState().location,
     settings: UserSettings = (({ nusach, halachicOpinions, inIsrael }) => ({ nusach, halachicOpinions, inIsrael }))(useUserStore.getState()),
   ): Promise<void> {
-    if (!hasNotificationPermission()) return;
-    const today = new Date(fromDate);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const pending = await Notifications.getAllScheduledNotificationsAsync();
-    const days = pending.length > PENDING_LIMIT ? [today] : [today, tomorrow];
-
-    for (const d of days) {
-      for (const m of activeMitzvot) {
-        await scheduleOne(m, d, location, settings);
-      }
-    }
+    return this.withLock(() => scheduleAllImpl(fromDate, activeMitzvot, location, settings));
   },
 
   async cancelAll(): Promise<void> {
@@ -162,9 +186,16 @@ export const NotificationScheduler = {
   },
 
   async rebuild(): Promise<void> {
-    await this.cancelAll();
-    await this.scheduleAll();
-    StorageService.set(LAST_REBUILD_KEY, dateKey(new Date()));
+    return this.withLock(async () => {
+      await this.cancelAll();
+      await scheduleAllImpl(
+        new Date(),
+        enabledMitzvot(),
+        useUserStore.getState().location,
+        (({ nusach, halachicOpinions, inIsrael }) => ({ nusach, halachicOpinions, inIsrael }))(useUserStore.getState()),
+      );
+      StorageService.set(LAST_REBUILD_KEY, dateKey(new Date()));
+    });
   },
 };
 

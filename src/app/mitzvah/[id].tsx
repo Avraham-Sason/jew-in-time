@@ -16,21 +16,27 @@ import { MITZVOT, findMitzvah } from '@/data/mitzvot';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { typography } from '@/theme/typography';
 import { Reminder } from '@/types/mitzvah';
 import { ZmanimService } from '@/services/ZmanimService';
 import { useI18n } from '@/i18n';
 
-function nextWindowFor(id: string) {
+function nextWindowFor(
+  id: string,
+  location: ReturnType<typeof useUserStore.getState>['location'],
+  nusach: ReturnType<typeof useUserStore.getState>['nusach'],
+  ksSofZman: ReturnType<typeof useUserStore.getState>['halachicOpinions']['ksSofZman'],
+  inIsrael: boolean,
+) {
   const mitzvah = findMitzvah(id);
   if (!mitzvah) return null;
-  const { location, nusach, halachicOpinions, inIsrael } = useUserStore.getState();
   const dates = [new Date(), new Date(Date.now() + 24 * 60 * 60 * 1000)];
   for (const date of dates) {
     const ctx = {
       date,
       location,
-      settings: { nusach, halachicOpinions, inIsrael },
+      settings: { nusach, halachicOpinions: { ksSofZman }, inIsrael },
       zmanim: ZmanimService.getZmanim(date, location),
     };
     const window = mitzvah.computeWindow(ctx);
@@ -45,7 +51,10 @@ export default function MitzvahDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const mitzvah = useMemo(() => findMitzvah(params.id), [params.id]);
-  const user = useUserStore();
+  const location = useUserStore((s) => s.location);
+  const nusach = useUserStore((s) => s.nusach);
+  const ksSofZman = useUserStore((s) => s.halachicOpinions.ksSofZman);
+  const inIsrael = useUserStore((s) => s.inIsrael);
   const active = useMitzvotStore((s) => s.activeMitzvot[params.id] ?? { enabled: false });
   const setEnabled = useMitzvotStore((s) => s.setEnabled);
   const setReminders = useMitzvotStore((s) => s.setReminders);
@@ -54,7 +63,10 @@ export default function MitzvahDetailScreen() {
   const [editIndex, setEditIndex] = useState<number | null>(null);
 
   const reminders = active.customReminders ?? mitzvah?.defaultReminders ?? [];
-  const window = params.id ? nextWindowFor(params.id) : null;
+  const window = useMemo(
+    () => (params.id ? nextWindowFor(params.id, location, nusach, ksSofZman, inIsrael) : null),
+    [params.id, location, nusach, ksSofZman, inIsrael],
+  );
   const nextTrigger = useMemo(() => {
     if (!window) return null;
     const candidates = reminders
@@ -120,7 +132,7 @@ export default function MitzvahDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
+        <View style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}>
           <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 10 }]}>{t('detail.timeWindow')}</Text>
           <View style={styles.windowRow}>
             <Text style={[typography.micro, { color: colors.textMuted, width: 40, textAlign: 'right' }]}>
@@ -149,7 +161,7 @@ export default function MitzvahDetailScreen() {
           </View>
         </View>
 
-        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
+        <View style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}>
           <View style={styles.row}>
             <Text style={[typography.subheading, { color: colors.text }]}>{t('detail.settings')}</Text>
             <Switch
@@ -159,12 +171,18 @@ export default function MitzvahDetailScreen() {
               trackColor={{ false: colors.border, true: colors.gold }}
             />
           </View>
-            <InfoRow label={t('detail.nusach')} value={t(`nusach.${user.nusach}`)} />
+          <InfoRow label={t('detail.nusach')} value={t(`nusach.${nusach}`)} />
           <InfoRow label={t('detail.cycle')} value={cycle} />
           <InfoRow label={t('detail.enabled')} value={active.enabled ? t('state.enabled') : t('state.disabled')} />
         </View>
 
-        <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.shadow, paddingBottom: 0 }]}>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, paddingBottom: 0 },
+            shadowStyle(colors.shadow, shadowPresets.cardSoft),
+          ]}
+        >
           <Text style={[typography.subheading, { color: colors.text, marginBottom: 10 }]}>{t('detail.reminders')}</Text>
           {reminders.map((reminder, index) => (
             <View
@@ -266,10 +284,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
     padding: 14,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 2,
     marginBottom: 10,
   },
   windowRow: {

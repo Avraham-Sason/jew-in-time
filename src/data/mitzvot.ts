@@ -1,4 +1,5 @@
 import { HDate } from '@hebcal/core';
+import { DateTime } from 'luxon';
 import { ComputeContext, Mitzvah, MitzvahWindow, Nusach } from '@/types/mitzvah';
 import { ZmanimService } from '@/services/ZmanimService';
 
@@ -23,14 +24,25 @@ function isSaturdayEvening(d: Date, shkia: Date): boolean {
   return d.getDay() === 6 && d.getTime() >= shkia.getTime();
 }
 
-function omerDayFor(date: Date): number | null {
-  const hd = new HDate(date);
+function omerDayFor(date: Date, timeZone?: string): number | null {
+  const zoned = timeZone ? DateTime.fromJSDate(date).setZone(timeZone) : DateTime.fromJSDate(date);
+  const zone = zoned.zoneName ?? undefined;
+  const calendarDate = new Date(zoned.year, zoned.month - 1, zoned.day);
+  const hd = new HDate(calendarDate);
   const year = hd.getFullYear();
-  const start = new HDate(16, 'Nisan', year).greg();
-  const end = new HDate(5, 'Sivan', year).greg();
-  const t = date.getTime();
-  if (t < start.getTime() || t > end.getTime()) return null;
-  const days = Math.floor((t - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const startGreg = new HDate(16, 'Nisan', year).greg();
+  const endGreg = new HDate(5, 'Sivan', year).greg();
+  const start = DateTime.fromObject(
+    { year: startGreg.getFullYear(), month: startGreg.getMonth() + 1, day: startGreg.getDate() },
+    { zone },
+  ).startOf('day');
+  const end = DateTime.fromObject(
+    { year: endGreg.getFullYear(), month: endGreg.getMonth() + 1, day: endGreg.getDate() },
+    { zone },
+  ).startOf('day');
+  const current = zoned.startOf('day');
+  if (current < start || current > end) return null;
+  const days = Math.floor(current.diff(start, 'days').days) + 1;
   return days >= 1 && days <= 49 ? days : null;
 }
 
@@ -178,8 +190,8 @@ export const MITZVOT: Mitzvah[] = [
       { anchor: 'start', offsetMin: 0, label: 'זמן ספירת העומר' },
       { anchor: 'start', offsetMin: 60, label: 'תזכורת — ספירת העומר', skipIfDone: true },
     ],
-    computeWindow: ({ date, zmanim }) => {
-      if (omerDayFor(date) === null) return null;
+    computeWindow: ({ date, location, zmanim }) => {
+      if (omerDayFor(date, location.tz) === null) return null;
       const end = new Date(zmanim.chatzot);
       end.setDate(end.getDate() + 1);
       return win(zmanim.tzeitHakochavim, end);

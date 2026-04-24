@@ -15,7 +15,7 @@ import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
-import { CITIES } from '@/data/cities';
+import { CITIES, getLocationName } from '@/data/cities';
 import { Nusach } from '@/types/mitzvah';
 
 const NUSACHAOT: Nusach[] = ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'];
@@ -25,7 +25,7 @@ const OPINIONS = ['GRA', 'MA'] as const;
 
 export default function SettingsScreen() {
   const { colors } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const user = useUserStore();
   const [statusText, setStatusText] = useState('');
 
@@ -53,7 +53,7 @@ export default function SettingsScreen() {
         </Section>
 
         <Section title={t('settings.location')}>
-          <Text style={[typography.bodyBold, { color: colors.text }]}>{user.location.name}</Text>
+          <Text style={[typography.bodyBold, { color: colors.text }]}>{getLocationName(user.location, language)}</Text>
           <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
             {t(`settings.locationStatus.${user.locationStatus}`)}
           </Text>
@@ -76,7 +76,7 @@ export default function SettingsScreen() {
                     },
                   ]}
                 >
-                  <Text style={[typography.small, { color: selected ? '#fff' : colors.textSub }]}>{city.name}</Text>
+                  <Text style={[typography.small, { color: selected ? '#fff' : colors.textSub }]}>{getLocationName(city, language)}</Text>
                 </Pressable>
               );
             })}

@@ -16,8 +16,19 @@ export const CompletionService = {
     } catch {}
   },
 
+  async markSkipped(mitzvahId: string, date: Date = new Date()): Promise<void> {
+    useCompletionsStore.getState().markSkipped(mitzvahId, date);
+    try {
+      await NotificationScheduler.cancelForMitzvah(mitzvahId, date);
+    } catch {}
+  },
+
   isDone(mitzvahId: string, date: Date = new Date()): boolean {
     return useCompletionsStore.getState().isDone(mitzvahId, date);
+  },
+
+  isSkipped(mitzvahId: string, date: Date = new Date()): boolean {
+    return useCompletionsStore.getState().isSkipped(mitzvahId, date);
   },
 
   getDateKey: dateKey,

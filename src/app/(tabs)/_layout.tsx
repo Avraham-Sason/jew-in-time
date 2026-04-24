@@ -16,6 +16,7 @@ export default function TabsLayout() {
         animation: 'fade',
       }}
     >
+      <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen name="home" />
       <Tabs.Screen name="schedule" />
       <Tabs.Screen name="library" />

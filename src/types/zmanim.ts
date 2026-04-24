@@ -3,6 +3,7 @@ export type Location = {
   lng: number;
   tz: string;
   name: string;
+  nameEn?: string;
   inIsrael: boolean;
   elevation?: number;
 };

@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
 import { NavBar } from '@/components/NavBar';
+import { getLocationName } from '@/data/cities';
 import { MITZVOT } from '@/data/mitzvot';
 import { HebcalService } from '@/services/HebcalService';
 import { ZmanimService } from '@/services/ZmanimService';
@@ -131,7 +132,9 @@ export default function ScheduleScreen() {
     });
   }, [cursor, dayItems]);
 
-  const subtitle = `${cursor.setLocale(language).toFormat(language === 'he' ? 'd LLLL yyyy' : 'LLL d, yyyy')} · ${location.name}`;
+  const subtitle = `${cursor.setLocale(language).toFormat(language === 'he' ? 'd LLLL yyyy' : 'LLL d, yyyy')} · ${getLocationName(location, language)}`;
+  const prevArrow = language === 'he' ? '→' : '←';
+  const nextArrow = language === 'he' ? '←' : '→';
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
@@ -157,7 +160,7 @@ export default function ScheduleScreen() {
         </View>
         <View style={styles.navRow}>
           <Pressable onPress={() => setCursor((prev) => shift(prev, view, -1))} style={styles.navBtn}>
-            <Text style={[typography.bodyBold, { color: colors.headerText }]}>→</Text>
+            <Text style={[typography.bodyBold, { color: colors.headerText }]}>{prevArrow}</Text>
           </Pressable>
           <Text style={[typography.captionBold, { color: colors.headerText }]}>
             {view === 'month'
@@ -165,7 +168,7 @@ export default function ScheduleScreen() {
               : cursor.setLocale(language).toFormat(language === 'he' ? 'cccc d LLL' : 'ccc LLL d')}
           </Text>
           <Pressable onPress={() => setCursor((prev) => shift(prev, view, 1))} style={styles.navBtn}>
-            <Text style={[typography.bodyBold, { color: colors.headerText }]}>←</Text>
+            <Text style={[typography.bodyBold, { color: colors.headerText }]}>{nextArrow}</Text>
           </Pressable>
         </View>
       </View>

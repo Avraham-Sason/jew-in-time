@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
-import { I18nManager, View, ActivityIndicator } from 'react-native';
+import { I18nManager, View, ActivityIndicator, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -21,10 +21,26 @@ import { useUserStore } from '@/stores/useUserStore';
 import { initNotificationHandlers } from '@/services/NotificationScheduler';
 import { setLocale } from '@/i18n';
 
-if (!I18nManager.isRTL) {
-  I18nManager.allowRTL(true);
-  I18nManager.forceRTL(true);
+function syncDocumentDirection(language: 'he' | 'en') {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+  const dir = language === 'he' ? 'rtl' : 'ltr';
+  document.documentElement.setAttribute('dir', dir);
+  document.documentElement.setAttribute('lang', language);
+  document.body?.setAttribute('dir', dir);
 }
+
+function syncLayoutDirection(language: 'he' | 'en') {
+  const wantRTL = language === 'he';
+  setLocale(language);
+  syncDocumentDirection(language);
+  I18nManager.allowRTL(wantRTL);
+  if (I18nManager.isRTL !== wantRTL) {
+    I18nManager.forceRTL(wantRTL);
+  }
+}
+
+const initialLanguage = useUserStore.getState().language;
+syncLayoutDirection(initialLanguage);
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -46,11 +62,11 @@ function RootInner() {
   }, [isOnboarded, segments, router]);
 
   useEffect(() => {
-    setLocale(language);
+    syncLayoutDirection(language);
   }, [language]);
 
   return (
-    <>
+    <View style={{ flex: 1, direction: language === 'he' ? 'rtl' : 'ltr' }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -60,11 +76,10 @@ function RootInner() {
         }}
       >
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="onboarding" />
         <Stack.Screen name="mitzvah/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
       </Stack>
-    </>
+    </View>
   );
 }
 

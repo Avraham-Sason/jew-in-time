@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
+import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { typography } from '@/theme/typography';
 import { durations } from '@/theme/tokens';
 import { TimeRibbon } from './TimeRibbon';
@@ -73,9 +74,9 @@ export function MitzvahCard({ name, timeLeft, pct, urgent, done, stamping, onCom
         {
           backgroundColor: bg,
           borderColor: bdr,
-          shadowColor: colors.shadow,
           opacity: done ? 0.55 : 1,
         },
+        shadowStyle(colors.shadow, shadowPresets.card),
       ]}
     >
       <View style={styles.row}>
@@ -130,8 +131,8 @@ export function MitzvahCard({ name, timeLeft, pct, urgent, done, stamping, onCom
                 styles.stamp,
                 {
                   borderColor: colors.gold,
-                  shadowColor: colors.goldLight,
                 },
+                shadowStyle(colors.goldLight, shadowPresets.glow),
                 stampStyle,
               ]}
             >
@@ -150,10 +151,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
     marginBottom: 10,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 14,
-    elevation: 2,
     overflow: 'hidden',
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 11 },
@@ -183,10 +180,6 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 18,
     borderRadius: 6,
-    shadowRadius: 0,
-    shadowOpacity: 1,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
   },
   stampText: {
     fontSize: 21,

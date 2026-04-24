@@ -1,24 +1,36 @@
 import { useEffect } from 'react';
-import { I18n } from 'i18n-js';
 import { useUserStore } from '@/stores/useUserStore';
+import heTable from './he.json';
+import enTable from './en.json';
 
 export type AppLanguage = 'he' | 'en';
 
-const i18n = new I18n({
-  he: require('./he.json'),
-  en: require('./en.json'),
-});
+type Dict = Record<string, string>;
+const tables: Record<AppLanguage, Dict> = {
+  he: heTable as Dict,
+  en: enTable as Dict,
+};
 
-i18n.defaultLocale = 'he';
-i18n.enableFallback = true;
-i18n.locale = 'he';
+let currentLocale: AppLanguage = 'he';
+const defaultLocale: AppLanguage = 'he';
 
 export function setLocale(language: AppLanguage): void {
-  i18n.locale = language;
+  currentLocale = language;
+}
+
+function interpolate(str: string, options?: Record<string, unknown>): string {
+  if (!options) return str;
+  return str.replace(/%\{(\w+)\}/g, (_, key) =>
+    options[key] !== undefined ? String(options[key]) : `%{${key}}`,
+  );
 }
 
 export function t(scope: string, options?: Record<string, unknown>): string {
-  return i18n.t(scope, options) as string;
+  const primary = tables[currentLocale]?.[scope];
+  if (typeof primary === 'string') return interpolate(primary, options);
+  const fallback = tables[defaultLocale]?.[scope];
+  if (typeof fallback === 'string') return interpolate(fallback, options);
+  return `[missing "${currentLocale}.${scope}" translation]`;
 }
 
 export function useI18n() {

@@ -1,10 +1,12 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarProps, BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
+
+type TabOptionsWithHref = BottomTabNavigationOptions & { href?: string | null };
 
 function HomeIcon({ color }: { color: string }) {
   return (
@@ -34,6 +36,9 @@ function ListIcon({ color }: { color: string }) {
 export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps) {
   const { colors } = useTheme();
   const { t } = useI18n();
+  const visibleRoutes = state.routes.filter(
+    (route) => route.name !== 'index' && (descriptors[route.key].options as TabOptionsWithHref).href !== null,
+  );
   const labels: Record<string, string> = {
     home: t('nav.home'),
     schedule: t('nav.schedule'),
@@ -47,8 +52,8 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
 
   return (
     <View style={[styles.wrap, { backgroundColor: colors.tabBg, borderTopColor: colors.tabBorder }]}>
-      {state.routes.map((route, index) => {
-        const focused = state.index === index;
+      {visibleRoutes.map((route) => {
+        const focused = state.routes[state.index]?.key === route.key;
         const color = focused ? colors.gold : colors.textMuted;
         const onPress = () => {
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });

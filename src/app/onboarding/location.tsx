@@ -8,11 +8,11 @@ import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
-import { CITIES } from '@/data/cities';
+import { CITIES, getLocationName } from '@/data/cities';
 
 export default function OnboardingLocationScreen() {
   const { colors } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const router = useRouter();
   const user = useUserStore();
   const [busy, setBusy] = useState(false);
@@ -36,7 +36,7 @@ export default function OnboardingLocationScreen() {
       <Text style={[typography.body, { color: colors.textSub, marginTop: 4 }]}>{t('onboarding.locationBody')}</Text>
 
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[typography.bodyBold, { color: colors.text }]}>{user.location.name}</Text>
+        <Text style={[typography.bodyBold, { color: colors.text }]}>{getLocationName(user.location, language)}</Text>
         <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
           {t(`settings.locationStatus.${user.locationStatus}`)}
         </Text>
@@ -54,7 +54,7 @@ export default function OnboardingLocationScreen() {
               onPress={() => user.setLocationState(city, 'ready', 'manual')}
               style={[styles.cityPill, { backgroundColor: selected ? colors.gold : colors.surface2 }]}
             >
-              <Text style={[typography.small, { color: selected ? '#fff' : colors.textSub }]}>{city.name}</Text>
+              <Text style={[typography.small, { color: selected ? '#fff' : colors.textSub }]}>{getLocationName(city, language)}</Text>
             </Pressable>
           );
         })}

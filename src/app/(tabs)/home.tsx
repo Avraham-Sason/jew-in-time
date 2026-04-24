@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -16,13 +16,16 @@ import { NavBar } from '@/components/NavBar';
 import { MitzvahCard } from '@/components/MitzvahCard';
 import { CompletedRow } from '@/components/CompletedRow';
 import { HebrewDate } from '@/components/HebrewDate';
+import { getLocationName } from '@/data/cities';
 import { MITZVOT } from '@/data/mitzvot';
 import { HebcalService } from '@/services/HebcalService';
 import { CompletionService } from '@/services/CompletionService';
 import { useCompletionsStore } from '@/stores/useCompletionsStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useTheme } from '@/theme/ThemeProvider';
+import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { typography } from '@/theme/typography';
 import { ComputeContext, Mitzvah, MitzvahWindow } from '@/types/mitzvah';
 import { ZmanimService } from '@/services/ZmanimService';
@@ -36,6 +39,8 @@ type LiveItem = {
   urgent: boolean;
   name: string;
 };
+
+const EMPTY_DAY_STATE = Object.freeze({}) as Record<string, number>;
 
 function formatRemaining(ms: number, language: 'he' | 'en'): string {
   const totalMin = Math.max(0, Math.round(ms / 60000));
@@ -61,15 +66,20 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const { language, t } = useI18n();
   const router = useRouter();
-  const user = useUserStore((s) => ({
-    location: s.location,
-    locationStatus: s.locationStatus,
-    notificationPermission: s.notificationPermission,
-  }));
+  const user = useUserStore(
+    useShallow((s) => ({
+      location: s.location,
+      locationStatus: s.locationStatus,
+      notificationPermission: s.notificationPermission,
+    })),
+  );
   const activeMap = useMitzvotStore((s) => s.activeMitzvot);
-  const doneMap = useCompletionsStore((s) => s.completionsForDate());
+  const todayKey = CompletionService.getDateKey();
+  const doneMap = useCompletionsStore((s) => s.completions[todayKey] ?? EMPTY_DAY_STATE);
+  const skippedMap = useCompletionsStore((s) => s.skipped[todayKey] ?? EMPTY_DAY_STATE);
   const [stampingId, setStampingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { current, completed, nextUp, totalActive, doneCount, hebrewTitle, subtitle } = useMemo(() => {
     const now = new Date();
@@ -77,7 +87,7 @@ export default function HomeScreen() {
     const hebrew = HebcalService.getHebrewDate(now);
     const greg = DateTime.fromJSDate(now).setLocale(language).toFormat(language === 'he' ? 'cccc · d LLLL' : 'cccc · LLL d');
     const parasha = HebcalService.getParasha(now, user.location);
-    const subtitleText = [greg, user.location.name, parasha].filter(Boolean).join(' · ');
+    const subtitleText = [greg, getLocationName(user.location, language), parasha].filter(Boolean).join(' · ');
 
     const enabled = MITZVOT.filter((mitzvah) => activeMap[mitzvah.id]?.enabled);
     const currentItems: LiveItem[] = [];
@@ -110,7 +120,7 @@ export default function HomeScreen() {
         urgent: remainingMs <= 45 * 60 * 1000,
         name,
       };
-      if (doneMap[mitzvah.id]) {
+      if (doneMap[mitzvah.id] || skippedMap[mitzvah.id]) {
         continue;
       }
       if (now >= window.start && now <= window.end) {
@@ -132,17 +142,23 @@ export default function HomeScreen() {
       hebrewTitle: hebrew.hebrewDateStr,
       subtitle: subtitleText,
     };
-  }, [activeMap, doneMap, language, user.location]);
+  }, [activeMap, doneMap, skippedMap, language, user.location]);
 
   const complete = async (id: string) => {
     if (stampingId) return;
     setStampingId(id);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    setTimeout(() => {
+    stampTimeoutRef.current = setTimeout(() => {
       CompletionService.markDone(id).catch(() => {});
       setStampingId(null);
       setSelectedId(null);
+      stampTimeoutRef.current = null;
     }, 1300);
+  };
+
+  const skipToday = async (id: string) => {
+    await CompletionService.markSkipped(id).catch(() => {});
+    setSelectedId(null);
   };
 
   const selectedMitzvah = selectedId ? MITZVOT.find((item) => item.id === selectedId) : undefined;
@@ -150,6 +166,14 @@ export default function HomeScreen() {
     selectedMitzvah && language === 'en' && selectedMitzvah.name.en
       ? selectedMitzvah.name.en
       : selectedMitzvah?.name.he;
+
+  useEffect(() => {
+    return () => {
+      if (stampTimeoutRef.current) {
+        clearTimeout(stampTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
@@ -180,7 +204,13 @@ export default function HomeScreen() {
         ) : null}
 
         {nextUp ? (
-          <View style={[styles.nextCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+          <View
+            style={[
+              styles.nextCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              shadowStyle(colors.shadow, shadowPresets.cardSoft),
+            ]}
+          >
             <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>{t('home.nextUp')}</Text>
             <Text style={[typography.heading, { color: colors.text }]}>{nextUp.name}</Text>
             <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>
@@ -246,7 +276,7 @@ export default function HomeScreen() {
               label={t('home.quick.skipToday')}
               onPress={() => {
                 if (!selectedId) return;
-                complete(selectedId);
+                skipToday(selectedId);
               }}
             />
             <SheetAction
@@ -318,10 +348,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
     marginBottom: 14,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 2,
   },
   sectionLabel: {
     marginTop: 6,

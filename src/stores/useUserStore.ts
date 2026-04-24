@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, createJSONStorage } from './zustandMiddleware';
 import { createZustandStorage } from '@/services/StorageService';
 import { Nusach, HalachicOpinion } from '@/types/mitzvah';
 import { Location } from '@/types/zmanim';

@@ -1,5 +1,6 @@
 import { HDate, HebrewCalendar, Location as HebcalLocation, flags } from '@hebcal/core';
 import { CalendarInfo, HebrewDate, Location } from '@/types/zmanim';
+import { ZmanimService } from '@/services/ZmanimService';
 
 function toHDate(date: Date): HDate {
   return new HDate(date);
@@ -55,8 +56,18 @@ export const HebcalService = {
       .map((e) => e.render('he'));
   },
 
-  isShabbat(date: Date): boolean {
-    return date.getDay() === 6;
+  isShabbat(date: Date, loc?: Location): boolean {
+    const day = date.getDay();
+    if (!loc) return day === 6;
+    if (day === 5) {
+      const shkia = ZmanimService.getZmanim(date, loc).shkia;
+      return date.getTime() >= shkia.getTime();
+    }
+    if (day === 6) {
+      const tzeit = ZmanimService.getZmanim(date, loc).tzeitHakochavim;
+      return date.getTime() < tzeit.getTime();
+    }
+    return false;
   },
 
   isYomTov(date: Date, loc: Location): boolean {
@@ -99,7 +110,7 @@ export const HebcalService = {
       hebrew: this.getHebrewDate(date),
       parasha: this.getParasha(date, loc),
       holidays: this.getHolidays(date, loc),
-      isShabbat: this.isShabbat(date),
+      isShabbat: this.isShabbat(date, loc),
       isYomTov: this.isYomTov(date, loc),
       omerDay: this.getOmerDay(date),
       dafYomi: this.getDafYomi(date),
