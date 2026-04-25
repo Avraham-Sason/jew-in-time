@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { DateTime } from 'luxon';
 import { ReminderEditor } from '@/components/ReminderEditor';
 import { MITZVOT, findMitzvah } from '@/data/mitzvot';
@@ -107,8 +107,29 @@ export default function MitzvahDetailScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
-        <Pressable onPress={() => router.back()}>
-          <Text style={[typography.small, { color: 'rgba(255,255,255,0.4)' }]}>← {t('nav.library')}</Text>
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+          hitSlop={10}
+          style={({ pressed }) => [
+            styles.backBtn,
+            {
+              backgroundColor: pressed ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)',
+              borderColor: 'rgba(255,255,255,0.18)',
+            },
+          ]}
+        >
+          <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+            <Path
+              d={language === 'he' ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6'}
+              stroke={colors.headerText}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+          <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
         </Pressable>
         <View style={styles.headerRow}>
           <View style={[styles.heroIcon, { backgroundColor: colors.goldLight }]}>
@@ -263,6 +284,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingTop: 10,
     paddingBottom: 14,
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
   },
   headerRow: {
     flexDirection: 'row',

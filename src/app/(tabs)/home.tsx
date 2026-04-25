@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AppState,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -29,6 +31,7 @@ import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { typography } from '@/theme/typography';
 import { ComputeContext, Mitzvah, MitzvahWindow } from '@/types/mitzvah';
 import { ZmanimService } from '@/services/ZmanimService';
+import { syncNotificationPermissionStatus } from '@/services/NotificationScheduler';
 import { useI18n, t as translate } from '@/i18n';
 
 type LiveItem = {
@@ -175,6 +178,16 @@ export default function HomeScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    syncNotificationPermissionStatus().catch(() => {});
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        syncNotificationPermissionStatus().catch(() => {});
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
       <NavBar
@@ -199,8 +212,13 @@ export default function HomeScreen() {
         {user.locationStatus === 'timeout' ? (
           <Banner text={t('home.gpsTimeout')} color={colors.warning} background={`${colors.warning}18`} />
         ) : null}
-        {user.notificationPermission === 'denied' ? (
-          <Banner text={t('home.notificationsDenied')} color={colors.urgent} background={colors.urgentBg} />
+        {user.notificationPermission !== 'granted' ? (
+          <Banner
+            text={t('home.notificationsDenied')}
+            color={colors.urgent}
+            background={colors.urgentBg}
+            onPress={() => Linking.openSettings().catch(() => {})}
+          />
         ) : null}
 
         {nextUp ? (
@@ -297,10 +315,35 @@ export default function HomeScreen() {
   );
 }
 
-function Banner({ text, color, background }: { text: string; color: string; background: string }) {
+function Banner({
+  text,
+  color,
+  background,
+  onPress,
+}: {
+  text: string;
+  color: string;
+  background: string;
+  onPress?: () => void;
+}) {
+  const content = <Text style={[typography.captionBold, { color }]}>{text}</Text>;
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.banner,
+          { backgroundColor: background, borderColor: color, opacity: pressed ? 0.7 : 1 },
+        ]}
+        accessibilityRole="button"
+      >
+        {content}
+      </Pressable>
+    );
+  }
   return (
     <View style={[styles.banner, { backgroundColor: background, borderColor: color }]}>
-      <Text style={[typography.captionBold, { color }]}>{text}</Text>
+      {content}
     </View>
   );
 }

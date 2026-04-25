@@ -30,7 +30,7 @@
   "home.nextUp": "Next up",
   "home.noActive": "No active mitzvot in this window right now.",
   "home.noLocation": "No precise location. Enable GPS or choose a city manually.",
-  "home.notificationsDenied": "Notifications are off. Allow them to get reminders on time.",
+  "home.notificationsDenied": "Notifications are not allowed. Tap to open settings and enable them.",
   "home.gpsTimeout": "GPS timed out. Showing your saved city for now.",
   "home.quick.details": "Details",
   "home.quick.skipToday": "Skip today",

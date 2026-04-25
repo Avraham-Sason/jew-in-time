@@ -30,7 +30,7 @@
   "home.nextUp": "הבא בתור",
   "home.noActive": "אין כרגע מצוות פעילות לחלון הזמן הזה.",
   "home.noLocation": "אין מיקום מדויק. אפשר GPS או בחר עיר ידנית.",
-  "home.notificationsDenied": "התראות כבויות. אשר התראות כדי לקבל תזכורות בזמן.",
+  "home.notificationsDenied": "אין הרשאות להתראות. לחץ כדי לפתוח את ההגדרות ולאשר.",
   "home.gpsTimeout": "GPS לא ענה בזמן. כרגע מוצגת העיר השמורה.",
   "home.quick.details": "פרטים",
   "home.quick.skipToday": "דלג היום",
