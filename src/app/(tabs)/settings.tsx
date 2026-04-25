@@ -1,16 +1,23 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { LocationService } from '@/services/LocationService';
-import { requestNotificationPermissions } from '@/services/NotificationScheduler';
+import {
+  NotificationScheduler,
+  requestNotificationPermissions,
+  syncNotificationPermissionStatus,
+} from '@/services/NotificationScheduler';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
@@ -37,16 +44,123 @@ export default function SettingsScreen() {
     setStatusText(resolved.status === 'ready' ? t('settings.gpsUpdated') : t('settings.gpsFallback'));
   };
 
-  const requestNotifications = async () => {
-    const granted = await requestNotificationPermissions();
-    user.setNotificationPermission(granted ? 'granted' : 'denied');
+  const openOsSettings = () => {
+    Linking.openSettings().catch(() => {});
   };
+
+  const onToggleNotifications = async (next: boolean) => {
+    if (next) {
+      const granted = await requestNotificationPermissions();
+      if (!granted) {
+        user.setNotificationsEnabled(false);
+        openOsSettings();
+        return;
+      }
+      user.setNotificationsEnabled(true);
+      NotificationScheduler.rebuild().catch(() => {});
+    } else {
+      user.setNotificationsEnabled(false);
+      NotificationScheduler.cancelAll().catch(() => {});
+    }
+  };
+
+  const refreshPermStatus = async () => {
+    await syncNotificationPermissionStatus();
+  };
+
+  const permGranted = user.notificationPermission === 'granted';
+  const notifActive = user.notificationsEnabled && permGranted;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
       <Stack.Screen options={{ title: t('settings.title'), headerShown: false }} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[typography.title, { color: colors.text, marginBottom: 12 }]}>{t('settings.title')}</Text>
+
+        <Section title={t('settings.profile')}>
+          <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>
+            {t('settings.profileName')}
+          </Text>
+          <TextInput
+            value={user.profileName}
+            onChangeText={user.setProfileName}
+            placeholder={t('settings.profileNamePlaceholder')}
+            placeholderTextColor={colors.textMuted}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface2,
+                color: colors.text,
+                borderColor: colors.border,
+                writingDirection: language === 'he' ? 'rtl' : 'ltr',
+                textAlign: language === 'he' ? 'right' : 'left',
+              },
+            ]}
+            autoCapitalize="words"
+          />
+          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 12, marginBottom: 6 }]}>
+            {t('settings.profilePhone')}
+          </Text>
+          <TextInput
+            value={user.profilePhone}
+            onChangeText={user.setProfilePhone}
+            placeholder={t('settings.profilePhonePlaceholder')}
+            placeholderTextColor={colors.textMuted}
+            keyboardType="phone-pad"
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface2,
+                color: colors.text,
+                borderColor: colors.border,
+                writingDirection: language === 'he' ? 'rtl' : 'ltr',
+                textAlign: language === 'he' ? 'right' : 'left',
+              },
+            ]}
+          />
+        </Section>
+
+        <Section title={t('settings.notifications')}>
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1, paddingEnd: 12 }}>
+              <Text style={[typography.bodyBold, { color: colors.text }]}>
+                {t('settings.notificationsToggle')}
+              </Text>
+              <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
+                {notifActive
+                  ? t('settings.notificationsActiveHint')
+                  : user.notificationsEnabled && !permGranted
+                  ? t('settings.notificationsBlockedHint')
+                  : t('settings.notificationsOffHint')}
+              </Text>
+            </View>
+            <Switch
+              value={user.notificationsEnabled}
+              onValueChange={onToggleNotifications}
+              thumbColor="#fff"
+              trackColor={{ false: colors.border, true: colors.gold }}
+            />
+          </View>
+          <Row
+            label={t('settings.notificationsOsStatus')}
+            value={permGranted ? t('settings.notificationsGranted') : t('settings.notificationsDenied')}
+          />
+          {!permGranted ? (
+            <Pressable onPress={openOsSettings} style={[styles.primaryBtn, { backgroundColor: colors.gold }]}>
+              <Text style={[typography.bodyBold, { color: '#fff' }]}>
+                {t('settings.openOsSettings')}
+              </Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={refreshPermStatus} style={[styles.primaryBtn, { backgroundColor: colors.surface2 }]}>
+            <Text style={[typography.bodyBold, { color: colors.text }]}>
+              {t('settings.refreshPermStatus')}
+            </Text>
+          </Pressable>
+          <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>
+            {Platform.OS === 'ios' ? t('settings.iosHint') : t('settings.androidHint')}
+          </Text>
+        </Section>
 
         <Section title={t('settings.nusach')}>
           <ChipRow values={NUSACHAOT} selected={user.nusach} onSelect={(value) => user.setNusach(value)} renderLabel={(value) => t(`nusach.${value}`)} />
@@ -83,13 +197,6 @@ export default function SettingsScreen() {
           </View>
         </Section>
 
-        <Section title={t('settings.notifications')}>
-          <Row label={t('settings.notifications')} value={user.notificationPermission === 'granted' ? t('settings.notificationsGranted') : t('settings.notificationsDenied')} />
-          <Pressable onPress={requestNotifications} style={[styles.primaryBtn, { backgroundColor: colors.surface2 }]}>
-            <Text style={[typography.bodyBold, { color: colors.text }]}>{t('onboarding.notificationsAction')}</Text>
-          </Pressable>
-        </Section>
-
         <Section title={t('settings.theme')}>
           <ChipRow
             values={THEMES}
@@ -112,19 +219,6 @@ export default function SettingsScreen() {
           />
         </Section>
 
-        <Section title={t('settings.inIsrael')}>
-          <View style={styles.switchRow}>
-            <Text style={[typography.body, { color: colors.text }]}>
-              {user.inIsrael ? t('settings.inIsrael') : t('settings.outsideIsrael')}
-            </Text>
-            <Switch
-              value={user.inIsrael}
-              onValueChange={user.setInIsrael}
-              thumbColor="#fff"
-              trackColor={{ false: colors.border, true: colors.gold }}
-            />
-          </View>
-        </Section>
       </ScrollView>
     </SafeAreaView>
   );
@@ -143,7 +237,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Row({ label, value }: { label: string; value: string }) {
   const { colors } = useTheme();
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { marginTop: 12 }]}>
       <Text style={[typography.bodyBold, { color: colors.text }]}>{label}</Text>
       <Text style={[typography.body, { color: colors.gold }]}>{value}</Text>
     </View>
@@ -225,5 +319,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  input: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
   },
 });

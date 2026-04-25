@@ -18,6 +18,9 @@ type UserState = {
   theme: ThemeMode;
   language: Language;
   notificationPermission: NotificationPermissionStatus;
+  notificationsEnabled: boolean;
+  profileName: string;
+  profilePhone: string;
   halachicOpinions: { ksSofZman: HalachicOpinion };
   inIsrael: boolean;
   isOnboarded: boolean;
@@ -27,6 +30,9 @@ type UserState = {
   setTheme: (t: ThemeMode) => void;
   setLanguage: (l: Language) => void;
   setNotificationPermission: (status: NotificationPermissionStatus) => void;
+  setNotificationsEnabled: (v: boolean) => void;
+  setProfileName: (v: string) => void;
+  setProfilePhone: (v: string) => void;
   setKsOpinion: (o: HalachicOpinion) => void;
   setInIsrael: (v: boolean) => void;
   setOnboarded: (v: boolean) => void;
@@ -45,6 +51,9 @@ export const useUserStore = create<UserState>()(
       theme: 'system',
       language: 'he',
       notificationPermission: 'unknown',
+      notificationsEnabled: true,
+      profileName: '',
+      profilePhone: '',
       halachicOpinions: { ksSofZman: 'GRA' },
       inIsrael: true,
       isOnboarded: false,
@@ -55,6 +64,9 @@ export const useUserStore = create<UserState>()(
       setTheme: (t) => set({ theme: t }),
       setLanguage: (l) => set({ language: l }),
       setNotificationPermission: (status) => set({ notificationPermission: status }),
+      setNotificationsEnabled: (v) => set({ notificationsEnabled: v }),
+      setProfileName: (v) => set({ profileName: v }),
+      setProfilePhone: (v) => set({ profilePhone: v }),
       setKsOpinion: (o) => set((s) => ({ halachicOpinions: { ...s.halachicOpinions, ksSofZman: o } })),
       setInIsrael: (v) => set({ inIsrael: v }),
       setOnboarded: (v) => set({ isOnboarded: v }),
@@ -67,6 +79,9 @@ export const useUserStore = create<UserState>()(
           theme: 'system',
           language: 'he',
           notificationPermission: 'unknown',
+          notificationsEnabled: true,
+          profileName: '',
+          profilePhone: '',
           halachicOpinions: { ksSofZman: 'GRA' },
           inIsrael: true,
           isOnboarded: false,

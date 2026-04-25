@@ -22,7 +22,6 @@ describe('expo-router routes', () => {
 
   it('discovers known top-level routes', () => {
     expect(routes).toContain('index');
-    expect(routes).toContain('settings');
     expect(routes).toContain('mitzvah/[id]');
   });
 
@@ -30,6 +29,7 @@ describe('expo-router routes', () => {
     expect(routes).toContain('(tabs)/home');
     expect(routes).toContain('(tabs)/schedule');
     expect(routes).toContain('(tabs)/library');
+    expect(routes).toContain('(tabs)/settings');
     expect(routes).toContain('(tabs)/index');
   });
 

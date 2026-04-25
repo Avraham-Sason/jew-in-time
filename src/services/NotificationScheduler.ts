@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
@@ -62,7 +63,22 @@ function enabledMitzvot(): Mitzvah[] {
 }
 
 function hasNotificationPermission(): boolean {
-  return useUserStore.getState().notificationPermission !== 'denied';
+  const s = useUserStore.getState();
+  if (s.notificationsEnabled === false) return false;
+  return s.notificationPermission !== 'denied';
+}
+
+async function ensureAndroidChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('default', {
+    name: 'מצוות',
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: 'default',
+    enableVibrate: true,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#C9922A',
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
 }
 
 function shouldRunDailyRebuild(now: Date = new Date()): boolean {
@@ -207,6 +223,7 @@ export async function syncNotificationPermissionStatus(): Promise<boolean> {
 }
 
 export async function requestNotificationPermissions(): Promise<boolean> {
+  await ensureAndroidChannel();
   const { status } = await Notifications.getPermissionsAsync();
   if (status === 'granted') {
     useUserStore.getState().setNotificationPermission('granted');
@@ -254,8 +271,17 @@ export function initNotificationHandlers(): void {
       shouldSetBadge: false,
     }),
   });
+  ensureAndroidChannel().catch(() => {});
   syncNotificationPermissionStatus().catch(() => {});
   useUserStore.subscribe((state, prev) => {
+    if (state.notificationsEnabled !== prev.notificationsEnabled) {
+      if (state.notificationsEnabled) {
+        NotificationScheduler.rebuild().catch(() => {});
+      } else {
+        NotificationScheduler.cancelAll().catch(() => {});
+      }
+      return;
+    }
     if (
       state.location !== prev.location ||
       state.nusach !== prev.nusach ||

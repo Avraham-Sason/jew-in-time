@@ -78,7 +78,6 @@ function RootInner() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="mitzvah/[id]" options={{ presentation: 'card' }} />
-        <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
       </Stack>
     </View>
   );
