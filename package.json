@@ -10,7 +10,11 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:android:development": "npx eas-cli build --platform android --profile development",
+    "build:android:development:device": "npx eas-cli build --platform android --profile development-device",
     "build:android:preview": "npx eas-cli build --platform android --profile preview",
+    "build:android:preview:device": "npx eas-cli build --platform android --profile preview-device",
+    "update:development": "npx eas-cli update --channel development",
+    "update:preview": "npx eas-cli update --channel preview",
     "doctor": "npx expo-doctor",
     "test": "jest --passWithNoTests",
     "typecheck": "tsc --noEmit"
