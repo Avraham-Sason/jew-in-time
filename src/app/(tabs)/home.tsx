@@ -84,7 +84,7 @@ export default function HomeScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { current, completed, nextUp, totalActive, doneCount, hebrewTitle, subtitle } = useMemo(() => {
+  const { current, missed, completed, nextUp, totalActive, doneCount, hebrewTitle, subtitle } = useMemo(() => {
     const now = new Date();
     const ctx = buildContext(now);
     const hebrew = HebcalService.getHebrewDate(now);
@@ -95,6 +95,7 @@ export default function HomeScreen() {
     const enabled = MITZVOT.filter((mitzvah) => activeMap[mitzvah.id]?.enabled);
     const currentItems: LiveItem[] = [];
     const upcomingItems: LiveItem[] = [];
+    const missedItems: LiveItem[] = [];
     const completedItems = Object.entries(doneMap)
       .map(([mitzvahId, ts]) => {
         const mitzvah = MITZVOT.find((item) => item.id === mitzvahId);
@@ -126,7 +127,9 @@ export default function HomeScreen() {
       if (doneMap[mitzvah.id] || skippedMap[mitzvah.id]) {
         continue;
       }
-      if (now >= window.start && now <= window.end) {
+      if (now > window.end) {
+        missedItems.push(item);
+      } else if (now >= window.start && now <= window.end) {
         currentItems.push(item);
       } else if (now < window.start) {
         upcomingItems.push(item);
@@ -135,9 +138,11 @@ export default function HomeScreen() {
 
     currentItems.sort((a, b) => a.window.end.getTime() - b.window.end.getTime());
     upcomingItems.sort((a, b) => a.window.start.getTime() - b.window.start.getTime());
+    missedItems.sort((a, b) => b.window.end.getTime() - a.window.end.getTime());
 
     return {
       current: currentItems,
+      missed: missedItems,
       completed: completedItems,
       nextUp: upcomingItems[0] ?? null,
       totalActive: enabled.length,
@@ -162,6 +167,15 @@ export default function HomeScreen() {
   const skipToday = async (id: string) => {
     await CompletionService.markSkipped(id).catch(() => {});
     setSelectedId(null);
+  };
+
+  const undoComplete = async (id: string) => {
+    Haptics.selectionAsync().catch(() => {});
+    await CompletionService.unmark(id).catch(() => {});
+  };
+
+  const openDetail = (id: string) => {
+    router.push(`/mitzvah/${id}`);
   };
 
   const selectedMitzvah = selectedId ? MITZVOT.find((item) => item.id === selectedId) : undefined;
@@ -252,6 +266,7 @@ export default function HomeScreen() {
                   urgent={item.urgent}
                   stamping={stampingId === item.mitzvah.id}
                   onComplete={() => complete(item.mitzvah.id)}
+                  onPress={() => openDetail(item.mitzvah.id)}
                   onLongPress={() => setSelectedId(item.mitzvah.id)}
                 />
               </Animated.View>
@@ -266,10 +281,39 @@ export default function HomeScreen() {
           )}
         </View>
 
+        <SectionLabel text={`${t('home.missed')} (${missed.length})`} />
+        <View style={styles.list}>
+          {missed.length ? (
+            missed.map((item, index) => (
+              <Animated.View key={item.mitzvah.id} entering={FadeInDown.delay(index * 30).duration(260)}>
+                <MitzvahCard
+                  name={item.name}
+                  timeLeft={item.timeLeft}
+                  pct={0}
+                  urgent
+                  stamping={stampingId === item.mitzvah.id}
+                  onComplete={() => complete(item.mitzvah.id)}
+                  onPress={() => openDetail(item.mitzvah.id)}
+                  onLongPress={() => setSelectedId(item.mitzvah.id)}
+                />
+              </Animated.View>
+            ))
+          ) : (
+            <Text style={[typography.body, { color: colors.textMuted, padding: 14 }]}>{t('home.noMissed')}</Text>
+          )}
+        </View>
+
         <SectionLabel text={`${t('home.completed')} (${completed.length})`} />
         <View style={[styles.completedCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {completed.map((item) => (
-            <CompletedRow key={item.id} name={item.name} time={item.time} />
+            <CompletedRow
+              key={item.id}
+              name={item.name}
+              time={item.time}
+              onPress={() => openDetail(item.id)}
+              onUndo={() => undoComplete(item.id)}
+              undoLabel={t('home.undo')}
+            />
           ))}
           {!completed.length ? (
             <Text style={[typography.body, { color: colors.textMuted, padding: 18 }]}>-</Text>

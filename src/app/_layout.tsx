@@ -1,9 +1,10 @@
 import 'expo-dev-client';
 import 'react-native-gesture-handler';
-import React, { useEffect } from 'react';
-import { I18nManager, View, ActivityIndicator, Platform } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { DevSettings, I18nManager, View, ActivityIndicator, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Updates from 'expo-updates';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -30,13 +31,30 @@ function syncDocumentDirection(language: 'he' | 'en') {
   document.body?.setAttribute('dir', dir);
 }
 
-function syncLayoutDirection(language: 'he' | 'en') {
+async function reloadApp() {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined') window.location.reload();
+    return;
+  }
+  try {
+    await Updates.reloadAsync();
+  } catch {
+    if (__DEV__ && DevSettings && typeof DevSettings.reload === 'function') {
+      DevSettings.reload();
+    }
+  }
+}
+
+function syncLayoutDirection(language: 'he' | 'en', allowReload = false) {
   const wantRTL = language === 'he';
   setLocale(language);
   syncDocumentDirection(language);
   I18nManager.allowRTL(wantRTL);
   if (I18nManager.isRTL !== wantRTL) {
     I18nManager.forceRTL(wantRTL);
+    if (allowReload && Platform.OS !== 'web') {
+      reloadApp();
+    }
   }
 }
 
@@ -62,8 +80,11 @@ function RootInner() {
     }
   }, [isOnboarded, segments, router]);
 
+  const prevLanguageRef = useRef(language);
   useEffect(() => {
-    syncLayoutDirection(language);
+    const changed = prevLanguageRef.current !== language;
+    syncLayoutDirection(language, changed);
+    prevLanguageRef.current = language;
   }, [language]);
 
   return (

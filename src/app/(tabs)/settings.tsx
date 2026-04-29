@@ -207,7 +207,12 @@ export default function SettingsScreen() {
         </Section>
 
         <Section title={t('settings.language')}>
-          <ChipRow values={LANGS} selected={user.language} onSelect={(value) => user.setLanguage(value)} renderLabel={(value) => value.toUpperCase()} />
+          <ChipRow
+            values={LANGS}
+            selected={user.language}
+            onSelect={(value) => user.setLanguage(value)}
+            renderLabel={(value) => t(`settings.language.${value}`)}
+          />
         </Section>
 
         <Section title={t('settings.opinion')}>
@@ -215,7 +220,7 @@ export default function SettingsScreen() {
             values={OPINIONS}
             selected={user.halachicOpinions.ksSofZman}
             onSelect={(value) => user.setKsOpinion(value)}
-            renderLabel={(value) => value}
+            renderLabel={(value) => t(`settings.opinion.${value}`)}
           />
         </Section>
 

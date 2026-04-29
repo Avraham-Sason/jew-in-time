@@ -24,6 +24,7 @@ type Props = {
   stamping?: boolean;
   onComplete?: () => void;
   onLongPress?: () => void;
+  onPress?: () => void;
 };
 
 function Checkmark({ color = '#fff', size = 13, width = 1.8 }: { color?: string; size?: number; width?: number }) {
@@ -34,7 +35,7 @@ function Checkmark({ color = '#fff', size = 13, width = 1.8 }: { color?: string;
   );
 }
 
-export function MitzvahCard({ name, timeLeft, pct, urgent, done, stamping, onComplete, onLongPress }: Props) {
+export function MitzvahCard({ name, timeLeft, pct, urgent, done, stamping, onComplete, onLongPress, onPress }: Props) {
   const { colors } = useTheme();
   const { t } = useI18n();
   const bg = done ? colors.surface2 : urgent ? colors.urgentBg : colors.surface;
@@ -68,13 +69,16 @@ export function MitzvahCard({ name, timeLeft, pct, urgent, done, stamping, onCom
   }));
 
   return (
-    <View
-      style={[
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      disabled={!onPress && !onLongPress}
+      style={({ pressed }) => [
         styles.card,
         {
           backgroundColor: bg,
           borderColor: bdr,
-          opacity: done ? 0.55 : 1,
+          opacity: done ? 0.55 : pressed && onPress ? 0.85 : 1,
         },
         shadowStyle(colors.shadow, shadowPresets.card),
       ]}
@@ -109,6 +113,7 @@ export function MitzvahCard({ name, timeLeft, pct, urgent, done, stamping, onCom
             onLongPress={onLongPress}
             accessibilityRole="button"
             accessibilityLabel={t('state.completeAction', { name })}
+            hitSlop={8}
             style={[
               styles.checkBtn,
               { borderColor: urgent ? colors.urgent : colors.border },
@@ -141,7 +146,7 @@ export function MitzvahCard({ name, timeLeft, pct, urgent, done, stamping, onCom
           </View>
         </View>
       )}
-    </View>
+    </Pressable>
   );
 }
 
