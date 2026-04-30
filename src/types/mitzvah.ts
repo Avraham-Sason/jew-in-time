@@ -62,4 +62,16 @@ export type Mitzvah = {
   skipOn: SkipContext[];
   nuschaotSupported: Nusach[];
   description?: { he: string; en?: string };
+  isCustom?: boolean;
+};
+
+export type CustomMitzvah = {
+  id: string;
+  name: string;
+  startHHMM: string;
+  endHHMM: string;
+  reminders: Reminder[];
+  skipOn: SkipContext[];
+  category: MitzvahCategory;
+  createdAt: number;
 };

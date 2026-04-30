@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -11,13 +12,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { LocationService } from '@/services/LocationService';
 import {
   NotificationScheduler,
   requestNotificationPermissions,
   syncNotificationPermissionStatus,
 } from '@/services/NotificationScheduler';
+import { AppResetService } from '@/services/AppResetService';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
@@ -33,8 +35,22 @@ const OPINIONS = ['GRA', 'MA'] as const;
 export default function SettingsScreen() {
   const { colors } = useTheme();
   const { t, language } = useI18n();
+  const router = useRouter();
   const user = useUserStore();
   const [statusText, setStatusText] = useState('');
+  const [resetVisible, setResetVisible] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  const performReset = async () => {
+    setResetting(true);
+    try {
+      await AppResetService.reset();
+      setResetVisible(false);
+      router.replace('/onboarding');
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const cityOptions = useMemo(() => CITIES.slice(0, 12), []);
 
@@ -224,7 +240,43 @@ export default function SettingsScreen() {
           />
         </Section>
 
+        <Pressable
+          onPress={() => setResetVisible(true)}
+          style={[styles.dangerBtn, { backgroundColor: colors.urgentBg, borderColor: colors.urgent }]}
+        >
+          <Text style={[typography.bodyBold, { color: colors.urgent }]}>{t('settings.logout')}</Text>
+        </Pressable>
+
       </ScrollView>
+
+      <Modal animationType="fade" transparent visible={resetVisible} onRequestClose={() => setResetVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[typography.heading, { color: colors.text, marginBottom: 8 }]}>
+              {t('settings.logoutConfirmTitle')}
+            </Text>
+            <Text style={[typography.body, { color: colors.textSub, marginBottom: 18 }]}>
+              {t('settings.logoutConfirmBody')}
+            </Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setResetVisible(false)}
+                disabled={resetting}
+                style={[styles.modalBtn, { backgroundColor: colors.surface2 }]}
+              >
+                <Text style={[typography.bodyBold, { color: colors.text }]}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable
+                onPress={performReset}
+                disabled={resetting}
+                style={[styles.modalBtn, { backgroundColor: colors.urgent, opacity: resetting ? 0.6 : 1 }]}
+              >
+                <Text style={[typography.bodyBold, { color: '#fff' }]}>{t('settings.logoutConfirmAction')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -331,5 +383,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
+  },
+  dangerBtn: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(9,20,32,0.55)',
+    justifyContent: 'center',
+    padding: 22,
+  },
+  modalCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalBtn: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

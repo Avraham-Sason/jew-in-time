@@ -4,12 +4,13 @@ import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import { ComputeContext, Mitzvah, Reminder, UserSettings } from '@/types/mitzvah';
 import { Location } from '@/types/zmanim';
-import { MITZVOT, findMitzvah } from '@/data/mitzvot';
+import { getAllMitzvot, findAnyMitzvah } from '@/data/customMitzvotAdapter';
 import { ZmanimService } from '@/services/ZmanimService';
 import { HebcalService } from '@/services/HebcalService';
 import { StorageService } from '@/services/StorageService';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
+import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
 
 const DAILY_REBUILD_TASK = 'kosher-jew-daily-rebuild';
@@ -59,7 +60,7 @@ function remindersFor(mitzvah: Mitzvah): Reminder[] {
 
 function enabledMitzvot(): Mitzvah[] {
   const active = useMitzvotStore.getState().activeMitzvot;
-  return MITZVOT.filter((m) => active[m.id]?.enabled);
+  return getAllMitzvot().filter((m) => active[m.id]?.enabled);
 }
 
 function hasNotificationPermission(): boolean {
@@ -181,7 +182,7 @@ export const NotificationScheduler = {
   async cancelForMitzvah(mitzvahId: string, date: Date = new Date()): Promise<void> {
     const key = dateKey(date);
     const pending = await Notifications.getAllScheduledNotificationsAsync();
-    const mitzvah = findMitzvah(mitzvahId);
+    const mitzvah = findAnyMitzvah(mitzvahId);
     const reminders = mitzvah ? remindersFor(mitzvah) : [];
     for (const p of pending) {
       const rawData = (p.content.data ?? {}) as PendingNotificationMeta;
@@ -291,7 +292,32 @@ export function initNotificationHandlers(): void {
       NotificationScheduler.rebuild().catch(() => {});
     }
   });
+  useMitzvotStore.subscribe((state, prev) => {
+    if (state.activeMitzvot === prev.activeMitzvot) return;
+    if (mitzvotConfigChanged(state.activeMitzvot, prev.activeMitzvot)) {
+      NotificationScheduler.rebuild().catch(() => {});
+    }
+  });
+  useCustomMitzvotStore.subscribe((state, prev) => {
+    if (state.items !== prev.items) {
+      NotificationScheduler.rebuild().catch(() => {});
+    }
+  });
   registerDailyRebuildTask().catch(() => {});
+}
+
+function mitzvotConfigChanged(
+  next: Record<string, { enabled: boolean; customReminders?: Reminder[] }>,
+  prev: Record<string, { enabled: boolean; customReminders?: Reminder[] }>,
+): boolean {
+  const keys = new Set([...Object.keys(next), ...Object.keys(prev)]);
+  for (const id of keys) {
+    const a = next[id];
+    const b = prev[id];
+    if ((a?.enabled ?? false) !== (b?.enabled ?? false)) return true;
+    if (a?.customReminders !== b?.customReminders) return true;
+  }
+  return false;
 }
 
 export { PENDING_LIMIT, IOS_MAX, DAILY_REBUILD_TASK, LAST_REBUILD_KEY };

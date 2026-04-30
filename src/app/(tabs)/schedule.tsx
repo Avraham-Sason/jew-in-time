@@ -12,6 +12,8 @@ import { DateTime } from 'luxon';
 import { NavBar } from '@/components/NavBar';
 import { getLocationName } from '@/data/cities';
 import { MITZVOT } from '@/data/mitzvot';
+import { customToMitzvah } from '@/data/customMitzvotAdapter';
+import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { HebcalService } from '@/services/HebcalService';
 import { ZmanimService } from '@/services/ZmanimService';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
@@ -60,8 +62,16 @@ export default function ScheduleScreen() {
   const { language, t } = useI18n();
   const router = useRouter();
   const activeMap = useMitzvotStore((s) => s.activeMitzvot);
+  const customMap = useCustomMitzvotStore((s) => s.items);
   const completions = useCompletionsStore((s) => s.completions);
   const location = useUserStore((s) => s.location);
+
+  const allMitzvot = useMemo<Mitzvah[]>(() => {
+    const customs = Object.values(customMap)
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .map(customToMitzvah);
+    return [...MITZVOT, ...customs];
+  }, [customMap]);
   const [view, setView] = useState<ViewMode>('day');
   const [cursor, setCursor] = useState(DateTime.now());
 
@@ -75,7 +85,7 @@ export default function ScheduleScreen() {
       type: 'zman',
     }));
 
-    const enabled = MITZVOT.filter((item) => activeMap[item.id]?.enabled);
+    const enabled = allMitzvot.filter((item) => activeMap[item.id]?.enabled);
     const doneToday = completions[dateKey(date)] ?? {};
 
     enabled.forEach((mitzvah) => {
@@ -94,18 +104,18 @@ export default function ScheduleScreen() {
 
     timeline.sort((a, b) => a.time.getTime() - b.time.getTime());
     return timeline;
-  }, [activeMap, completions, cursor, language, t]);
+  }, [allMitzvot, activeMap, completions, cursor, language, t]);
 
   const weekDays = useMemo(() => {
     const start = cursor.startOf('week');
     return Array.from({ length: 7 }, (_, index) => {
       const day = start.plus({ days: index });
       const ctx = buildContext(day.toJSDate());
-      const count = MITZVOT.filter((item) => activeMap[item.id]?.enabled && item.computeWindow(ctx)).length;
+      const count = allMitzvot.filter((item) => activeMap[item.id]?.enabled && item.computeWindow(ctx)).length;
       const holidays = HebcalService.getHolidays(day.toJSDate(), location);
       return { day, count, holidays };
     });
-  }, [activeMap, cursor, location]);
+  }, [allMitzvot, activeMap, cursor, location]);
 
   const monthGrid = useMemo(() => {
     const monthStart = cursor.startOf('month');
@@ -180,7 +190,14 @@ export default function ScheduleScreen() {
             return (
               <Pressable
                 key={item.id}
-                onPress={() => item.mitzvahId && router.push(`/mitzvah/${item.mitzvahId}`)}
+                onPress={() =>
+                  item.mitzvahId &&
+                  router.push(
+                    item.mitzvahId.startsWith('custom_')
+                      ? { pathname: '/custom-mitzvah', params: { id: item.mitzvahId } }
+                      : `/mitzvah/${item.mitzvahId}`,
+                  )
+                }
                 disabled={!item.mitzvahId}
                 style={[
                   styles.timelineRow,

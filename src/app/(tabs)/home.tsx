@@ -20,6 +20,8 @@ import { CompletedRow } from '@/components/CompletedRow';
 import { HebrewDate } from '@/components/HebrewDate';
 import { getLocationName } from '@/data/cities';
 import { MITZVOT } from '@/data/mitzvot';
+import { customToMitzvah } from '@/data/customMitzvotAdapter';
+import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { HebcalService } from '@/services/HebcalService';
 import { CompletionService } from '@/services/CompletionService';
 import { useCompletionsStore } from '@/stores/useCompletionsStore';
@@ -77,6 +79,7 @@ export default function HomeScreen() {
     })),
   );
   const activeMap = useMitzvotStore((s) => s.activeMitzvot);
+  const customMap = useCustomMitzvotStore((s) => s.items);
   const todayKey = CompletionService.getDateKey();
   const doneMap = useCompletionsStore((s) => s.completions[todayKey] ?? EMPTY_DAY_STATE);
   const skippedMap = useCompletionsStore((s) => s.skipped[todayKey] ?? EMPTY_DAY_STATE);
@@ -92,13 +95,17 @@ export default function HomeScreen() {
     const parasha = HebcalService.getParasha(now, user.location);
     const subtitleText = [greg, getLocationName(user.location, language), parasha].filter(Boolean).join(' · ');
 
-    const enabled = MITZVOT.filter((mitzvah) => activeMap[mitzvah.id]?.enabled);
+    const customs = Object.values(customMap)
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .map(customToMitzvah);
+    const allMitzvot = [...MITZVOT, ...customs];
+    const enabled = allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled);
     const currentItems: LiveItem[] = [];
     const upcomingItems: LiveItem[] = [];
     const missedItems: LiveItem[] = [];
     const completedItems = Object.entries(doneMap)
       .map(([mitzvahId, ts]) => {
-        const mitzvah = MITZVOT.find((item) => item.id === mitzvahId);
+        const mitzvah = allMitzvot.find((item) => item.id === mitzvahId);
         if (!mitzvah) return null;
         return {
           id: mitzvahId,
@@ -150,7 +157,7 @@ export default function HomeScreen() {
       hebrewTitle: hebrew.hebrewDateStr,
       subtitle: subtitleText,
     };
-  }, [activeMap, doneMap, skippedMap, language, user.location]);
+  }, [activeMap, customMap, doneMap, skippedMap, language, user.location]);
 
   const complete = async (id: string) => {
     if (stampingId) return;
@@ -175,14 +182,23 @@ export default function HomeScreen() {
   };
 
   const openDetail = (id: string) => {
-    router.push(`/mitzvah/${id}`);
+    if (id.startsWith('custom_')) {
+      router.push({ pathname: '/custom-mitzvah', params: { id } });
+    } else {
+      router.push(`/mitzvah/${id}`);
+    }
   };
 
-  const selectedMitzvah = selectedId ? MITZVOT.find((item) => item.id === selectedId) : undefined;
-  const selectedName =
-    selectedMitzvah && language === 'en' && selectedMitzvah.name.en
-      ? selectedMitzvah.name.en
-      : selectedMitzvah?.name.he;
+  const selectedNameRaw = selectedId
+    ? (() => {
+        const standard = MITZVOT.find((item) => item.id === selectedId);
+        if (standard) return language === 'en' && standard.name.en ? standard.name.en : standard.name.he;
+        const custom = customMap[selectedId];
+        return custom?.name;
+      })()
+    : undefined;
+  const selectedName = selectedNameRaw;
+  const selectedMitzvah = selectedId && selectedNameRaw ? { id: selectedId } : undefined;
 
   useEffect(() => {
     return () => {
@@ -236,10 +252,13 @@ export default function HomeScreen() {
         ) : null}
 
         {nextUp ? (
-          <View
-            style={[
+          <Pressable
+            onPress={() => openDetail(nextUp.mitzvah.id)}
+            onLongPress={() => setSelectedId(nextUp.mitzvah.id)}
+            accessibilityRole="button"
+            style={({ pressed }) => [
               styles.nextCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
+              { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
               shadowStyle(colors.shadow, shadowPresets.cardSoft),
             ]}
           >
@@ -251,7 +270,7 @@ export default function HomeScreen() {
                 end: DateTime.fromJSDate(nextUp.window.end).toFormat('HH:mm'),
               })}
             </Text>
-          </View>
+          </Pressable>
         ) : null}
 
         <SectionLabel text={t('home.relevantNow')} />
@@ -331,7 +350,7 @@ export default function HomeScreen() {
               onPress={() => {
                 if (!selectedId) return;
                 setSelectedId(null);
-                router.push(`/mitzvah/${selectedId}`);
+                openDetail(selectedId);
               }}
             />
             <SheetAction
@@ -346,7 +365,7 @@ export default function HomeScreen() {
               onPress={() => {
                 if (!selectedId) return;
                 setSelectedId(null);
-                router.push(`/mitzvah/${selectedId}`);
+                openDetail(selectedId);
               }}
             />
             <Pressable onPress={() => setSelectedId(null)} style={[styles.closeBtn, { backgroundColor: colors.surface2 }]}>

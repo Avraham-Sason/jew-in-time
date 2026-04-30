@@ -15,6 +15,7 @@ type CompletionsState = {
   countForDate: (date?: Date) => number;
   completionsForDate: (date?: Date) => Record<string, number>;
   skippedForDate: (date?: Date) => Record<string, number>;
+  reset: () => void;
 };
 
 function removeDailyMark(source: Record<string, number> | undefined, id: string): Record<string, number> {
@@ -111,6 +112,7 @@ export const useCompletionsStore = create<CompletionsState>()(
         const key = dateKey(date);
         return get().skipped[key] ?? {};
       },
+      reset: () => set({ completions: {}, skipped: {} }),
     }),
     {
       name: 'completions-store',

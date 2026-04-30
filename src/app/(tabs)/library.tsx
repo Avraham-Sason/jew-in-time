@@ -4,11 +4,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { NavBar } from "@/components/NavBar";
 import { MITZVOT } from "@/data/mitzvot";
+import { customToMitzvah } from "@/data/customMitzvotAdapter";
+import { useCustomMitzvotStore } from "@/stores/useCustomMitzvotStore";
 import { useMitzvotStore } from "@/stores/useMitzvotStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { typography } from "@/theme/typography";
 import { useI18n } from "@/i18n";
-import { MitzvahCategory } from "@/types/mitzvah";
+import { Mitzvah, MitzvahCategory } from "@/types/mitzvah";
 
 export default function LibraryScreen() {
     const { colors } = useTheme();
@@ -16,26 +18,46 @@ export default function LibraryScreen() {
     const router = useRouter();
     const active = useMitzvotStore((s) => s.activeMitzvot);
     const setEnabled = useMitzvotStore((s) => s.setEnabled);
+    const customItems = useCustomMitzvotStore((s) => s.items);
     const [visibility, setVisibility] = useState<"active" | "available">("active");
     const [category, setCategory] = useState<MitzvahCategory | "all">("all");
 
+    const allMitzvot = useMemo<Mitzvah[]>(() => {
+        const customs = Object.values(customItems)
+            .sort((a, b) => a.createdAt - b.createdAt)
+            .map(customToMitzvah);
+        return [...MITZVOT, ...customs];
+    }, [customItems]);
+
     const categories = useMemo(() => {
-        return ["all", ...Array.from(new Set(MITZVOT.map((item) => item.category)))] as Array<MitzvahCategory | "all">;
-    }, []);
+        return ["all", ...Array.from(new Set(allMitzvot.map((item) => item.category)))] as Array<MitzvahCategory | "all">;
+    }, [allMitzvot]);
 
     const items = useMemo(() => {
-        return MITZVOT.filter((item) => {
+        return allMitzvot.filter((item) => {
             const enabled = active[item.id]?.enabled ?? false;
             if (visibility === "active" && !enabled) return false;
             if (visibility === "available" && enabled) return false;
             if (category !== "all" && item.category !== category) return false;
             return true;
         });
-    }, [active, category, visibility]);
+    }, [allMitzvot, active, category, visibility]);
 
     return (
         <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={["top"]}>
-            <NavBar title={t("library.title")} subtitle={t("library.subtitle")} />
+            <NavBar
+                title={t("library.title")}
+                subtitle={t("library.subtitle")}
+                left={
+                    <Pressable
+                        onPress={() => router.push("/custom-mitzvah")}
+                        accessibilityLabel={t("library.addCustom")}
+                        style={[styles.addBtn, { backgroundColor: colors.gold }]}
+                    >
+                        <Text style={[typography.bodyBold, { color: "#fff" }]}>+</Text>
+                    </Pressable>
+                }
+            />
             <View style={[styles.segmentWrap, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
                 <Segment
                     label={t("common.active")}
@@ -71,14 +93,18 @@ export default function LibraryScreen() {
                     );
                 })}
             </ScrollView>
-            <ScrollView contentContainerStyle={styles.list}>
+            <ScrollView style={styles.listScroll} contentContainerStyle={styles.list}>
                 {items.map((item) => {
                     const enabled = active[item.id]?.enabled ?? false;
                     const label = language === "en" && item.name.en ? item.name.en : item.name.he;
                     return (
                         <Pressable
                             key={item.id}
-                            onPress={() => router.push(`/mitzvah/${item.id}`)}
+                            onPress={() =>
+                                item.isCustom
+                                    ? router.push({ pathname: "/custom-mitzvah", params: { id: item.id } })
+                                    : router.push(`/mitzvah/${item.id}`)
+                            }
                             style={[styles.row, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
                         >
                             <View style={[styles.icon, { backgroundColor: enabled ? colors.goldLight : colors.surface2 }]}>
@@ -149,17 +175,22 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     pillsScroll: {
-        maxHeight: 50,
+        flexGrow: 0,
+        flexShrink: 0,
     },
     pillsContent: {
         paddingHorizontal: 14,
         paddingVertical: 10,
         gap: 6,
+        alignItems: "center",
     },
     pill: {
         borderRadius: 20,
         paddingHorizontal: 12,
         paddingVertical: 6,
+    },
+    listScroll: {
+        flex: 1,
     },
     list: {
         paddingBottom: 20,
@@ -197,5 +228,12 @@ const styles = StyleSheet.create({
         height: 20,
         borderRadius: 10,
         backgroundColor: "#fff",
+    },
+    addBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: "center",
+        justifyContent: "center",
     },
 });

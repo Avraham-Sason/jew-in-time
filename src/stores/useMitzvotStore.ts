@@ -16,6 +16,8 @@ type MitzvotState = {
   setReminders: (id: string, reminders: Reminder[]) => void;
   resetToDefault: (id: string) => void;
   getEnabledIds: () => string[];
+  removeMitzvah: (id: string) => void;
+  reset: () => void;
 };
 
 const DEFAULT_ACTIVE: Record<string, ActiveMitzvahState> = Object.fromEntries(
@@ -62,6 +64,13 @@ export const useMitzvotStore = create<MitzvotState>()(
         Object.entries(get().activeMitzvot)
           .filter(([, v]) => v.enabled)
           .map(([id]) => id),
+      removeMitzvah: (id) =>
+        set((s) => {
+          const next = { ...s.activeMitzvot };
+          delete next[id];
+          return { activeMitzvot: next };
+        }),
+      reset: () => set({ activeMitzvot: { ...DEFAULT_ACTIVE } }),
     }),
     {
       name: 'mitzvot-store',
