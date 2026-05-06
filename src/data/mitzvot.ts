@@ -56,7 +56,12 @@ export const MITZVOT: Mitzvah[] = [
     skipOn: ['shabbat', 'yomtov'],
     nuschaotSupported: ALL_NUSCHAOT,
     defaultReminders: [
-      { anchor: 'start', offsetMin: 0, label: 'הגיע זמן הנחת תפילין' },
+      {
+        anchor: 'start',
+        offsetMin: 0,
+        label: 'הגיע זמן הנחת תפילין',
+        bodyVariants: ['הגיע זמן הנחת תפילין', 'תפילין מחכות לך עכשיו', 'עוד יום קדוש מתחיל עם תפילין'],
+      },
       { anchor: 'start', offsetMin: 180, label: 'תזכורת — עדיין לא הנחת תפילין', skipIfDone: true },
       { anchor: 'end', offsetMin: -45, label: 'נותרה שעה להנחת תפילין', skipIfDone: true },
     ],
@@ -70,7 +75,14 @@ export const MITZVOT: Mitzvah[] = [
     category: 'daily-allday',
     skipOn: [],
     nuschaotSupported: ALL_NUSCHAOT,
-    defaultReminders: [{ anchor: 'start', offsetMin: 0, label: 'זמן לבישת ציצית' }],
+    defaultReminders: [
+      {
+        anchor: 'start',
+        offsetMin: 0,
+        label: 'זמן לבישת ציצית',
+        bodyVariants: ['זמן לבישת ציצית', 'ציצית לכל היום מתחילה עכשיו', 'עוד רגע של מצווה עם ציצית'],
+      },
+    ],
     computeWindow: ({ zmanim }) => win(zmanim.misheyakir, zmanim.shkia),
   },
   {
@@ -82,7 +94,12 @@ export const MITZVOT: Mitzvah[] = [
     skipOn: [],
     nuschaotSupported: ALL_NUSCHAOT,
     defaultReminders: [
-      { anchor: 'start', offsetMin: 0, label: 'זמן ק"ש שחרית' },
+      {
+        anchor: 'start',
+        offsetMin: 0,
+        label: 'זמן ק"ש שחרית',
+        bodyVariants: ['זמן קריאת שמע של שחרית', 'שמע ישראל של הבוקר מחכה לך', 'אל תפספס את זמן קריאת שמע'],
+      },
       { anchor: 'end', offsetMin: -30, label: 'נותרו 30 דק\' לק"ש', skipIfDone: true },
     ],
     computeWindow: (ctx) => win(ctx.zmanim.netzHaChama, sofZmanShma(ctx)),
@@ -96,7 +113,12 @@ export const MITZVOT: Mitzvah[] = [
     skipOn: [],
     nuschaotSupported: ALL_NUSCHAOT,
     defaultReminders: [
-      { anchor: 'start', offsetMin: 0, label: 'זמן תפילת שחרית' },
+      {
+        anchor: 'start',
+        offsetMin: 0,
+        label: 'זמן תפילת שחרית',
+        bodyVariants: ['צדיק, זמן שחרית הגיע', 'תפילת שחרית פותחת את היום', 'זמן שחרית — תפילה לפני היום שלך'],
+      },
       { anchor: 'end', offsetMin: -45, label: 'נותרו 45 דק\' לשחרית', skipIfDone: true },
     ],
     computeWindow: ({ zmanim }) => win(zmanim.netzHaChama, zmanim.sofZmanTfilaGra),
@@ -110,7 +132,12 @@ export const MITZVOT: Mitzvah[] = [
     skipOn: [],
     nuschaotSupported: ALL_NUSCHAOT,
     defaultReminders: [
-      { anchor: 'start', offsetMin: 0, label: 'זמן תפילת מנחה' },
+      {
+        anchor: 'start',
+        offsetMin: 0,
+        label: 'זמן תפילת מנחה',
+        bodyVariants: ['צדיק, זמן מנחה הגיע', 'עצירה קטנה לתפילת מנחה', 'זמן מנחה — רגע של תפילה באמצע היום'],
+      },
       { anchor: 'end', offsetMin: -60, label: 'נותרה שעה למנחה', skipIfDone: true },
     ],
     computeWindow: ({ zmanim }) => win(zmanim.minchaGedola, zmanim.shkia),
@@ -124,7 +151,12 @@ export const MITZVOT: Mitzvah[] = [
     skipOn: [],
     nuschaotSupported: ALL_NUSCHAOT,
     defaultReminders: [
-      { anchor: 'start', offsetMin: 0, label: 'זמן תפילת ערבית' },
+      {
+        anchor: 'start',
+        offsetMin: 0,
+        label: 'זמן תפילת ערבית',
+        bodyVariants: ['צדיק, זמן ערבית הגיע', 'תפילת ערבית 15 דקות ויש לך מצווה', 'זמן ערבית — מעמדך מול הקב״ה'],
+      },
       { anchor: 'start', offsetMin: 120, label: 'תזכורת — ערבית', skipIfDone: true },
     ],
     computeWindow: ({ zmanim, date }) => {
@@ -141,7 +173,14 @@ export const MITZVOT: Mitzvah[] = [
     category: 'daily-morning',
     skipOn: [],
     nuschaotSupported: ALL_NUSCHAOT,
-    defaultReminders: [{ anchor: 'start', offsetMin: 0, label: 'זמן ברכות השחר' }],
+    defaultReminders: [
+      {
+        anchor: 'start',
+        offsetMin: 0,
+        label: 'זמן ברכות השחר',
+        bodyVariants: ['זמן ברכות השחר', 'פתח את הבוקר בברכות השחר', 'ברכות השחר מחכות לך'],
+      },
+    ],
     computeWindow: (ctx) => win(ctx.zmanim.alotHaShachar, sofZmanShma(ctx)),
   },
   {
@@ -153,7 +192,12 @@ export const MITZVOT: Mitzvah[] = [
     skipOn: [],
     nuschaotSupported: ALL_NUSCHAOT,
     defaultReminders: [
-      { anchor: 'start', offsetMin: -20, label: 'עוד 20 דק\' להדלקת נרות' },
+      {
+        anchor: 'start',
+        offsetMin: -20,
+        label: 'עוד 20 דק\' להדלקת נרות',
+        bodyVariants: ['עוד 20 דק\' להדלקת נרות', 'שבת מתקרבת — זמן להכין נרות', 'עוד מעט מדליקים נרות שבת'],
+      },
       { anchor: 'start', offsetMin: 0, label: 'זמן הדלקת נרות' },
     ],
     computeWindow: ({ date, location, zmanim }) => {
@@ -171,7 +215,14 @@ export const MITZVOT: Mitzvah[] = [
     category: 'weekly',
     skipOn: [],
     nuschaotSupported: ALL_NUSCHAOT,
-    defaultReminders: [{ anchor: 'start', offsetMin: 0, label: 'זמן הבדלה' }],
+    defaultReminders: [
+      {
+        anchor: 'start',
+        offsetMin: 0,
+        label: 'זמן הבדלה',
+        bodyVariants: ['זמן הבדלה', 'מבדילים בין קודש לחול', 'צאת שבת — זמן הבדלה'],
+      },
+    ],
     computeWindow: ({ date, zmanim }) => {
       if (date.getDay() !== 6) return null;
       const end = new Date(zmanim.tzeitHakochavim.getTime() + 90 * 60_000);
@@ -186,8 +237,20 @@ export const MITZVOT: Mitzvah[] = [
     category: 'seasonal',
     skipOn: [],
     nuschaotSupported: ALL_NUSCHAOT,
+    contentBlocks: [
+      {
+        type: 'blessing',
+        he: 'ברוך אתה ה׳ אלוקינו מלך העולם אשר קדשנו במצוותיו וצוונו על ספירת העומר',
+      },
+    ],
     defaultReminders: [
-      { anchor: 'start', offsetMin: 0, label: 'זמן ספירת העומר' },
+      {
+        anchor: 'start',
+        offsetMin: 0,
+        label: 'זמן ספירת העומר',
+        includeContentInBody: true,
+        bodyVariants: ['זמן ספירת העומר', 'אל תשכח לספור את העומר', 'ספירת העומר של הערב מחכה לך'],
+      },
       { anchor: 'start', offsetMin: 60, label: 'תזכורת — ספירת העומר', skipIfDone: true },
     ],
     computeWindow: ({ date, location, zmanim }) => {

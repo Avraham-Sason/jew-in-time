@@ -36,6 +36,8 @@ export type Reminder = {
   anchor: ReminderAnchor;
   offsetMin: number;
   label: string;
+  bodyVariants?: string[];
+  includeContentInBody?: boolean;
   skipIfDone?: boolean;
 };
 
@@ -51,6 +53,11 @@ export type ComputeContext = {
   zmanim: Zmanim;
 };
 
+export type ContentBlock =
+  | { type: 'text'; he: string; en?: string }
+  | { type: 'blessing'; he: string; en?: string }
+  | { type: 'link'; he: string; en?: string; url: string };
+
 export type Mitzvah = {
   id: string;
   name: { he: string; en?: string };
@@ -62,6 +69,7 @@ export type Mitzvah = {
   skipOn: SkipContext[];
   nuschaotSupported: Nusach[];
   description?: { he: string; en?: string };
+  contentBlocks?: ContentBlock[];
   isCustom?: boolean;
 };
 
@@ -73,5 +81,6 @@ export type CustomMitzvah = {
   reminders: Reminder[];
   skipOn: SkipContext[];
   category: MitzvahCategory;
+  contentBlocks?: ContentBlock[];
   createdAt: number;
 };

@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
-import { ComputeContext, Mitzvah, Reminder, UserSettings } from '@/types/mitzvah';
+import { ComputeContext, ContentBlock, Mitzvah, Reminder, UserSettings } from '@/types/mitzvah';
 import { Location } from '@/types/zmanim';
 import { getAllMitzvot, findAnyMitzvah } from '@/data/customMitzvotAdapter';
 import { ZmanimService } from '@/services/ZmanimService';
@@ -30,11 +30,12 @@ function parseId(id: string): { mitzvahId: string; date: string; idx: number } |
   return { mitzvahId: parts[0], date: parts[1], idx: Number(parts[2]) };
 }
 
-type PendingNotificationMeta = {
+export type PendingNotificationMeta = {
   mitzvahId?: string;
   dateKey?: string;
   reminderIndex?: number;
   customId?: string;
+  fullContent?: ContentBlock[] | null;
 };
 
 function contextFor(date: Date, location: Location, settings: UserSettings): ComputeContext {
@@ -82,6 +83,23 @@ async function ensureAndroidChannel(): Promise<void> {
   });
 }
 
+async function ensureNotificationCategory(): Promise<void> {
+  try {
+    await ensureAndroidChannel();
+    await Notifications.setNotificationCategoryAsync('mitzvah_reminder', [
+      {
+        identifier: 'MARK_DONE',
+        buttonTitle: 'עשיתי',
+        options: { opensAppToForeground: false },
+      },
+    ]);
+  } catch (err) {
+    if (__DEV__) {
+      console.warn('[notifications] category registration failed', err);
+    }
+  }
+}
+
 function shouldRunDailyRebuild(now: Date = new Date()): boolean {
   const last = StorageService.get<string>(LAST_REBUILD_KEY);
   const today = dateKey(now);
@@ -89,6 +107,20 @@ function shouldRunDailyRebuild(now: Date = new Date()): boolean {
   const hours = now.getHours();
   const minutes = now.getMinutes();
   return hours > REBUILD_HOUR || (hours === REBUILD_HOUR && minutes >= REBUILD_MINUTE);
+}
+
+export function pickBodyForReminder(reminder: Reminder, mitzvah: Mitzvah, trigger: Date): string {
+  const variants = reminder.bodyVariants?.filter((value) => value.trim().length > 0) ?? [];
+  const source = variants.length ? variants : [reminder.label];
+  const idx = Math.floor(trigger.getTime() / 86_400_000) % source.length;
+  const base = source[idx] ?? reminder.label;
+  if (!reminder.includeContentInBody || !mitzvah.contentBlocks?.length) return base;
+  const content = mitzvah.contentBlocks
+    .filter((block) => block.type === 'text' || block.type === 'blessing')
+    .map((block) => block.he.trim())
+    .filter(Boolean)
+    .join('\n');
+  return content ? `${base}\n${content}` : base;
 }
 
 async function scheduleOne(
@@ -116,14 +148,16 @@ async function scheduleOne(
       identifier: buildId(mitzvah.id, date, i),
       content: {
         title: mitzvah.name.he,
-        body: r.label,
+        body: pickBodyForReminder(r, mitzvah, trigger),
         data: {
           mitzvahId: mitzvah.id,
           windowEnd: window.end.toISOString(),
           dateKey: dateKey(date),
           reminderIndex: i,
           customId: buildId(mitzvah.id, date, i),
+          fullContent: mitzvah.contentBlocks ?? null,
         },
+        categoryIdentifier: 'mitzvah_reminder',
         sound: 'default',
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: trigger },
@@ -272,7 +306,7 @@ export function initNotificationHandlers(): void {
       shouldSetBadge: false,
     }),
   });
-  ensureAndroidChannel().catch(() => {});
+  ensureNotificationCategory().catch(() => {});
   syncNotificationPermissionStatus().catch(() => {});
   useUserStore.subscribe((state, prev) => {
     if (state.notificationsEnabled !== prev.notificationsEnabled) {

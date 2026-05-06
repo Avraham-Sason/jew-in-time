@@ -45,4 +45,12 @@ describe('i18n', () => {
     expect(out).not.toMatch(/^\[missing/);
     expect(out).toBe((en as Record<string, string>)['onboarding.welcomeTitle']);
   });
+
+  it('brand rename has no old app name in translations', () => {
+    const values = [...Object.values(he), ...Object.values(en)].join('\n');
+    expect(values).not.toContain('יהודי כשר');
+    expect(values).not.toContain('Kosher Jew');
+    expect((he as Record<string, string>)['app.name']).toBe('יהודי בזמן');
+    expect((en as Record<string, string>)['app.name']).toBe('Jewish Time');
+  });
 });

@@ -15,47 +15,18 @@ import { MITZVOT } from '@/data/mitzvot';
 import { customToMitzvah } from '@/data/customMitzvotAdapter';
 import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { HebcalService } from '@/services/HebcalService';
-import { ZmanimService } from '@/services/ZmanimService';
-import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
+import { Completions, useCompletionsStore } from '@/stores/useCompletionsStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
-import { ComputeContext, Mitzvah } from '@/types/mitzvah';
+import { Mitzvah } from '@/types/mitzvah';
+import { buildDayTimeline } from '@/utils/buildDayTimeline';
 import { useI18n } from '@/i18n';
 
 type ViewMode = 'day' | 'week' | 'month';
 
-type TimelineItem = {
-  id: string;
-  name: string;
-  time: Date;
-  type: 'zman' | 'mitzvah';
-  done?: boolean;
-  urgent?: boolean;
-  mitzvahId?: string;
-};
-
-const ZMAN_KEYS = [
-  'alotHaShachar',
-  'netzHaChama',
-  'sofZmanShmaGra',
-  'sofZmanTfilaGra',
-  'minchaGedola',
-  'plagHaMincha',
-  'shkia',
-  'tzeitHakochavim',
-] as const;
-
-function buildContext(date: Date): ComputeContext {
-  const { location, nusach, halachicOpinions, inIsrael } = useUserStore.getState();
-  return {
-    date,
-    location,
-    settings: { nusach, halachicOpinions, inIsrael },
-    zmanim: ZmanimService.getZmanim(date, location),
-  };
-}
+const EMPTY_COMPLETIONS = Object.freeze({}) as Completions;
 
 export default function ScheduleScreen() {
   const { colors } = useTheme();
@@ -65,6 +36,9 @@ export default function ScheduleScreen() {
   const customMap = useCustomMitzvotStore((s) => s.items);
   const completions = useCompletionsStore((s) => s.completions);
   const location = useUserStore((s) => s.location);
+  const nusach = useUserStore((s) => s.nusach);
+  const halachicOpinions = useUserStore((s) => s.halachicOpinions);
+  const inIsrael = useUserStore((s) => s.inIsrael);
 
   const allMitzvot = useMemo<Mitzvah[]>(() => {
     const customs = Object.values(customMap)
@@ -72,50 +46,39 @@ export default function ScheduleScreen() {
       .map(customToMitzvah);
     return [...MITZVOT, ...customs];
   }, [customMap]);
+  const enabledMitzvot = useMemo(
+    () => allMitzvot.filter((item) => activeMap[item.id]?.enabled),
+    [allMitzvot, activeMap],
+  );
+  const settings = useMemo(
+    () => ({ nusach, halachicOpinions, inIsrael }),
+    [nusach, halachicOpinions, inIsrael],
+  );
   const [view, setView] = useState<ViewMode>('day');
   const [cursor, setCursor] = useState(DateTime.now());
+  const today = DateTime.now().startOf('day');
+  const cursorDay = cursor.startOf('day');
+  const isSelectedToday = cursorDay.hasSame(today, 'day');
+  const isSelectedPast = cursorDay < today;
+  const isSelectedFuture = cursorDay > today;
+  const dayCompletions = isSelectedFuture ? EMPTY_COMPLETIONS : completions;
 
   const dayItems = useMemo(() => {
     const date = cursor.startOf('day').toJSDate();
-    const ctx = buildContext(date);
-    const timeline: TimelineItem[] = ZMAN_KEYS.map((key) => ({
-      id: key,
-      name: t(`zman.${key}`),
-      time: ctx.zmanim[key],
-      type: 'zman',
-    }));
-
-    const enabled = allMitzvot.filter((item) => activeMap[item.id]?.enabled);
-    const doneToday = completions[dateKey(date)] ?? {};
-
-    enabled.forEach((mitzvah) => {
-      const window = mitzvah.computeWindow(ctx);
-      if (!window) return;
-      timeline.push({
-        id: `${mitzvah.id}-${window.start.toISOString()}`,
-        name: language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he,
-        time: window.start,
-        type: 'mitzvah',
-        done: Boolean(doneToday[mitzvah.id]),
-        urgent: window.end.getTime() - Date.now() <= 45 * 60 * 1000,
-        mitzvahId: mitzvah.id,
-      });
-    });
-
-    timeline.sort((a, b) => a.time.getTime() - b.time.getTime());
-    return timeline;
-  }, [allMitzvot, activeMap, completions, cursor, language, t]);
+    return buildDayTimeline(date, enabledMitzvot, dayCompletions, location, settings, language, t);
+  }, [enabledMitzvot, dayCompletions, cursor, location, settings, language, t]);
 
   const weekDays = useMemo(() => {
     const start = cursor.startOf('week');
     return Array.from({ length: 7 }, (_, index) => {
       const day = start.plus({ days: index });
-      const ctx = buildContext(day.toJSDate());
-      const count = allMitzvot.filter((item) => activeMap[item.id]?.enabled && item.computeWindow(ctx)).length;
+      const items = buildDayTimeline(day.toJSDate(), enabledMitzvot, completions, location, settings, language, t)
+        .filter((item) => item.type === 'mitzvah');
+      const count = items.length;
       const holidays = HebcalService.getHolidays(day.toJSDate(), location);
-      return { day, count, holidays };
+      return { day, count, holidays, items: items.slice(0, 4) };
     });
-  }, [allMitzvot, activeMap, cursor, location]);
+  }, [enabledMitzvot, completions, cursor, location, settings, language, t]);
 
   const monthGrid = useMemo(() => {
     const monthStart = cursor.startOf('month');
@@ -124,23 +87,26 @@ export default function ScheduleScreen() {
       const day = gridStart.plus({ days: index });
       const holidays = HebcalService.getHolidays(day.toJSDate(), location);
       const hebrew = HebcalService.getHebrewDate(day.toJSDate());
+      const openCount = buildDayTimeline(day.toJSDate(), enabledMitzvot, completions, location, settings, language, t)
+        .filter((item) => item.type === 'mitzvah' && !item.done).length;
       return {
         day,
         inMonth: day.month === cursor.month,
         holidays,
         hebrewDay: hebrew.day,
+        openCount,
       };
     });
-  }, [cursor, location]);
+  }, [cursor, enabledMitzvot, completions, location, settings, language, t]);
 
   const highlightIndex = useMemo(() => {
-    if (!cursor.hasSame(DateTime.now(), 'day')) return -1;
+    if (!isSelectedToday) return -1;
     const nowMs = Date.now();
     return dayItems.findIndex((item, index) => {
       const next = dayItems[index + 1];
       return nowMs >= item.time.getTime() && (!next || nowMs < next.time.getTime());
     });
-  }, [cursor, dayItems]);
+  }, [isSelectedToday, dayItems]);
 
   const subtitle = `${cursor.setLocale(language).toFormat(language === 'he' ? 'd LLLL yyyy' : 'LLL d, yyyy')} · ${getLocationName(location, language)}`;
   const prevArrow = language === 'he' ? '→' : '←';
@@ -187,6 +153,18 @@ export default function ScheduleScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {dayItems.map((item, index) => {
             const highlight = index === highlightIndex;
+            const missed = isSelectedPast && item.type === 'mitzvah' && !item.done;
+            const rowUrgent = missed || (isSelectedToday && item.urgent);
+            const statusText = item.type === 'mitzvah'
+              ? missed
+                ? t('day.missed')
+                : isSelectedPast && item.done
+                  ? t('state.completed')
+                  : isSelectedFuture
+                    ? t('day.scheduled')
+                    : undefined
+              : undefined;
+            const statusColor = missed ? colors.urgent : item.done ? colors.safe : colors.textMuted;
             return (
               <Pressable
                 key={item.id}
@@ -218,14 +196,14 @@ export default function ScheduleScreen() {
                       {
                         backgroundColor: item.done
                           ? colors.gold
-                          : item.urgent
+                          : rowUrgent
                             ? colors.urgent
                             : item.type === 'zman'
                               ? 'transparent'
                               : colors.textMuted,
                         borderColor: item.done
                           ? colors.gold
-                          : item.urgent
+                          : rowUrgent
                             ? colors.urgent
                             : item.type === 'zman'
                               ? colors.border
@@ -239,7 +217,7 @@ export default function ScheduleScreen() {
                     style={[
                       typography.body,
                       {
-                        color: item.done ? colors.textMuted : item.urgent ? colors.urgent : item.type === 'zman' ? colors.textSub : colors.text,
+                        color: item.done ? colors.textMuted : rowUrgent ? colors.urgent : item.type === 'zman' ? colors.textSub : colors.text,
                         fontFamily: item.type === 'mitzvah' ? 'Heebo_600SemiBold' : 'Heebo_400Regular',
                         textDecorationLine: item.done ? 'line-through' : 'none',
                       },
@@ -247,14 +225,19 @@ export default function ScheduleScreen() {
                   >
                     {item.name}
                   </Text>
+                  {statusText ? (
+                    <Text style={[typography.micro, { color: statusColor, fontWeight: '600', marginTop: 2 }]}>
+                      {statusText}
+                    </Text>
+                  ) : null}
                 </View>
-                {item.type === 'mitzvah' ? (
+                {item.type === 'mitzvah' && (isSelectedToday || item.done) ? (
                   <View
                     style={[
                       styles.trailing,
                       {
                         backgroundColor: item.done ? colors.gold : 'transparent',
-                        borderColor: item.done ? colors.gold : item.urgent ? colors.urgent : colors.border,
+                        borderColor: item.done ? colors.gold : rowUrgent ? colors.urgent : colors.border,
                       },
                     ]}
                   >
@@ -274,9 +257,10 @@ export default function ScheduleScreen() {
 
       {view === 'week' ? (
         <ScrollView horizontal contentContainerStyle={styles.weekWrap} showsHorizontalScrollIndicator={false}>
-          {weekDays.map(({ day, count, holidays }) => (
-            <View
+          {weekDays.map(({ day, count, holidays, items }) => (
+            <Pressable
               key={day.toISODate()}
+              onPress={() => router.push({ pathname: '/day/[date]', params: { date: day.toISODate() ?? '' } })}
               style={[
                 styles.weekCard,
                 {
@@ -293,12 +277,21 @@ export default function ScheduleScreen() {
                   <View key={index} style={[styles.weekDot, { backgroundColor: colors.gold }]} />
                 ))}
               </View>
+              {items.length ? (
+                <View style={styles.weekPreview}>
+                  {items.map((item) => (
+                    <Text key={item.id} style={[typography.micro, styles.weekPreviewText, { color: colors.textSub }]} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
               {holidays.length ? (
                 <Text style={[typography.micro, { color: colors.urgent, marginTop: 8, textAlign: 'center' }]} numberOfLines={2}>
                   {holidays[0]}
                 </Text>
               ) : null}
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
       ) : null}
@@ -314,8 +307,9 @@ export default function ScheduleScreen() {
           </View>
           <View style={styles.monthGrid}>
             {monthGrid.map((cell) => (
-              <View
+              <Pressable
                 key={cell.day.toISODate()}
+                onPress={() => router.push({ pathname: '/day/[date]', params: { date: cell.day.toISODate() ?? '' } })}
                 style={[
                   styles.monthCell,
                   {
@@ -325,10 +319,15 @@ export default function ScheduleScreen() {
                   },
                 ]}
               >
+                {cell.openCount > 0 ? (
+                  <View style={[styles.monthBadge, { backgroundColor: colors.gold }]}>
+                    <Text style={[typography.micro, { color: '#fff', fontFamily: 'Heebo_700Bold' }]}>{cell.openCount}</Text>
+                  </View>
+                ) : null}
                 <Text style={[typography.captionBold, { color: colors.text }]}>{cell.day.day}</Text>
                 <Text style={[typography.micro, { color: colors.textMuted }]}>{cell.hebrewDay}</Text>
                 {cell.holidays.length ? <View style={[styles.ping, { backgroundColor: colors.urgent }]} /> : null}
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>
@@ -440,6 +439,14 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 8,
   },
+  weekPreview: {
+    width: '100%',
+    marginTop: 10,
+    gap: 2,
+  },
+  weekPreviewText: {
+    textAlign: 'center',
+  },
   monthWrap: {
     flex: 1,
     paddingHorizontal: 14,
@@ -465,6 +472,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     padding: 8,
+    position: 'relative',
+  },
+  monthBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   ping: {
     width: 7,

@@ -22,6 +22,10 @@ type Props = {
   urgent?: boolean;
   done?: boolean;
   stamping?: boolean;
+  readOnly?: boolean;
+  statusText?: string;
+  statusTone?: 'muted' | 'safe' | 'urgent';
+  hideProgress?: boolean;
   onComplete?: () => void;
   onLongPress?: () => void;
   onPress?: () => void;
@@ -35,11 +39,27 @@ function Checkmark({ color = '#fff', size = 13, width = 1.8 }: { color?: string;
   );
 }
 
-export function MitzvahCard({ name, timeLeft, pct, urgent, done, stamping, onComplete, onLongPress, onPress }: Props) {
+export function MitzvahCard({
+  name,
+  timeLeft,
+  pct,
+  urgent,
+  done,
+  stamping,
+  readOnly,
+  statusText,
+  statusTone = 'muted',
+  hideProgress,
+  onComplete,
+  onLongPress,
+  onPress,
+}: Props) {
   const { colors } = useTheme();
   const { t } = useI18n();
   const bg = done ? colors.surface2 : urgent ? colors.urgentBg : colors.surface;
   const bdr = done ? colors.border : urgent ? colors.urgentBorder : colors.border;
+  const statusColor = statusTone === 'urgent' ? colors.urgent : statusTone === 'safe' ? colors.safe : colors.textMuted;
+  const canComplete = !readOnly && !done && Boolean(onComplete);
 
   const stampOpacity = useSharedValue(0);
   const stampScale = useSharedValue(2.8);
@@ -100,14 +120,20 @@ export function MitzvahCard({ name, timeLeft, pct, urgent, done, stamping, onCom
           >
             {name}
           </Text>
-          {urgent && !done && (
-            <Text style={[typography.micro, { color: colors.urgent, fontWeight: '600', marginTop: 2 }]}>⚠ {t('state.urgentSoon')}</Text>
-          )}
           {done && (
             <Text style={[typography.micro, { color: colors.safe, fontWeight: '600', marginTop: 2 }]}>✓ {t('state.completed')}</Text>
           )}
+          {!done && statusText ? (
+            <Text style={[typography.micro, { color: statusColor, fontWeight: '600', marginTop: 2 }]}>{statusText}</Text>
+          ) : null}
+          {urgent && !done && !statusText && (
+            <Text style={[typography.micro, { color: colors.urgent, fontWeight: '600', marginTop: 2 }]}>⚠ {t('state.urgentSoon')}</Text>
+          )}
+          {readOnly && !done && !statusText && (
+            <Text style={[typography.micro, { color: colors.textMuted, fontWeight: '600', marginTop: 2 }]}>{t('state.readOnly')}</Text>
+          )}
         </View>
-        {!done ? (
+        {canComplete ? (
           <Pressable
             onPress={onComplete}
             onLongPress={onLongPress}
@@ -116,18 +142,20 @@ export function MitzvahCard({ name, timeLeft, pct, urgent, done, stamping, onCom
             hitSlop={8}
             style={[
               styles.checkBtn,
-              { borderColor: urgent ? colors.urgent : colors.border },
+              {
+                borderColor: urgent ? colors.urgent : colors.border,
+              },
             ]}
           >
             <Checkmark color={urgent ? colors.urgent : colors.textMuted} />
           </Pressable>
-        ) : (
+        ) : done ? (
           <View style={[styles.checkBtn, { backgroundColor: colors.gold, borderColor: colors.gold }]}>
             <Checkmark color="#fff" />
           </View>
-        )}
+        ) : null}
       </View>
-      {!done && <TimeRibbon pct={pct} timeLeft={timeLeft} />}
+      {!done && !hideProgress ? <TimeRibbon pct={pct} timeLeft={timeLeft} /> : null}
       {stamping && (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <View style={[styles.stampOverlay, { backgroundColor: bg + 'BB' }]}>

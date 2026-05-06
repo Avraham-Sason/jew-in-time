@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Linking,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,13 +14,13 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { DateTime } from 'luxon';
 import { ReminderEditor } from '@/components/ReminderEditor';
-import { MITZVOT, findMitzvah } from '@/data/mitzvot';
+import { findAnyMitzvah } from '@/data/customMitzvotAdapter';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { typography } from '@/theme/typography';
-import { Reminder } from '@/types/mitzvah';
+import { ContentBlock, Reminder } from '@/types/mitzvah';
 import { ZmanimService } from '@/services/ZmanimService';
 import { useI18n } from '@/i18n';
 
@@ -29,7 +31,7 @@ function nextWindowFor(
   ksSofZman: ReturnType<typeof useUserStore.getState>['halachicOpinions']['ksSofZman'],
   inIsrael: boolean,
 ) {
-  const mitzvah = findMitzvah(id);
+  const mitzvah = findAnyMitzvah(id);
   if (!mitzvah) return null;
   const dates = [new Date(), new Date(Date.now() + 24 * 60 * 60 * 1000)];
   for (const date of dates) {
@@ -49,8 +51,8 @@ export default function MitzvahDetailScreen() {
   const { colors } = useTheme();
   const { language, t } = useI18n();
   const router = useRouter();
-  const params = useLocalSearchParams<{ id: string }>();
-  const mitzvah = useMemo(() => findMitzvah(params.id), [params.id]);
+  const params = useLocalSearchParams<{ id: string; highlightContent?: string }>();
+  const mitzvah = useMemo(() => findAnyMitzvah(params.id), [params.id]);
   const location = useUserStore((s) => s.location);
   const nusach = useUserStore((s) => s.nusach);
   const ksSofZman = useUserStore((s) => s.halachicOpinions.ksSofZman);
@@ -61,8 +63,10 @@ export default function MitzvahDetailScreen() {
   const resetToDefault = useMitzvotStore((s) => s.resetToDefault);
   const [editorVisible, setEditorVisible] = useState(false);
   const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
   const reminders = active.customReminders ?? mitzvah?.defaultReminders ?? [];
+  const includeContentInNotification = reminders.some((reminder) => reminder.includeContentInBody);
   const window = useMemo(
     () => (params.id ? nextWindowFor(params.id, location, nusach, ksSofZman, inIsrael) : null),
     [params.id, location, nusach, ksSofZman, inIsrael],
@@ -102,6 +106,19 @@ export default function MitzvahDetailScreen() {
     setReminders(mitzvah.id, next);
     setEditIndex(null);
   };
+  const setIncludeContent = (value: boolean) => {
+    setReminders(mitzvah.id, reminders.map((reminder) => ({ ...reminder, includeContentInBody: value })));
+  };
+  const confirmDeleteReminder = () => {
+    if (deleteIndex === null) return;
+    setReminders(mitzvah.id, reminders.filter((_, itemIndex) => itemIndex !== deleteIndex));
+    if (editIndex === deleteIndex) {
+      setEditIndex(null);
+      setEditorVisible(false);
+    }
+    setDeleteIndex(null);
+  };
+  const pendingDeleteReminder = deleteIndex === null ? null : reminders[deleteIndex] ?? null;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
@@ -182,6 +199,42 @@ export default function MitzvahDetailScreen() {
           </View>
         </View>
 
+        {mitzvah.description ? (
+          <View style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}>
+            <Text style={[typography.body, { color: colors.text }]}>
+              {language === 'en' && mitzvah.description.en ? mitzvah.description.en : mitzvah.description.he}
+            </Text>
+          </View>
+        ) : null}
+
+        {mitzvah.contentBlocks?.length ? (
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: params.highlightContent === '1' ? colors.goldLight : colors.surface,
+                borderWidth: params.highlightContent === '1' ? 1 : 0,
+                borderColor: params.highlightContent === '1' ? colors.gold : 'transparent',
+              },
+              shadowStyle(colors.shadow, shadowPresets.cardSoft),
+            ]}
+          >
+            <Text style={[typography.subheading, { color: colors.text, marginBottom: 10 }]}>{t('detail.content')}</Text>
+            {mitzvah.contentBlocks.map((block, index) => (
+              <ContentBlockView key={`${block.type}-${index}`} block={block} highlighted={params.highlightContent === '1'} />
+            ))}
+            <View style={[styles.row, { marginTop: 12 }]}>
+              <Text style={[typography.bodyBold, { color: colors.text, flex: 1 }]}>{t('detail.includeContentInNotification')}</Text>
+              <Switch
+                value={includeContentInNotification}
+                onValueChange={setIncludeContent}
+                thumbColor="#fff"
+                trackColor={{ false: colors.border, true: colors.gold }}
+              />
+            </View>
+          </View>
+        ) : null}
+
         <View style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}>
           <View style={styles.row}>
             <Text style={[typography.subheading, { color: colors.text }]}>{t('detail.settings')}</Text>
@@ -223,7 +276,9 @@ export default function MitzvahDetailScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => setReminders(mitzvah.id, reminders.filter((_, itemIndex) => itemIndex !== index))}
+                onPress={() => setDeleteIndex(index)}
+                accessibilityRole="button"
+                accessibilityLabel={t('reminder.delete')}
                 style={[styles.deleteBtn, { backgroundColor: colors.surface2 }]}
               >
                 <Text style={[typography.captionBold, { color: colors.textMuted }]}>✕</Text>
@@ -262,6 +317,35 @@ export default function MitzvahDetailScreen() {
         }}
         onSave={saveReminder}
       />
+      <Modal
+        visible={deleteIndex !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteIndex(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.confirmDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[typography.heading, { color: colors.text }]}>{t('reminder.deleteConfirmTitle')}</Text>
+            <Text style={[typography.body, { color: colors.textSub, marginTop: 8 }]}>
+              {t('reminder.deleteConfirmBody', { label: pendingDeleteReminder?.label ?? t('detail.addReminder') })}
+            </Text>
+            <View style={styles.confirmActions}>
+              <Pressable
+                onPress={() => setDeleteIndex(null)}
+                style={[styles.confirmBtn, { backgroundColor: colors.surface2 }]}
+              >
+                <Text style={[typography.bodyBold, { color: colors.textSub }]}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable
+                onPress={confirmDeleteReminder}
+                style={[styles.confirmBtn, { backgroundColor: colors.urgent }]}
+              >
+                <Text style={[typography.bodyBold, { color: '#fff' }]}>{t('reminder.deleteConfirmAction')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -272,6 +356,37 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <View style={[styles.row, { marginTop: 10 }]}>
       <Text style={[typography.bodyBold, { color: colors.text }]}>{label}</Text>
       <Text style={[typography.body, { color: colors.gold }]}>{value}</Text>
+    </View>
+  );
+}
+
+function ContentBlockView({ block, highlighted }: { block: ContentBlock; highlighted: boolean }) {
+  const { colors } = useTheme();
+  const { language, t } = useI18n();
+  const text = language === 'en' && block.en ? block.en : block.he;
+  if (block.type === 'link') {
+    return (
+      <Pressable
+        onPress={() => Linking.openURL(block.url).catch(() => {})}
+        style={[styles.contentBlock, styles.linkBlock, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+      >
+        <Text style={[typography.bodyBold, { color: colors.gold, flex: 1 }]}>{text}</Text>
+        <Text style={[typography.micro, { color: colors.textMuted }]}>{t('detail.openLink')}</Text>
+      </Pressable>
+    );
+  }
+  return (
+    <View
+      style={[
+        styles.contentBlock,
+        block.type === 'blessing' ? styles.blessingBlock : null,
+        {
+          backgroundColor: block.type === 'blessing' || highlighted ? colors.goldLight : colors.surface2,
+          borderColor: block.type === 'blessing' || highlighted ? colors.gold : colors.border,
+        },
+      ]}
+    >
+      <Text style={[typography.body, { color: colors.text, textAlign: language === 'he' ? 'right' : 'left' }]}>{text}</Text>
     </View>
   );
 }
@@ -372,5 +487,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     marginBottom: 14,
+  },
+  contentBlock: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 8,
+  },
+  blessingBlock: {
+    borderWidth: 1.5,
+  },
+  linkBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  modalBackdrop: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(9,20,32,0.45)',
+    padding: 20,
+  },
+  confirmDialog: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 18,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 18,
+  },
+  confirmBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    paddingVertical: 13,
   },
 });

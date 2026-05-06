@@ -33,6 +33,17 @@ function ListIcon({ color }: { color: string }) {
   );
 }
 
+function HistoryIcon({ color }: { color: string }) {
+  return (
+    <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
+      <Path d="M4 19V5M4 19H21" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Rect x={7} y={11} width={3} height={5} rx={1} stroke={color} strokeWidth={2} />
+      <Rect x={12} y={8} width={3} height={8} rx={1} stroke={color} strokeWidth={2} />
+      <Rect x={17} y={4} width={3} height={12} rx={1} stroke={color} strokeWidth={2} />
+    </Svg>
+  );
+}
+
 function SettingsIcon({ color }: { color: string }) {
   return (
     <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
@@ -57,12 +68,14 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
   const labels: Record<string, string> = {
     home: t('nav.home'),
     schedule: t('nav.schedule'),
+    history: t('nav.history'),
     library: t('nav.library'),
     settings: t('nav.settings'),
   };
   const icons: Record<string, (color: string) => React.ReactNode> = {
     home: (color) => <HomeIcon color={color} />,
     schedule: (color) => <CalIcon color={color} />,
+    history: (color) => <HistoryIcon color={color} />,
     library: (color) => <ListIcon color={color} />,
     settings: (color) => <SettingsIcon color={color} />,
   };

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from './zustandMiddleware';
 import { createZustandStorage } from '@/services/StorageService';
 
-type Completions = Record<string, Record<string, number>>;
+export type Completions = Record<string, Record<string, number>>;
 
 type CompletionsState = {
   completions: Completions;

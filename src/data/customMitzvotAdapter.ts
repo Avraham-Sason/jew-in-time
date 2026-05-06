@@ -29,6 +29,7 @@ export function customToMitzvah(c: CustomMitzvah): Mitzvah {
     skipOn: c.skipOn,
     nuschaotSupported: ALL_NUSCHAOT,
     defaultReminders: c.reminders,
+    contentBlocks: c.contentBlocks,
     isCustom: true,
     computeWindow: ({ date, location }) => {
       const tz = location.tz;

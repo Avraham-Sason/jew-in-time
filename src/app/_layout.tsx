@@ -21,6 +21,7 @@ import {
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 import { useUserStore } from '@/stores/useUserStore';
 import { initNotificationHandlers } from '@/services/NotificationScheduler';
+import { initNotificationResponseHandler } from '@/services/notificationResponseHandler';
 import { setLocale } from '@/i18n';
 
 function syncDocumentDirection(language: 'he' | 'en') {
@@ -87,6 +88,12 @@ function RootInner() {
     prevLanguageRef.current = language;
   }, [language]);
 
+  useEffect(() => {
+    const sub = initNotificationResponseHandler();
+    if (__DEV__) console.log('[notifications] response handler mounted');
+    return () => sub.remove();
+  }, []);
+
   return (
     <View style={{ flex: 1, direction: language === 'he' ? 'rtl' : 'ltr' }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -99,6 +106,7 @@ function RootInner() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="mitzvah/[id]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="day/[date]" options={{ presentation: 'card' }} />
         <Stack.Screen name="custom-mitzvah" options={{ presentation: 'card' }} />
       </Stack>
     </View>
