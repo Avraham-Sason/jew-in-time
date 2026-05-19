@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { InteractionManager, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
@@ -14,6 +14,13 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
 import { computeStats } from '@/utils/historyStats';
 import { useI18n } from '@/i18n';
+
+const EMPTY_STATS = {
+  streak: 0,
+  daily: [] as Array<{ date: string; doneCount: number; totalCount: number }>,
+  perMitzvah: {} as Record<string, { done: number; eligible: number; percent: number }>,
+  missedYesterday: [] as string[],
+};
 
 function alphaFor(percent: number) {
   if (percent <= 0) return '1A';
@@ -42,7 +49,25 @@ export default function HistoryScreen() {
   }, [customMap]);
   const enabled = useMemo(() => allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled), [allMitzvot, activeMap]);
   const settings = useMemo(() => ({ nusach, halachicOpinions, inIsrael }), [nusach, halachicOpinions, inIsrael]);
-  const stats = useMemo(() => computeStats(enabled, completions, location, settings, 30), [enabled, completions, location, settings]);
+  const [stats, setStats] = useState(EMPTY_STATS);
+  const [statsReady, setStatsReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setStatsReady(false);
+    const task = InteractionManager.runAfterInteractions(() => {
+      const next = computeStats(enabled, completions, location, settings, 30);
+      if (!cancelled) {
+        setStats(next);
+        setStatsReady(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+      task.cancel?.();
+    };
+  }, [enabled, completions, location, settings]);
+
   const byMitzvah = useMemo(
     () =>
       enabled
@@ -71,7 +96,7 @@ export default function HistoryScreen() {
 
         <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>{t('history.gridTitle')}</Text>
         <View style={styles.grid}>
-          {stats.daily.map((day) => {
+          {statsReady ? stats.daily.map((day) => {
             const percent = day.totalCount > 0 ? Math.round((day.doneCount / day.totalCount) * 100) : 0;
             const date = DateTime.fromISO(day.date);
             return (
@@ -91,7 +116,9 @@ export default function HistoryScreen() {
                 </Text>
               </Pressable>
             );
-          })}
+          }) : Array.from({ length: 30 }, (_, index) => (
+            <View key={index} style={[styles.gridCell, { backgroundColor: colors.surface2, borderColor: colors.border }]} />
+          ))}
         </View>
 
         <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>{t('history.perMitzvah')}</Text>

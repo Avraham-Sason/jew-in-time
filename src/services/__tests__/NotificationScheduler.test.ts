@@ -3,11 +3,30 @@ jest.mock('react-native-mmkv', () => {
   return { MMKV: jest.fn(() => createMockMMKV()) };
 });
 
-const mockState: { pending: Array<{ identifier: string; content: { data: Record<string, unknown> } }> } = { pending: [] };
-const mockSchedule = jest.fn(async (input: { identifier: string; content: { data: Record<string, unknown> } }) => {
-  mockState.pending.push({ identifier: input.identifier, content: { data: input.content.data } });
-  return input.identifier;
-});
+const mockState: {
+  pending: Array<{
+    identifier: string;
+    content: { data: Record<string, unknown>; categoryIdentifier?: string; autoDismiss?: boolean; sticky?: boolean };
+  }>;
+  presented: Array<{ request: { identifier: string; content: { data?: Record<string, unknown>; dataString?: string } } }>;
+} = { pending: [], presented: [] };
+const mockSchedule = jest.fn(
+  async (input: {
+    identifier: string;
+    content: { data: Record<string, unknown>; categoryIdentifier?: string; autoDismiss?: boolean; sticky?: boolean };
+  }) => {
+    mockState.pending.push({
+      identifier: input.identifier,
+      content: {
+        data: input.content.data,
+        categoryIdentifier: input.content.categoryIdentifier,
+        autoDismiss: input.content.autoDismiss,
+        sticky: input.content.sticky,
+      },
+    });
+    return input.identifier;
+  },
+);
 const mockCancelOne = jest.fn(async (id: string) => {
   mockState.pending = mockState.pending.filter((p) => p.identifier !== id);
 });
@@ -15,15 +34,32 @@ const mockCancelAll = jest.fn(async () => {
   mockState.pending = [];
 });
 const mockGetAll = jest.fn(async () => mockState.pending);
+const mockGetPresented = jest.fn(async () => mockState.presented);
+const mockDismiss = jest.fn(async (_id: string) => {});
+const mockSetCategory = jest.fn<Promise<unknown>, [string, unknown[]]>(async () => ({}));
+const mockRegisterNotificationTask = jest.fn(async (_name: string) => null);
 
 jest.mock('expo-notifications', () => ({
-  scheduleNotificationAsync: (i: unknown) => mockSchedule(i as { identifier: string; content: { data: Record<string, unknown> } }),
+  scheduleNotificationAsync: (i: unknown) =>
+    mockSchedule(
+      i as {
+        identifier: string;
+        content: { data: Record<string, unknown>; categoryIdentifier?: string; autoDismiss?: boolean; sticky?: boolean };
+      },
+    ),
   cancelAllScheduledNotificationsAsync: () => mockCancelAll(),
   cancelScheduledNotificationAsync: (id: string) => mockCancelOne(id),
   getAllScheduledNotificationsAsync: () => mockGetAll(),
+  getPresentedNotificationsAsync: () => mockGetPresented(),
+  dismissNotificationAsync: (id: string) => mockDismiss(id),
   setNotificationHandler: jest.fn(),
+  setNotificationChannelAsync: jest.fn(async () => ({})),
+  setNotificationCategoryAsync: (identifier: string, actions: unknown[]) => mockSetCategory(identifier, actions),
+  registerTaskAsync: (name: string) => mockRegisterNotificationTask(name),
   getPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
   requestPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
+  AndroidImportance: { HIGH: 'high' },
+  AndroidNotificationVisibility: { PUBLIC: 'public' },
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
 
@@ -33,7 +69,14 @@ jest.mock('expo-background-fetch', () => ({
   BackgroundFetchResult: { NewData: 1, Failed: 2 },
 }));
 
-import { NotificationScheduler, PENDING_LIMIT } from '../NotificationScheduler';
+import {
+  MARK_DONE_ACTION,
+  MITZVAH_REMINDER_CATEGORY,
+  NotificationScheduler,
+  NOTIFICATION_ACTION_TASK,
+  PENDING_LIMIT,
+  registerNotificationActionTask,
+} from '../NotificationScheduler';
 import { useUserStore } from '@/stores/useUserStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
@@ -50,10 +93,15 @@ function setupEnabled(ids: string[]) {
 describe('NotificationScheduler', () => {
   beforeEach(() => {
     mockState.pending = [];
+    mockState.presented = [];
     mockSchedule.mockClear();
     mockCancelOne.mockClear();
     mockCancelAll.mockClear();
     mockGetAll.mockClear();
+    mockGetPresented.mockClear();
+    mockDismiss.mockClear();
+    mockSetCategory.mockClear();
+    mockRegisterNotificationTask.mockClear();
     useCompletionsStore.setState({ completions: {}, skipped: {} });
     useUserStore.getState().reset();
     useUserStore.getState().setNotificationPermission('granted');
@@ -125,9 +173,101 @@ describe('NotificationScheduler', () => {
     expect(set.size).toBe(realIds.length);
   });
 
+  it('6.8b scheduled mitzvah reminders use the mark-done action category', async () => {
+    setupEnabled(['tefillin']);
+    await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000));
+    const tefillin = mockState.pending.find((p) => p.identifier.startsWith('tefillin__'));
+    expect(tefillin?.content.categoryIdentifier).toBe(MITZVAH_REMINDER_CATEGORY);
+    expect(tefillin?.content.autoDismiss).toBe(true);
+    expect(tefillin?.content.sticky).toBe(false);
+    expect(mockSetCategory).toHaveBeenCalledWith(
+      MITZVAH_REMINDER_CATEGORY,
+      [
+        {
+          identifier: MARK_DONE_ACTION,
+          buttonTitle: 'עשיתי',
+          options: { opensAppToForeground: true },
+        },
+      ],
+    );
+  });
+
   it('6.9 daily-rebuild task is registered (defineTask called)', () => {
     const tm = require('expo-task-manager');
     expect(tm.defineTask).toHaveBeenCalled();
+  });
+
+  it('6.9b registers the background notification action task', async () => {
+    await registerNotificationActionTask();
+
+    expect(mockRegisterNotificationTask).toHaveBeenCalledWith(NOTIFICATION_ACTION_TASK);
+  });
+
+  it('6.9c background notification action marks the mitzvah done', async () => {
+    const tm = require('expo-task-manager');
+    const task = tm.defineTask.mock.calls.find(([name]: [string]) => name === NOTIFICATION_ACTION_TASK)?.[1];
+    expect(task).toBeDefined();
+
+    await task!({
+      data: {
+        actionIdentifier: MARK_DONE_ACTION,
+        notification: {
+          request: {
+            identifier: 'shacharit__2026-05-06__0',
+            content: {
+              data: { mitzvahId: 'shacharit', dateKey: '2026-05-06' },
+            },
+          },
+        },
+      },
+      error: null,
+      executionInfo: { taskName: NOTIFICATION_ACTION_TASK },
+    });
+
+    expect(useCompletionsStore.getState().isDone('shacharit', new Date(2026, 4, 6))).toBe(true);
+    expect(mockGetAll).toHaveBeenCalled();
+    expect(mockDismiss).toHaveBeenCalledWith('shacharit__2026-05-06__0');
+  });
+
+  it('6.9d background notification action reads native dataString payloads', async () => {
+    const tm = require('expo-task-manager');
+    const task = tm.defineTask.mock.calls.find(([name]: [string]) => name === NOTIFICATION_ACTION_TASK)?.[1];
+    expect(task).toBeDefined();
+    mockState.presented = [
+      {
+        request: {
+          identifier: 'shacharit__2026-05-06__0',
+          content: { dataString: JSON.stringify({ mitzvahId: 'shacharit', dateKey: '2026-05-06' }) },
+        },
+      },
+      {
+        request: {
+          identifier: 'mincha__2026-05-06__0',
+          content: { data: { mitzvahId: 'mincha', dateKey: '2026-05-06' } },
+        },
+      },
+    ];
+
+    await task!({
+      data: {
+        actionIdentifier: MARK_DONE_ACTION,
+        notification: {
+          request: {
+            identifier: 'shacharit__2026-05-06__0',
+            content: {
+              dataString: JSON.stringify({ mitzvahId: 'shacharit', dateKey: '2026-05-06' }),
+            },
+          },
+        },
+      },
+      error: null,
+      executionInfo: { taskName: NOTIFICATION_ACTION_TASK },
+    });
+
+    expect(useCompletionsStore.getState().isDone('shacharit', new Date(2026, 4, 6))).toBe(true);
+    expect(mockGetPresented).toHaveBeenCalled();
+    expect(mockDismiss).toHaveBeenCalledWith('shacharit__2026-05-06__0');
+    expect(mockDismiss).not.toHaveBeenCalledWith('mincha__2026-05-06__0');
   });
 
   it('6.10 skipped mitzvah is not rescheduled on rebuild', async () => {

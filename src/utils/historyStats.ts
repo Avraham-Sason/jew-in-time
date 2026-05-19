@@ -11,17 +11,11 @@ export type HistoryStats = {
   missedYesterday: string[];
 };
 
-function shouldSkip(mitzvah: Mitzvah, date: Date, location: Location): boolean {
+function shouldSkip(mitzvah: Mitzvah, isShabbat: boolean, isYomTov: boolean): boolean {
   if (!mitzvah.skipOn.length) return false;
-  if (mitzvah.skipOn.includes('shabbat') && HebcalService.isShabbat(date, location)) return true;
-  if (mitzvah.skipOn.includes('yomtov') && HebcalService.isYomTov(date, location)) return true;
+  if (mitzvah.skipOn.includes('shabbat') && isShabbat) return true;
+  if (mitzvah.skipOn.includes('yomtov') && isYomTov) return true;
   return false;
-}
-
-function isEligible(mitzvah: Mitzvah, date: Date, location: Location, settings: UserSettings): boolean {
-  if (shouldSkip(mitzvah, date, location)) return false;
-  const zmanim = ZmanimService.getZmanim(date, location);
-  return Boolean(mitzvah.computeWindow({ date, location, settings, zmanim }));
 }
 
 export function computeStats(
@@ -41,18 +35,26 @@ export function computeStats(
   );
   const daily: HistoryStats['daily'] = [];
   let missedYesterday: string[] = [];
+  const yesterday = new Date(today);
+  yesterday.setHours(0, 0, 0, 0);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = dateKey(yesterday);
 
   for (let offset = 0; offset < daysBack; offset++) {
     const date = new Date(start);
     date.setDate(start.getDate() + offset);
     const key = dateKey(date);
     const doneMap = completions[key] ?? {};
+    const zmanim = ZmanimService.getZmanim(date, location);
+    const isShabbat = HebcalService.isShabbat(date, location);
+    const isYomTov = HebcalService.isYomTov(date, location);
     let totalCount = 0;
     let doneCount = 0;
     const missed: string[] = [];
 
     for (const mitzvah of mitzvot) {
-      if (!isEligible(mitzvah, date, location, settings)) continue;
+      if (shouldSkip(mitzvah, isShabbat, isYomTov)) continue;
+      if (!mitzvah.computeWindow({ date, location, settings, zmanim })) continue;
       totalCount += 1;
       perMitzvah[mitzvah.id].eligible += 1;
       if (doneMap[mitzvah.id]) {
@@ -64,10 +66,7 @@ export function computeStats(
     }
 
     daily.push({ date: key, doneCount, totalCount });
-    const yesterday = new Date(today);
-    yesterday.setHours(0, 0, 0, 0);
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (key === dateKey(yesterday)) {
+    if (key === yesterdayKey) {
       missedYesterday = missed;
     }
   }
@@ -79,9 +78,13 @@ export function computeStats(
   let streak = 0;
   for (let index = daily.length - 1; index >= 0; index--) {
     const day = daily[index];
+    const hasAny = Object.keys(completions[day.date] ?? {}).length > 0;
+    if (hasAny) {
+      streak += 1;
+      continue;
+    }
     if (day.totalCount === 0) continue;
-    if (day.doneCount < day.totalCount) break;
-    streak += 1;
+    break;
   }
 
   return { streak, daily, perMitzvah, missedYesterday };

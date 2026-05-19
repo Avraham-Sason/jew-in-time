@@ -64,11 +64,13 @@ export default function ScheduleScreen() {
   const dayCompletions = isSelectedFuture ? EMPTY_COMPLETIONS : completions;
 
   const dayItems = useMemo(() => {
+    if (view !== 'day') return [];
     const date = cursor.startOf('day').toJSDate();
     return buildDayTimeline(date, enabledMitzvot, dayCompletions, location, settings, language, t);
-  }, [enabledMitzvot, dayCompletions, cursor, location, settings, language, t]);
+  }, [view, enabledMitzvot, dayCompletions, cursor, location, settings, language, t]);
 
   const weekDays = useMemo(() => {
+    if (view !== 'week') return [];
     const start = cursor.startOf('week');
     return Array.from({ length: 7 }, (_, index) => {
       const day = start.plus({ days: index });
@@ -78,9 +80,10 @@ export default function ScheduleScreen() {
       const holidays = HebcalService.getHolidays(day.toJSDate(), location);
       return { day, count, holidays, items: items.slice(0, 4) };
     });
-  }, [enabledMitzvot, completions, cursor, location, settings, language, t]);
+  }, [view, enabledMitzvot, completions, cursor, location, settings, language, t]);
 
   const monthGrid = useMemo(() => {
+    if (view !== 'month') return [];
     const monthStart = cursor.startOf('month');
     const gridStart = monthStart.minus({ days: monthStart.weekday % 7 });
     return Array.from({ length: 42 }, (_, index) => {
@@ -97,7 +100,7 @@ export default function ScheduleScreen() {
         openCount,
       };
     });
-  }, [cursor, enabledMitzvot, completions, location, settings, language, t]);
+  }, [view, cursor, enabledMitzvot, completions, location, settings, language, t]);
 
   const highlightIndex = useMemo(() => {
     if (!isSelectedToday) return -1;

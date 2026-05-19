@@ -14,6 +14,8 @@ export default function TabsLayout() {
         headerShown: false,
         sceneStyle: { backgroundColor: colors.bg },
         animation: 'fade',
+        lazy: false,
+        freezeOnBlur: true,
       }}
     >
       <Tabs.Screen name="index" options={{ href: null }} />

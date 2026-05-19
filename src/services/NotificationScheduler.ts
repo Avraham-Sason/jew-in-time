@@ -14,11 +14,19 @@ import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
 
 const DAILY_REBUILD_TASK = 'kosher-jew-daily-rebuild';
+const NOTIFICATION_ACTION_TASK = 'kosher-jew-notification-actions';
+const MITZVAH_REMINDER_CATEGORY = 'mitzvah_reminder';
+const MARK_DONE_ACTION = 'MARK_DONE';
 const PENDING_LIMIT = 60;
 const IOS_MAX = 64;
 const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
 const REBUILD_HOUR = 0;
 const REBUILD_MINUTE = 15;
+const BACKGROUND_NOTIFICATION_RESULT = {
+  NoData: 1,
+  NewData: 2,
+  Failed: 3,
+} as const;
 
 function buildId(mitzvahId: string, date: Date, idx: number): string {
   return `${mitzvahId}__${dateKey(date)}__${idx}`;
@@ -37,6 +45,40 @@ export type PendingNotificationMeta = {
   customId?: string;
   fullContent?: ContentBlock[] | null;
 };
+
+type NotificationContentLike = {
+  data?: unknown;
+  dataString?: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function asPendingNotificationMeta(value: unknown): PendingNotificationMeta {
+  return isRecord(value) ? (value as PendingNotificationMeta) : {};
+}
+
+export function pendingNotificationMetaFromContent(content?: NotificationContentLike | null): PendingNotificationMeta {
+  if (!content) return {};
+  if (isRecord(content.data)) return asPendingNotificationMeta(content.data);
+  if (typeof content.dataString === 'string') {
+    try {
+      return asPendingNotificationMeta(JSON.parse(content.dataString));
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function parseDateKey(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 function contextFor(date: Date, location: Location, settings: UserSettings): ComputeContext {
   return { date, location, settings, zmanim: ZmanimService.getZmanim(date, location) };
@@ -84,13 +126,14 @@ async function ensureAndroidChannel(): Promise<void> {
 }
 
 async function ensureNotificationCategory(): Promise<void> {
+  if (typeof Notifications.setNotificationCategoryAsync !== 'function') return;
   try {
     await ensureAndroidChannel();
-    await Notifications.setNotificationCategoryAsync('mitzvah_reminder', [
+    await Notifications.setNotificationCategoryAsync(MITZVAH_REMINDER_CATEGORY, [
       {
-        identifier: 'MARK_DONE',
+        identifier: MARK_DONE_ACTION,
         buttonTitle: 'עשיתי',
-        options: { opensAppToForeground: false },
+        options: { opensAppToForeground: true },
       },
     ]);
   } catch (err) {
@@ -157,12 +200,109 @@ async function scheduleOne(
           customId: buildId(mitzvah.id, date, i),
           fullContent: mitzvah.contentBlocks ?? null,
         },
-        categoryIdentifier: 'mitzvah_reminder',
+        categoryIdentifier: MITZVAH_REMINDER_CATEGORY,
+        autoDismiss: true,
+        sticky: false,
         sound: 'default',
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: trigger },
     });
   }
+}
+
+function notificationTargetFromData(
+  data: PendingNotificationMeta,
+  notificationId?: string,
+): { mitzvahId: string; date: Date; key: string } | null {
+  const idTarget = notificationId ? parseId(notificationId) : null;
+  const customTarget = typeof data.customId === 'string' ? parseId(data.customId) : null;
+  const mitzvahId = data.mitzvahId ?? idTarget?.mitzvahId ?? customTarget?.mitzvahId;
+  const key = data.dateKey ?? idTarget?.date ?? customTarget?.date;
+  if (!mitzvahId || !key) return null;
+  const date = parseDateKey(key);
+  if (!date) return null;
+  return { mitzvahId, date, key };
+}
+
+function notificationMatchesTarget(
+  notificationId: string,
+  data: PendingNotificationMeta,
+  mitzvahId: string,
+  key: string,
+): boolean {
+  const target = notificationTargetFromData(data, notificationId);
+  return Boolean(target && target.mitzvahId === mitzvahId && target.key === key);
+}
+
+async function getPresentedNotificationsSafe(): Promise<Notifications.Notification[]> {
+  if (typeof Notifications.getPresentedNotificationsAsync !== 'function') return [];
+  try {
+    return await Notifications.getPresentedNotificationsAsync();
+  } catch {
+    return [];
+  }
+}
+
+async function dismissNotificationIds(ids: Iterable<string>): Promise<void> {
+  if (typeof Notifications.dismissNotificationAsync !== 'function') return;
+  await Promise.all(
+    [...new Set(ids)].map((id) => Notifications.dismissNotificationAsync(id).catch(() => {})),
+  );
+}
+
+async function dismissPresentedNotificationsForMitzvah(
+  mitzvahId: string,
+  key: string,
+  notificationId?: string,
+): Promise<void> {
+  const ids = new Set<string>();
+  if (notificationId) ids.add(notificationId);
+
+  const presented = await getPresentedNotificationsSafe();
+  for (const notification of presented) {
+    const id = notification.request.identifier;
+    const data = pendingNotificationMetaFromContent(notification.request.content as NotificationContentLike);
+    if (notificationMatchesTarget(id, data, mitzvahId, key)) {
+      ids.add(id);
+    }
+  }
+
+  await dismissNotificationIds(ids);
+}
+
+async function dismissCompletedPresentedNotifications(): Promise<void> {
+  const ids: string[] = [];
+  const completions = useCompletionsStore.getState();
+  const presented = await getPresentedNotificationsSafe();
+  for (const notification of presented) {
+    const id = notification.request.identifier;
+    const data = pendingNotificationMetaFromContent(notification.request.content as NotificationContentLike);
+    const target = notificationTargetFromData(data, id);
+    if (target && completions.isDone(target.mitzvahId, target.date)) {
+      ids.push(id);
+    }
+  }
+  await dismissNotificationIds(ids);
+}
+
+export async function markDoneFromNotificationData(
+  data: PendingNotificationMeta,
+  notificationId?: string,
+): Promise<boolean> {
+  const target = notificationTargetFromData(data, notificationId);
+  if (!target) return false;
+  useCompletionsStore.getState().markDone(target.mitzvahId, target.date);
+  await Promise.all([
+    NotificationScheduler.cancelForMitzvah(target.mitzvahId, target.date).catch(() => {}),
+    dismissPresentedNotificationsForMitzvah(target.mitzvahId, target.key, notificationId),
+  ]);
+  return true;
+}
+
+function isNotificationResponse(
+  data: Notifications.NotificationTaskPayload,
+): data is Notifications.NotificationResponse {
+  return Boolean(data && typeof data === 'object' && 'actionIdentifier' in data && 'notification' in data);
 }
 
 async function scheduleAllImpl(
@@ -172,6 +312,7 @@ async function scheduleAllImpl(
   settings: UserSettings,
 ): Promise<void> {
   if (!hasNotificationPermission()) return;
+  await ensureNotificationCategory();
   const today = new Date(fromDate);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -219,7 +360,7 @@ export const NotificationScheduler = {
     const mitzvah = findAnyMitzvah(mitzvahId);
     const reminders = mitzvah ? remindersFor(mitzvah) : [];
     for (const p of pending) {
-      const rawData = (p.content.data ?? {}) as PendingNotificationMeta;
+      const rawData = pendingNotificationMetaFromContent(p.content as NotificationContentLike);
       const parsed =
         (p.identifier ? parseId(p.identifier) : null) ??
         (rawData.customId ? parseId(rawData.customId) : null) ??
@@ -284,6 +425,21 @@ TaskManager.defineTask(DAILY_REBUILD_TASK, async () => {
   }
 });
 
+TaskManager.defineTask<Notifications.NotificationTaskPayload>(NOTIFICATION_ACTION_TASK, async ({ data, error }) => {
+  if (error) {
+    if (__DEV__) console.warn('[notifications] action task failed', error);
+    return BACKGROUND_NOTIFICATION_RESULT.Failed;
+  }
+  if (!isNotificationResponse(data) || data.actionIdentifier !== MARK_DONE_ACTION) {
+    return BACKGROUND_NOTIFICATION_RESULT.NoData;
+  }
+  const handled = await markDoneFromNotificationData(
+    pendingNotificationMetaFromContent(data.notification.request.content as NotificationContentLike),
+    data.notification.request.identifier,
+  );
+  return handled ? BACKGROUND_NOTIFICATION_RESULT.NewData : BACKGROUND_NOTIFICATION_RESULT.NoData;
+});
+
 export async function registerDailyRebuildTask(): Promise<void> {
   try {
     await BackgroundFetch.registerTaskAsync(DAILY_REBUILD_TASK, {
@@ -293,6 +449,14 @@ export async function registerDailyRebuildTask(): Promise<void> {
     });
   } catch (err) {
     console.warn('[daily-rebuild] register failed', err);
+  }
+}
+
+export async function registerNotificationActionTask(): Promise<void> {
+  try {
+    await Notifications.registerTaskAsync(NOTIFICATION_ACTION_TASK);
+  } catch (err) {
+    if (__DEV__) console.warn('[notifications] action task register failed', err);
   }
 }
 
@@ -307,7 +471,9 @@ export function initNotificationHandlers(): void {
     }),
   });
   ensureNotificationCategory().catch(() => {});
+  registerNotificationActionTask().catch(() => {});
   syncNotificationPermissionStatus().catch(() => {});
+  dismissCompletedPresentedNotifications().catch(() => {});
   useUserStore.subscribe((state, prev) => {
     if (state.notificationsEnabled !== prev.notificationsEnabled) {
       if (state.notificationsEnabled) {
@@ -354,4 +520,12 @@ function mitzvotConfigChanged(
   return false;
 }
 
-export { PENDING_LIMIT, IOS_MAX, DAILY_REBUILD_TASK, LAST_REBUILD_KEY };
+export {
+  PENDING_LIMIT,
+  IOS_MAX,
+  DAILY_REBUILD_TASK,
+  NOTIFICATION_ACTION_TASK,
+  LAST_REBUILD_KEY,
+  MITZVAH_REMINDER_CATEGORY,
+  MARK_DONE_ACTION,
+};

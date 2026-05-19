@@ -1,6 +1,5 @@
 const mockAddNotificationResponseReceivedListener = jest.fn();
-const mockCancelForMitzvah = jest.fn<Promise<void>, [string, Date]>(async () => {});
-const mockMarkDone = jest.fn();
+const mockMarkDoneFromNotificationData = jest.fn<Promise<boolean>, [unknown, string?]>(async () => true);
 const mockRouterPush = jest.fn();
 
 jest.mock('expo-notifications', () => ({
@@ -12,14 +11,12 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('@/services/NotificationScheduler', () => ({
-  NotificationScheduler: {
-    cancelForMitzvah: (id: string, date: Date) => mockCancelForMitzvah(id, date),
-  },
-}));
-
-jest.mock('@/stores/useCompletionsStore', () => ({
-  useCompletionsStore: {
-    getState: () => ({ markDone: mockMarkDone }),
+  MARK_DONE_ACTION: 'MARK_DONE',
+  markDoneFromNotificationData: (data: unknown, id?: string) => mockMarkDoneFromNotificationData(data, id),
+  pendingNotificationMetaFromContent: (content?: { data?: unknown; dataString?: string }) => {
+    if (content?.data) return content.data;
+    if (content?.dataString) return JSON.parse(content.dataString);
+    return {};
   },
 }));
 
@@ -29,12 +26,13 @@ import {
   MARK_DONE_ACTION,
 } from '../notificationResponseHandler';
 
-function response(actionIdentifier: string, data: Record<string, unknown>) {
+function response(actionIdentifier: string, data: Record<string, unknown>, identifier = 'notif-id', dataString?: string) {
   return {
     actionIdentifier,
     notification: {
       request: {
-        content: { data },
+        identifier,
+        content: dataString ? { dataString } : { data },
       },
     },
   } as never;
@@ -43,8 +41,7 @@ function response(actionIdentifier: string, data: Record<string, unknown>) {
 describe('notificationResponseHandler', () => {
   beforeEach(() => {
     mockAddNotificationResponseReceivedListener.mockReset();
-    mockCancelForMitzvah.mockClear();
-    mockMarkDone.mockClear();
+    mockMarkDoneFromNotificationData.mockClear();
     mockRouterPush.mockClear();
   });
 
@@ -52,10 +49,24 @@ describe('notificationResponseHandler', () => {
     initNotificationResponseHandler();
     const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
 
-    listener(response(MARK_DONE_ACTION, { mitzvahId: 'shacharit', dateKey: '2026-05-06' }));
+    listener(response(MARK_DONE_ACTION, { mitzvahId: 'shacharit', dateKey: '2026-05-06' }, 'shacharit__2026-05-06__0'));
 
-    expect(mockMarkDone).toHaveBeenCalledWith('shacharit', new Date(2026, 4, 6));
-    expect(mockCancelForMitzvah).toHaveBeenCalledWith('shacharit', new Date(2026, 4, 6));
+    expect(mockMarkDoneFromNotificationData).toHaveBeenCalledWith(
+      { mitzvahId: 'shacharit', dateKey: '2026-05-06' },
+      'shacharit__2026-05-06__0',
+    );
+  });
+
+  it('reads mitzvah metadata from native dataString notification payloads', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+    listener(response(MARK_DONE_ACTION, {}, 'shacharit__2026-05-06__0', JSON.stringify({ mitzvahId: 'shacharit', dateKey: '2026-05-06' })));
+
+    expect(mockMarkDoneFromNotificationData).toHaveBeenCalledWith(
+      { mitzvahId: 'shacharit', dateKey: '2026-05-06' },
+      'shacharit__2026-05-06__0',
+    );
   });
 
   it('opens mitzvah detail from the default notification tap', () => {
