@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { LocationService } from '@/services/LocationService';
 import {
   NotificationScheduler,
@@ -247,6 +248,10 @@ export default function SettingsScreen() {
           <Text style={[typography.bodyBold, { color: colors.urgent }]}>{t('settings.logout')}</Text>
         </Pressable>
 
+        <Text style={[typography.small, styles.versionText, { color: colors.textMuted }]}>
+          {t('settings.version', { version: Constants.expoConfig?.version ?? '' })}
+        </Text>
+
       </ScrollView>
 
       <Modal animationType="fade" transparent visible={resetVisible} onRequestClose={() => setResetVisible(false)}>
@@ -391,6 +396,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 20,
+  },
+  versionText: {
+    textAlign: 'center',
+    marginTop: 16,
   },
   modalBackdrop: {
     flex: 1,

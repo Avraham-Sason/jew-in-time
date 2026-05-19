@@ -135,6 +135,7 @@
   "settings.logoutConfirmTitle": "לאפס את האפליקציה?",
   "settings.logoutConfirmBody": "כל ההגדרות, המצוות הפעילות, המצוות המותאמות, וההיסטוריה יימחקו. הפעולה לא ניתנת לביטול.",
   "settings.logoutConfirmAction": "כן, אפס",
+  "settings.version": "גרסה %{version}",
   "library.addCustom": "הוסף מצווה חדשה",
   "library.customSection": "המצוות שלי",
   "custom.title": "מצווה חדשה",

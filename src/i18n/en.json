@@ -135,6 +135,7 @@
   "settings.logoutConfirmTitle": "Reset the app?",
   "settings.logoutConfirmBody": "All settings, active mitzvot, custom mitzvot, and history will be erased. This cannot be undone.",
   "settings.logoutConfirmAction": "Yes, reset",
+  "settings.version": "Version %{version}",
   "library.addCustom": "Add custom mitzvah",
   "library.customSection": "My mitzvot",
   "custom.title": "New mitzvah",
