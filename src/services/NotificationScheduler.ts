@@ -133,7 +133,7 @@ async function ensureNotificationCategory(): Promise<void> {
       {
         identifier: MARK_DONE_ACTION,
         buttonTitle: 'עשיתי',
-        options: { opensAppToForeground: true },
+        options: { opensAppToForeground: false },
       },
     ]);
   } catch (err) {

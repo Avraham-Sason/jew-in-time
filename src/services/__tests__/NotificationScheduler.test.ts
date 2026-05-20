@@ -186,7 +186,7 @@ describe('NotificationScheduler', () => {
         {
           identifier: MARK_DONE_ACTION,
           buttonTitle: 'עשיתי',
-          options: { opensAppToForeground: true },
+          options: { opensAppToForeground: false },
         },
       ],
     );

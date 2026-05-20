@@ -2,7 +2,7 @@
   "expo": {
     "name": "יהודי בזמן",
     "slug": "kosher-jew",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "kosherjew",
@@ -60,6 +60,7 @@
           "color": "#C9922A"
         }
       ],
+      "./scripts/withMitzvahNotificationAction",
       "expo-asset"
     ],
     "experiments": {
