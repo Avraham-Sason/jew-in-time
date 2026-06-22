@@ -13,8 +13,8 @@ import { useUserStore } from '@/stores/useUserStore';
 import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
 
-const DAILY_REBUILD_TASK = 'kosher-jew-daily-rebuild';
-const NOTIFICATION_ACTION_TASK = 'kosher-jew-notification-actions';
+const DAILY_REBUILD_TASK = 'jew-in-time-daily-rebuild';
+const NOTIFICATION_ACTION_TASK = 'jew-in-time-notification-actions';
 const MITZVAH_REMINDER_CATEGORY = 'mitzvah_reminder';
 const MARK_DONE_ACTION = 'MARK_DONE';
 const PENDING_LIMIT = 60;

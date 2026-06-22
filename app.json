@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "יהודי בזמן",
-    "slug": "kosher-jew",
+    "slug": "jew-in-time",
     "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "kosherjew",
+    "scheme": "jewintime",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kosherjew.app",
+      "bundleIdentifier": "com.jewintime.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "מיקום נדרש לחישוב זמני הלכה מדויקים לפי האזור שלך.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "מיקום נדרש לחישוב זמני הלכה מדויקים ולרענון יומי של התראות.",
@@ -30,7 +30,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F5EFE4"
       },
-      "package": "com.kosherjew.app",
+      "package": "com.jewintime.app",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",

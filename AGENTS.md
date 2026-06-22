@@ -4,7 +4,7 @@ Canonical working notes for AI agents in this repository. Keep this file current
 
 ## Project Snapshot
 
-- App: Hebrew-first Expo/React Native mobile app for daily mitzvah reminders inside halachic time windows. The current display name is configured in `app.json`; the package/slug remains `kosher-jew`.
+- App: Hebrew-first Expo/React Native mobile app for daily mitzvah reminders inside halachic time windows. The current display name is configured in `app.json`; the package/slug remains `jew-in-time`.
 - Runtime model: local/offline first. Zmanim, Hebrew calendar, history, settings, completions, and reminders are computed on-device. There is no backend.
 - Primary platforms: iOS, Android, and a web build for smoke/headless checks. Native notification/MMKV behavior requires a dev client or native build, not plain Expo Go.
 - Package manager: `pnpm-lock.yaml` is present. Prefer `pnpm` for installs and scripts to avoid lockfile churn.
@@ -46,7 +46,7 @@ pnpm update:preview                # EAS update to preview channel
 - `src/components/` - Reusable React Native UI.
 - `src/theme/` - Theme colors, typography, spacing, animation/radius tokens.
 - `src/i18n/` - Flat `he.json` and `en.json` dictionaries plus a tiny translation wrapper.
-- `design/kosher-jew/` - Claude Design handoff. Use it only when doing UI/design work; read its README and `project/Hi-Fi.html` before porting visuals.
+- `design/jew-in-time/` - Claude Design handoff. Use it only when doing UI/design work; read its README and `project/Hi-Fi.html` before porting visuals.
 - `release/` - Store listing and privacy policy drafts.
 - `tasks.md` - Historical/current task checklist. The only unchecked item at this scan was manual mobile end-to-end verification.
 
@@ -113,8 +113,8 @@ Important constants and contracts:
 - Scheduled identifier format: `${mitzvahId}__${YYYY-MM-DD}__${reminderIndex}`
 - Pending guard: `PENDING_LIMIT = 60`, `IOS_MAX = 64`
 - Normal horizon: today + tomorrow. If pending notifications already exceed `PENDING_LIMIT`, schedules only today.
-- Daily rebuild task: `kosher-jew-daily-rebuild`, gated by `notifications:last-rebuild-date` and intended to run once per local day at/after 00:15.
-- Background notification action task: `kosher-jew-notification-actions`.
+- Daily rebuild task: `jew-in-time-daily-rebuild`, gated by `notifications:last-rebuild-date` and intended to run once per local day at/after 00:15.
+- Background notification action task: `jew-in-time-notification-actions`.
 
 Behavior to preserve:
 

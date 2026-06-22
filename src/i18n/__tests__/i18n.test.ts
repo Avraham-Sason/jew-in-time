@@ -49,7 +49,7 @@ describe('i18n', () => {
   it('brand rename has no old app name in translations', () => {
     const values = [...Object.values(he), ...Object.values(en)].join('\n');
     expect(values).not.toContain('יהודי כשר');
-    expect(values).not.toContain('Kosher Jew');
+    expect(values).not.toContain('Jew In Time');
     expect((he as Record<string, string>)['app.name']).toBe('יהודי בזמן');
     expect((en as Record<string, string>)['app.name']).toBe('Jewish Time');
   });

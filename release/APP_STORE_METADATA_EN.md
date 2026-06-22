@@ -2,7 +2,7 @@
 
 ## App Name
 
-Kosher Jew
+Jew In Time
 
 ## Subtitle
 
@@ -14,7 +14,7 @@ See what matters now, get timely reminders, and track daily mitzvot with accurat
 
 ## Description
 
-Kosher Jew helps you stay on top of daily mitzvot without losing track of changing halachic times.
+Jew In Time helps you stay on top of daily mitzvot without losing track of changing halachic times.
 
 The app calculates zmanim from your location, shows what is relevant right now, and sends smart reminders based on each mitzvah's time window.
 

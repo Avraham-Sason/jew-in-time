@@ -1,8 +1,8 @@
-# Privacy Policy — Kosher Jew
+# Privacy Policy — Jew In Time
 
 Effective date: 2026-04-23
 
-`Kosher Jew` is a local-first mitzvot reminder app. The app is designed to work without creating an account and without requiring a backend for core functionality.
+`Jew In Time` is a local-first mitzvot reminder app. The app is designed to work without creating an account and without requiring a backend for core functionality.
 
 ## Data We Process
 
