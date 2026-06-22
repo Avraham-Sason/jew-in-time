@@ -10,10 +10,8 @@
     "ios": "expo run:ios",
     "web": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/free-port.ps1 -Port 8081 && expo start --web",
     "free-port": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/free-port.ps1",
-    "build:android:development": "npx eas-cli build --platform android --profile development",
-    "build:android:preview": "npx eas-cli build --platform android --profile preview",
-    "update:development": "npx eas-cli update --channel development",
-    "update:preview": "npx eas-cli update --channel preview",
+    "build:android": "npx eas-cli build --platform android --profile preview",
+    "update": "npx eas-cli update --channel preview",
     "doctor": "npx expo-doctor",
     "test": "jest --passWithNoTests",
     "typecheck": "tsc --noEmit"
