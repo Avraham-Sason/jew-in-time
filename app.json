@@ -71,14 +71,14 @@
         "root": "./src/app"
       },
       "eas": {
-        "projectId": "86c60d8d-9f64-4f85-831e-31ffce5883fe"
+        "projectId": "8cc2a377-fcc9-4c78-bdde-ec0fc8f2a84e"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/86c60d8d-9f64-4f85-831e-31ffce5883fe"
+      "url": "https://u.expo.dev/8cc2a377-fcc9-4c78-bdde-ec0fc8f2a84e"
     }
   }
 }

@@ -5,6 +5,7 @@ Canonical working notes for AI agents in this repository. Keep this file current
 ## Project Snapshot
 
 - App: Hebrew-first Expo/React Native mobile app for daily mitzvah reminders inside halachic time windows. The current display name is configured in `app.json`; the package/slug remains `jew-in-time`.
+- EAS project: `@avraham-sason/jew-in-time`, ID `8cc2a377-fcc9-4c78-bdde-ec0fc8f2a84e`.
 - Runtime model: local/offline first. Zmanim, Hebrew calendar, history, settings, completions, and reminders are computed on-device. There is no backend.
 - Primary platforms: iOS, Android, and a web build for smoke/headless checks. Native notification/MMKV behavior requires a dev client or native build, not plain Expo Go.
 - Package manager: `pnpm-lock.yaml` is present. Prefer `pnpm` for installs and scripts to avoid lockfile churn.
@@ -201,7 +202,7 @@ pnpm typecheck
 
 Older docs/prototypes may still use older branding or assumptions. Treat the current code, `app.json`, `tasks.md`, and this file as authoritative unless the user says otherwise.
 
-# DOX framework
+## DOX Framework
 
 - DOX is highly performant AGENTS.md hierarchy installed here
 - Agent must follow DOX instructions across any edits
@@ -279,8 +280,16 @@ Default section order:
 
 ## User Preferences
 
-When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
+- Answers and work products should be high quality and verified as far as practical for the requested scope.
+- Agents should choose and use relevant skills on their own when the request calls for them.
+- Task queues, PRDs, planning files, and similar planning artifacts must be written in English unless the user explicitly asks for another language.
+- In coding tasks, apply YAGNI: favor simple, concise solutions, including one-liners when they genuinely improve clarity without sacrificing quality, readability, maintainability, or design.
+- DOX indexes and durable file references should use Markdown links to the referenced files whenever practical.
 
 ## Child DOX Index
 
-This project is not yet indexed. Before continuing you must scan the project, build the DOX tree and replace this message with the actual index. Go deep and scan files recursively to properly evaluate complexity and create nested DOX files where needed.
+- [assets/AGENTS.md](assets/AGENTS.md) - Static image assets for icons, splash, favicon, and notifications.
+- [design/AGENTS.md](design/AGENTS.md) - Design handoff materials and prototype boundaries.
+- [release/AGENTS.md](release/AGENTS.md) - Store metadata, privacy copy, and release-facing documents.
+- [scripts/AGENTS.md](scripts/AGENTS.md) - Local utility scripts and Expo config plugins.
+- [src/AGENTS.md](src/AGENTS.md) - Application source, routes, services, stores, data, i18n, theme, and tests.
