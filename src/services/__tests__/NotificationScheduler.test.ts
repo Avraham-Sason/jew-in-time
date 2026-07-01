@@ -81,6 +81,7 @@ import { useUserStore } from '@/stores/useUserStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
 import { CITIES } from '@/data/cities';
+import type { Mitzvah } from '@/types/mitzvah';
 
 function setupEnabled(ids: string[]) {
   const fresh: Record<string, { enabled: boolean }> = {};
@@ -116,14 +117,26 @@ describe('NotificationScheduler', () => {
     expect(mockState.pending.length).toBeGreaterThan(0);
   });
 
-  it('6.2 cancelForMitzvah removes (or reduces) pending of that mitzvah for that date', async () => {
-    setupEnabled(['tefillin', 'shacharit']);
-    const future = new Date(Date.now() + 1000);
-    await NotificationScheduler.scheduleAll(future);
-    const tefBefore = mockState.pending.filter((p) => p.identifier.startsWith('tefillin__' + dateKey(future))).length;
-    await NotificationScheduler.cancelForMitzvah('tefillin', future);
-    const tefAfter = mockState.pending.filter((p) => p.identifier.startsWith('tefillin__' + dateKey(future))).length;
-    expect(tefAfter).toBeLessThanOrEqual(tefBefore);
+  it('6.2 cancelForMitzvah removes every pending reminder for that mitzvah and date', async () => {
+    const date = new Date(2026, 4, 6);
+    const key = dateKey(date);
+    mockState.pending = [
+      { identifier: `shacharit__${key}__0`, content: { data: { mitzvahId: 'shacharit', dateKey: key, reminderIndex: 0 } } },
+      { identifier: `shacharit__${key}__1`, content: { data: { mitzvahId: 'shacharit', dateKey: key, reminderIndex: 1 } } },
+      { identifier: `shacharit__${key}__2`, content: { data: { mitzvahId: 'shacharit', dateKey: key, reminderIndex: 2 } } },
+      { identifier: `mincha__${key}__0`, content: { data: { mitzvahId: 'mincha', dateKey: key, reminderIndex: 0 } } },
+      {
+        identifier: 'shacharit__2026-05-07__0',
+        content: { data: { mitzvahId: 'shacharit', dateKey: '2026-05-07', reminderIndex: 0 } },
+      },
+    ];
+
+    await NotificationScheduler.cancelForMitzvah('shacharit', date);
+
+    expect(mockState.pending.map((p) => p.identifier)).toEqual([`mincha__${key}__0`, 'shacharit__2026-05-07__0']);
+    expect(mockCancelOne).toHaveBeenCalledWith(`shacharit__${key}__0`);
+    expect(mockCancelOne).toHaveBeenCalledWith(`shacharit__${key}__1`);
+    expect(mockCancelOne).toHaveBeenCalledWith(`shacharit__${key}__2`);
   });
 
   it('6.3 cancelAll empties pending', async () => {
@@ -276,6 +289,37 @@ describe('NotificationScheduler', () => {
     useCompletionsStore.getState().markSkipped('tefillin', future);
     await NotificationScheduler.scheduleAll(future);
     const sameDay = mockState.pending.filter((p) => p.identifier.startsWith('tefillin__' + dateKey(future)));
+    expect(sameDay.length).toBe(0);
+  });
+
+  it('6.10b completed mitzvah is not rescheduled for that date', async () => {
+    const today = new Date(Date.now() + 60_000);
+    const key = dateKey(today);
+    const doneMitzvah: Mitzvah = {
+      id: 'synthetic_done',
+      name: { he: 'בדיקת השלמה', en: 'Completed test' },
+      icon: 'custom',
+      timeType: 'range-within-day',
+      category: 'daily-morning',
+      skipOn: [],
+      nuschaotSupported: ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'],
+      defaultReminders: [
+        { anchor: 'start', offsetMin: 0, label: 'first' },
+        { anchor: 'start', offsetMin: 5, label: 'second' },
+      ],
+      computeWindow: ({ date }) => ({
+        start: new Date(date.getTime() + 60_000),
+        end: new Date(date.getTime() + 20 * 60_000),
+      }),
+    };
+    useCompletionsStore.setState({
+      completions: { [key]: { synthetic_done: Date.now() } },
+      skipped: {},
+    });
+
+    await NotificationScheduler.scheduleAll(today, [doneMitzvah]);
+
+    const sameDay = mockState.pending.filter((p) => p.identifier.startsWith(`synthetic_done__${key}`));
     expect(sameDay.length).toBe(0);
   });
 

@@ -4,7 +4,7 @@ import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import { ComputeContext, ContentBlock, Mitzvah, Reminder, UserSettings } from '@/types/mitzvah';
 import { Location } from '@/types/zmanim';
-import { getAllMitzvot, findAnyMitzvah } from '@/data/customMitzvotAdapter';
+import { getAllMitzvot } from '@/data/customMitzvotAdapter';
 import { ZmanimService } from '@/services/ZmanimService';
 import { HebcalService } from '@/services/HebcalService';
 import { StorageService } from '@/services/StorageService';
@@ -179,12 +179,11 @@ async function scheduleOne(
   const now = Date.now();
   const completed = useCompletionsStore.getState().isDone(mitzvah.id, date);
   const skipped = useCompletionsStore.getState().isSkipped(mitzvah.id, date);
-  if (skipped) return;
+  if (completed || skipped) return;
   const reminders = remindersFor(mitzvah);
 
   for (let i = 0; i < reminders.length; i++) {
     const r = reminders[i];
-    if (completed && r.skipIfDone) continue;
     const trigger = buildTriggerTime(r, window);
     if (trigger.getTime() <= now) continue;
     await Notifications.scheduleNotificationAsync({
@@ -357,8 +356,6 @@ export const NotificationScheduler = {
   async cancelForMitzvah(mitzvahId: string, date: Date = new Date()): Promise<void> {
     const key = dateKey(date);
     const pending = await Notifications.getAllScheduledNotificationsAsync();
-    const mitzvah = findAnyMitzvah(mitzvahId);
-    const reminders = mitzvah ? remindersFor(mitzvah) : [];
     for (const p of pending) {
       const rawData = pendingNotificationMetaFromContent(p.content as NotificationContentLike);
       const parsed =
@@ -367,13 +364,9 @@ export const NotificationScheduler = {
         null;
       const parsedMitzvahId = parsed?.mitzvahId ?? rawData.mitzvahId;
       const parsedDate = parsed?.date ?? rawData.dateKey;
-      const parsedIdx = parsed?.idx ?? rawData.reminderIndex;
       if (parsedMitzvahId !== mitzvahId) continue;
       if (parsedDate !== key) continue;
-      const reminder = typeof parsedIdx === 'number' ? reminders[parsedIdx] : undefined;
-      if (!reminder || reminder.skipIfDone) {
-        await Notifications.cancelScheduledNotificationAsync(p.identifier);
-      }
+      await Notifications.cancelScheduledNotificationAsync(p.identifier);
     }
   },
 
