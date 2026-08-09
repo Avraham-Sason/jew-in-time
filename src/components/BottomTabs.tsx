@@ -104,7 +104,11 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
             style={styles.tab}
           >
             {icon?.(color)}
-            <Text style={[typography.micro, { color, fontFamily: focused ? 'Heebo_700Bold' : 'Heebo_400Regular' }]}>
+            <Text
+              numberOfLines={1}
+              maxFontSizeMultiplier={1.4}
+              style={[typography.micro, { color, fontFamily: focused ? 'Heebo_700Bold' : 'Heebo_400Regular' }]}
+            >
               {label}
             </Text>
             {focused ? <View style={[styles.indicator, { backgroundColor: colors.gold }]} /> : <View style={styles.indicatorPlaceholder} />}
@@ -118,7 +122,9 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
 const styles = StyleSheet.create({
   wrap: {
     flexDirection: 'row',
-    height: 58,
+    // minHeight, not height: the label scales with the system font, so a fixed bar clips it at
+    // accessibility text sizes.
+    minHeight: 58,
     borderTopWidth: 1,
   },
   tab: {

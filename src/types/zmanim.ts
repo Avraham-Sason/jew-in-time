@@ -6,6 +6,8 @@ export type Location = {
   nameEn?: string;
   inIsrael: boolean;
   elevation?: number;
+  // Local minhag override for candle lighting, in minutes before shkia.
+  candleLightingMinutes?: number;
 };
 
 export type Zmanim = {
@@ -16,6 +18,7 @@ export type Zmanim = {
   sofZmanShmaMA: Date;
   sofZmanTfilaGra: Date;
   chatzot: Date;
+  chatzotLayla: Date;
   minchaGedola: Date;
   minchaKetana: Date;
   plagHaMincha: Date;

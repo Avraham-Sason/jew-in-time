@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from './zustandMiddleware';
 import { createZustandStorage } from '@/services/StorageService';
+import { STORE_VERSION, onRehydrateStorage } from './persistOptions';
 
 export type Completions = Record<string, Record<string, number>>;
 
@@ -18,11 +19,43 @@ type CompletionsState = {
   reset: () => void;
 };
 
-function removeDailyMark(source: Record<string, number> | undefined, id: string): Record<string, number> {
-  if (!source?.[id]) return source ?? {};
+export const RETENTION_DAYS = 400;
+
+// Returns the ORIGINAL map when nothing changes. The old version returned `{}` for a missing day,
+// which made every markDone write an empty `"YYYY-MM-DD": {}` bucket into the sibling map — pure
+// noise that still had to be serialised on every tap.
+function withoutMark(
+  source: Record<string, number> | undefined,
+  id: string,
+): Record<string, number> | undefined {
+  if (!source?.[id]) return source;
   const next = { ...source };
   delete next[id];
-  return next;
+  return Object.keys(next).length ? next : undefined;
+}
+
+function setDay(
+  map: Completions,
+  key: string,
+  value: Record<string, number> | undefined,
+): Completions {
+  if (!value) {
+    if (!(key in map)) return map;
+    const next = { ...map };
+    delete next[key];
+    return next;
+  }
+  return { ...map, [key]: value };
+}
+
+// The maps are rewritten to MMKV on every single tap, so they cannot grow without bound. The UI
+// never reads further back than the history window.
+export function pruneCompletions(map: Completions, today: Date = new Date()): Completions {
+  const cutoff = new Date(today);
+  cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
+  const cutoffKey = dateKey(cutoff);
+  const entries = Object.entries(map).filter(([key, value]) => key >= cutoffKey && Object.keys(value).length);
+  return entries.length === Object.keys(map).length ? map : Object.fromEntries(entries);
 }
 
 export function dateKey(d: Date = new Date()): string {
@@ -40,14 +73,8 @@ export const useCompletionsStore = create<CompletionsState>()(
       markDone: (id, date = new Date()) => {
         const key = dateKey(date);
         set((s) => ({
-          completions: {
-            ...s.completions,
-            [key]: { ...(s.completions[key] ?? {}), [id]: Date.now() },
-          },
-          skipped: {
-            ...s.skipped,
-            [key]: removeDailyMark(s.skipped[key], id),
-          },
+          completions: { ...s.completions, [key]: { ...(s.completions[key] ?? {}), [id]: Date.now() } },
+          skipped: setDay(s.skipped, key, withoutMark(s.skipped[key], id)),
         }));
         queueMicrotask(() => {
           try {
@@ -59,14 +86,8 @@ export const useCompletionsStore = create<CompletionsState>()(
       markSkipped: (id, date = new Date()) => {
         const key = dateKey(date);
         set((s) => ({
-          completions: {
-            ...s.completions,
-            [key]: removeDailyMark(s.completions[key], id),
-          },
-          skipped: {
-            ...s.skipped,
-            [key]: { ...(s.skipped[key] ?? {}), [id]: Date.now() },
-          },
+          completions: setDay(s.completions, key, withoutMark(s.completions[key], id)),
+          skipped: { ...s.skipped, [key]: { ...(s.skipped[key] ?? {}), [id]: Date.now() } },
         }));
         queueMicrotask(() => {
           try {
@@ -77,14 +98,10 @@ export const useCompletionsStore = create<CompletionsState>()(
       },
       unmark: (id, date = new Date()) => {
         const key = dateKey(date);
-        set((s) => {
-          const completions = removeDailyMark(s.completions[key], id);
-          const skipped = removeDailyMark(s.skipped[key], id);
-          return {
-            completions: { ...s.completions, [key]: completions },
-            skipped: { ...s.skipped, [key]: skipped },
-          };
-        });
+        set((s) => ({
+          completions: setDay(s.completions, key, withoutMark(s.completions[key], id)),
+          skipped: setDay(s.skipped, key, withoutMark(s.skipped[key], id)),
+        }));
         queueMicrotask(() => {
           try {
             const { NotificationScheduler } = require('@/services/NotificationScheduler');
@@ -117,6 +134,17 @@ export const useCompletionsStore = create<CompletionsState>()(
     {
       name: 'completions-store',
       storage: createJSONStorage(() => createZustandStorage()),
+      version: STORE_VERSION,
+      onRehydrateStorage: onRehydrateStorage('completions-store'),
+      merge: (persisted: unknown, current: CompletionsState): CompletionsState => {
+        const saved = persisted as Partial<CompletionsState> | undefined;
+        return {
+          ...current,
+          ...saved,
+          completions: pruneCompletions(saved?.completions ?? {}),
+          skipped: pruneCompletions(saved?.skipped ?? {}),
+        };
+      },
     },
   ),
 );

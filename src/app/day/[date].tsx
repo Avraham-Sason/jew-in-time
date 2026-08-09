@@ -54,8 +54,8 @@ export default function DayRoute() {
     const customs = Object.values(customMap)
       .sort((a, b) => a.createdAt - b.createdAt)
       .map(customToMitzvah);
-    return [...MITZVOT, ...customs];
-  }, [customMap]);
+    return [...MITZVOT, ...customs].filter((m) => m.nuschaotSupported.includes(nusach));
+  }, [customMap, nusach]);
 
   const enabled = useMemo(() => allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled), [allMitzvot, activeMap]);
   const settings = useMemo(() => ({ nusach, halachicOpinions, inIsrael }), [nusach, halachicOpinions, inIsrael]);

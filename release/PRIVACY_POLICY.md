@@ -1,8 +1,8 @@
-# Privacy Policy — Jew In Time
+# Privacy Policy — Jewish Time
 
 Effective date: 2026-04-23
 
-`Jew In Time` is a local-first mitzvot reminder app. The app is designed to work without creating an account and without requiring a backend for core functionality.
+`Jewish Time` is a local-first mitzvot reminder app. The app is designed to work without creating an account and without requiring a backend for core functionality.
 
 ## Data We Process
 
@@ -12,6 +12,8 @@ The app may process:
 - Notification permission status, to schedule local reminders.
 - Local preferences such as nusach, language, theme, enabled mitzvot, and reminder configuration.
 - Local completion history for mitzvot you mark as done.
+- An optional display name and phone number, if you choose to enter them. Both are optional, are
+  stored only on your device, and are never transmitted anywhere.
 
 ## Where Data Is Stored
 

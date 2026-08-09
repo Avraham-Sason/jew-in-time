@@ -73,15 +73,30 @@ describe('Services', () => {
     const r = await LocationService.getCurrentLocation();
     expect(r.status).toBe('ready');
     expect(r.source).toBe('gps');
-    expect(r.location.lat).toBeCloseTo(31.7);
+    expect(r.location!.lat).toBeCloseTo(31.7);
+    expect(r.location!.inIsrael).toBe(true);
   });
 
-  it('5.4 LocationService denied → fallback CITIES[0]', async () => {
+  // Was "denied → fallback CITIES[0]". Returning a real city on failure is what let a denied or
+  // timed-out refresh silently overwrite the city the user had chosen.
+  it('5.4 LocationService denied → no location, status only', async () => {
     mockGetForeground.mockResolvedValue({ granted: false, canAskAgain: false });
     const r = await LocationService.getCurrentLocation();
     expect(r.status).toBe('denied');
     expect(r.source).toBe('manual');
-    expect(r.location).toEqual(CITIES[0]);
+    expect(r.location).toBeNull();
+  });
+
+  it('5.4b GPS far from every preset does not inherit that preset\'s timezone or inIsrael', async () => {
+    mockGetForeground.mockResolvedValue({ granted: true, canAskAgain: true });
+    mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: -26.2041, longitude: 28.0473 } }); // Johannesburg
+    const r = await LocationService.getCurrentLocation();
+    expect(r.location!.inIsrael).toBe(false);
+    // Falls back to the DEVICE zone rather than the far-away preset's. Asserting a literal here
+    // would just encode the test machine's own timezone.
+    expect(r.location!.tz).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    expect(r.location!.elevation).toBeUndefined();
+    expect(r.location!.name).not.toBe(CITIES[0].name);
   });
 
   it('5.5 LocationService timeout → fallback', async () => {

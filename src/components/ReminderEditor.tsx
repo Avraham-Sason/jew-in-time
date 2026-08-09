@@ -13,14 +13,18 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 
+const MAX_OFFSET_MIN = 720;
+
 type Props = {
   visible: boolean;
   initialValue?: Reminder | null;
+  window?: { start: Date; end: Date } | null;
+  mitzvahName?: string;
   onClose: () => void;
   onSave: (value: Reminder) => void;
 };
 
-export function ReminderEditor({ visible, initialValue, onClose, onSave }: Props) {
+export function ReminderEditor({ visible, initialValue, window, mitzvahName, onClose, onSave }: Props) {
   const { colors } = useTheme();
   const { t } = useI18n();
   const [anchor, setAnchor] = useState<ReminderAnchor>('start');
@@ -34,15 +38,29 @@ export function ReminderEditor({ visible, initialValue, onClose, onSave }: Props
     setOffsetMin(String(initialValue?.offsetMin ?? 0));
     setLabel(initialValue?.label ?? '');
     setSkipIfDone(initialValue?.skipIfDone ?? false);
+    setError(null);
   }, [initialValue, visible]);
 
+  const [error, setError] = useState<string | null>(null);
+
+  // The scheduler drops any trigger outside its window, so an unbounded offset produced a reminder
+  // that looked saved and could never fire. Reject it here instead, with the reason.
   const save = () => {
-    onSave({
-      anchor,
-      offsetMin: Number(offsetMin) || 0,
-      label: label.trim() || t('detail.addReminder'),
-      skipIfDone,
-    });
+    const minutes = Number(offsetMin) || 0;
+    if (Math.abs(minutes) > MAX_OFFSET_MIN) {
+      setError(t('reminder.errors.offsetRange', { max: MAX_OFFSET_MIN }));
+      return;
+    }
+    if (window) {
+      const anchorTime = anchor === 'start' ? window.start : window.end;
+      const trigger = anchorTime.getTime() + minutes * 60_000;
+      if (trigger < window.start.getTime() || trigger > window.end.getTime()) {
+        setError(t('reminder.errors.outsideWindow'));
+        return;
+      }
+    }
+    setError(null);
+    onSave({ anchor, offsetMin: minutes, label: label.trim() || mitzvahName || t('detail.addReminder'), skipIfDone });
     onClose();
   };
 
@@ -68,7 +86,7 @@ export function ReminderEditor({ visible, initialValue, onClose, onSave }: Props
                     },
                   ]}
                 >
-                  <Text style={[typography.captionBold, { color: selected ? '#fff' : colors.textSub }]}>
+                  <Text style={[typography.captionBold, { color: selected ? colors.onGold : colors.textSub }]}>
                     {t(`reminder.anchor.${value}`)}
                   </Text>
                 </Pressable>
@@ -112,12 +130,15 @@ export function ReminderEditor({ visible, initialValue, onClose, onSave }: Props
             </View>
             <Switch value={skipIfDone} onValueChange={setSkipIfDone} thumbColor="#fff" trackColor={{ false: colors.border, true: colors.gold }} />
           </View>
+          {error ? (
+            <Text style={[typography.small, { color: colors.urgent, marginTop: 4 }]}>{error}</Text>
+          ) : null}
           <View style={styles.actions}>
             <Pressable onPress={onClose} style={[styles.actionBtn, { backgroundColor: colors.surface2 }]}>
               <Text style={[typography.bodyBold, { color: colors.textSub }]}>{t('common.cancel')}</Text>
             </Pressable>
             <Pressable onPress={save} style={[styles.actionBtn, { backgroundColor: colors.gold }]}>
-              <Text style={[typography.bodyBold, { color: '#fff' }]}>{t('common.save')}</Text>
+              <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.save')}</Text>
             </Pressable>
           </View>
         </View>

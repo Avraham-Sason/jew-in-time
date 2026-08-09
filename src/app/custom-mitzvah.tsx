@@ -116,6 +116,12 @@ export default function CustomMitzvahScreen() {
         bodyVariants: r.bodyVariants?.map((variant) => variant.trim()).filter(Boolean),
       }))
       .map((r) => ({ ...r, bodyVariants: r.bodyVariants?.length ? r.bodyVariants : undefined }));
+    // The form seeds one reminder with an empty label, and blank-label reminders are stripped on
+    // save — so the default flow produced a mitzvah that could never notify, silently.
+    if (!cleanedReminders.length) {
+      setError(t('custom.errors.reminderRequired'));
+      return;
+    }
     const cleanedContentBlocks = cleanContentBlocks(contentBlocks);
     if (editingId && existing) {
       updateCustom(editingId, {
@@ -264,7 +270,7 @@ export default function CustomMitzvahScreen() {
                 onPress={() => setCategory(value)}
                 style={[styles.pill, { backgroundColor: active ? colors.gold : colors.surface2 }]}
               >
-                <Text style={[typography.small, { color: active ? '#fff' : colors.textSub }]}>
+                <Text style={[typography.small, { color: active ? colors.onGold : colors.textSub }]}>
                   {t(`library.category.${value}`)}
                 </Text>
               </Pressable>
@@ -359,7 +365,7 @@ export default function CustomMitzvahScreen() {
                     onPress={() => setSelectedReminderIndex(idx)}
                     style={[styles.anchorPill, { backgroundColor: active ? colors.gold : colors.surface2 }]}
                   >
-                    <Text style={[typography.small, { color: active ? '#fff' : colors.textSub }]}>
+                    <Text style={[typography.small, { color: active ? colors.onGold : colors.textSub }]}>
                       {idx + 1}
                     </Text>
                   </Pressable>
@@ -403,7 +409,7 @@ export default function CustomMitzvahScreen() {
                       onPress={() => changeContentType(idx, type)}
                       style={[styles.anchorPill, { backgroundColor: active ? colors.gold : colors.surface2 }]}
                     >
-                      <Text style={[typography.small, { color: active ? '#fff' : colors.textSub }]}>
+                      <Text style={[typography.small, { color: active ? colors.onGold : colors.textSub }]}>
                         {t(`custom.contentType.${type}`)}
                       </Text>
                     </Pressable>
@@ -467,7 +473,7 @@ export default function CustomMitzvahScreen() {
         ) : null}
 
         <Pressable onPress={onSave} style={[styles.primaryBtn, { backgroundColor: colors.gold }]}>
-          <Text style={[typography.bodyBold, { color: '#fff' }]}>{t('custom.save')}</Text>
+          <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('custom.save')}</Text>
         </Pressable>
 
         {editingId ? (
@@ -490,7 +496,7 @@ export default function CustomMitzvahScreen() {
                 <Text style={[typography.bodyBold, { color: colors.text }]}>{t('common.cancel')}</Text>
               </Pressable>
               <Pressable onPress={onDelete} style={[styles.modalBtn, { backgroundColor: colors.urgent }]}>
-                <Text style={[typography.bodyBold, { color: '#fff' }]}>{t('common.delete')}</Text>
+                <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.delete')}</Text>
               </Pressable>
             </View>
           </View>
@@ -513,7 +519,7 @@ function AnchorPick({ value, onChange }: { value: ReminderAnchor; onChange: (v: 
             onPress={() => onChange(opt)}
             style={[styles.anchorPill, { backgroundColor: active ? colors.gold : colors.surface2 }]}
           >
-            <Text style={[typography.small, { color: active ? '#fff' : colors.textSub }]}>
+            <Text style={[typography.small, { color: active ? colors.onGold : colors.textSub }]}>
               {t(`reminder.anchor.${opt}`)}
             </Text>
           </Pressable>

@@ -1,22 +1,15 @@
 import { Mitzvah, UserSettings } from '@/types/mitzvah';
 import { Location } from '@/types/zmanim';
-import { HebcalService } from '@/services/HebcalService';
 import { ZmanimService } from '@/services/ZmanimService';
+import { DayObservance, isSkippedAt, observanceFor } from '@/utils/skipRules';
 import { Completions, dateKey } from '@/stores/useCompletionsStore';
 
 export type HistoryStats = {
   streak: number;
-  daily: Array<{ date: string; doneCount: number; totalCount: number }>;
+  daily: Array<{ date: string; doneCount: number; totalCount: number; observed: DayObservance }>;
   perMitzvah: Record<string, { done: number; eligible: number; percent: number }>;
   missedYesterday: string[];
 };
-
-function shouldSkip(mitzvah: Mitzvah, isShabbat: boolean, isYomTov: boolean): boolean {
-  if (!mitzvah.skipOn.length) return false;
-  if (mitzvah.skipOn.includes('shabbat') && isShabbat) return true;
-  if (mitzvah.skipOn.includes('yomtov') && isYomTov) return true;
-  return false;
-}
 
 export function computeStats(
   mitzvot: Mitzvah[],
@@ -46,15 +39,18 @@ export function computeStats(
     const key = dateKey(date);
     const doneMap = completions[key] ?? {};
     const zmanim = ZmanimService.getZmanim(date, location);
-    const isShabbat = HebcalService.isShabbat(date, location);
-    const isYomTov = HebcalService.isYomTov(date, location);
+    if (!zmanim) {
+      daily.push({ date: key, doneCount: 0, totalCount: 0, observed: { isShabbat: false, isYomTov: false } });
+      continue;
+    }
     let totalCount = 0;
     let doneCount = 0;
     const missed: string[] = [];
 
     for (const mitzvah of mitzvot) {
-      if (shouldSkip(mitzvah, isShabbat, isYomTov)) continue;
-      if (!mitzvah.computeWindow({ date, location, settings, zmanim })) continue;
+      const window = mitzvah.computeWindow({ date, location, settings, zmanim });
+      if (!window) continue;
+      if (isSkippedAt(mitzvah, window.start, location)) continue;
       totalCount += 1;
       perMitzvah[mitzvah.id].eligible += 1;
       if (doneMap[mitzvah.id]) {
@@ -65,7 +61,7 @@ export function computeStats(
       }
     }
 
-    daily.push({ date: key, doneCount, totalCount });
+    daily.push({ date: key, doneCount, totalCount, observed: observanceFor(date, location) });
     if (key === yesterdayKey) {
       missedYesterday = missed;
     }
@@ -75,15 +71,21 @@ export function computeStats(
     stat.percent = stat.eligible > 0 ? Math.round((stat.done / stat.eligible) * 100) : 0;
   }
 
+  // Today is still in progress, so it can extend the streak but must never break it — otherwise
+  // the counter reads 0 every morning until the first completion. Shabbat and Yom Tov are
+  // likewise neutral: an observant user does not touch the phone, which used to cap the streak
+  // at 6 forever with no way to repair it (past days are read-only by design).
   let streak = 0;
+  const todayKey = dateKey(today);
   for (let index = daily.length - 1; index >= 0; index--) {
     const day = daily[index];
-    const hasAny = Object.keys(completions[day.date] ?? {}).length > 0;
-    if (hasAny) {
+    if (Object.keys(completions[day.date] ?? {}).length > 0) {
       streak += 1;
       continue;
     }
     if (day.totalCount === 0) continue;
+    if (day.date === todayKey) continue;
+    if (day.observed.isShabbat || day.observed.isYomTov) continue;
     break;
   }
 

@@ -1,57 +1,25 @@
+import { ribbonColor } from '../TimeRibbon';
 import { ribbonThresholds } from '@/theme/tokens';
+import { T_LIGHT } from '@/theme/colors';
 
-// Pure logic extracted from TimeRibbon — same as runtime.
-function colorOf(pct: number, colors: { safe: string; warning: string; urgent: string }): string {
-  const p = Math.max(0, Math.min(1, pct));
-  return p > ribbonThresholds.safe ? colors.safe : p > ribbonThresholds.warning ? colors.warning : colors.urgent;
-}
-
-const COLORS = { safe: '#10B981', warning: '#F59E0B', urgent: '#EF4444' };
-
-describe('TimeRibbon color thresholds (8.3)', () => {
-  it('8.3.a pct > 0.5 → safe', () => {
-    expect(colorOf(0.6, COLORS)).toBe(COLORS.safe);
-    expect(colorOf(1.0, COLORS)).toBe(COLORS.safe);
-    expect(colorOf(0.51, COLORS)).toBe(COLORS.safe);
+// This suite used to re-declare `colorOf` and a `sortByEnd` "extracted from home.tsx" and assert
+// against those copies — it never imported TimeRibbon at all, so flipping the real thresholds
+// shipped green. It now exercises the shipped function.
+describe('TimeRibbon colour thresholds', () => {
+  it('moves safe → warning → urgent as the window drains', () => {
+    expect(ribbonColor(1, T_LIGHT)).toBe(T_LIGHT.safe);
+    expect(ribbonColor(0.75, T_LIGHT)).toBe(T_LIGHT.safe);
+    expect(ribbonColor(0.4, T_LIGHT)).toBe(T_LIGHT.warning);
+    expect(ribbonColor(0.1, T_LIGHT)).toBe(T_LIGHT.urgent);
   });
 
-  it('8.3.b 0.25 < pct ≤ 0.5 → warning', () => {
-    expect(colorOf(0.5, COLORS)).toBe(COLORS.warning);
-    expect(colorOf(0.4, COLORS)).toBe(COLORS.warning);
-    expect(colorOf(0.26, COLORS)).toBe(COLORS.warning);
+  it('treats each threshold as exclusive at the boundary', () => {
+    expect(ribbonColor(ribbonThresholds.safe, T_LIGHT)).toBe(T_LIGHT.warning);
+    expect(ribbonColor(ribbonThresholds.warning, T_LIGHT)).toBe(T_LIGHT.urgent);
   });
 
-  it('8.3.c pct ≤ 0.25 → urgent', () => {
-    expect(colorOf(0.25, COLORS)).toBe(COLORS.urgent);
-    expect(colorOf(0.1, COLORS)).toBe(COLORS.urgent);
-    expect(colorOf(0, COLORS)).toBe(COLORS.urgent);
-  });
-
-  it('8.3.d clamps out-of-bounds (negative → urgent, >1 → safe)', () => {
-    expect(colorOf(-0.5, COLORS)).toBe(COLORS.urgent);
-    expect(colorOf(1.5, COLORS)).toBe(COLORS.safe);
-  });
-
-  it('8.3.e thresholds locked to spec (safe=0.5, warning=0.25)', () => {
-    expect(ribbonThresholds.safe).toBe(0.5);
-    expect(ribbonThresholds.warning).toBe(0.25);
-  });
-});
-
-// Sort logic extracted from home.tsx:123.
-type Item = { id: string; window: { start: Date; end: Date } };
-function sortByEnd(items: Item[]): Item[] {
-  return [...items].sort((a, b) => a.window.end.getTime() - b.window.end.getTime());
-}
-
-describe('Home ordering by urgency (8.2)', () => {
-  it('8.2 sorts by window.end ascending', () => {
-    const items: Item[] = [
-      { id: 'late', window: { start: new Date('2026-04-23T06:00Z'), end: new Date('2026-04-23T19:00Z') } },
-      { id: 'early', window: { start: new Date('2026-04-23T05:00Z'), end: new Date('2026-04-23T08:00Z') } },
-      { id: 'mid', window: { start: new Date('2026-04-23T07:00Z'), end: new Date('2026-04-23T13:00Z') } },
-    ];
-    const sorted = sortByEnd(items);
-    expect(sorted.map((i) => i.id)).toEqual(['early', 'mid', 'late']);
+  it('clamps out-of-range input instead of trusting it', () => {
+    expect(ribbonColor(5, T_LIGHT)).toBe(T_LIGHT.safe);
+    expect(ribbonColor(-3, T_LIGHT)).toBe(T_LIGHT.urgent);
   });
 });

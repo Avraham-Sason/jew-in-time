@@ -3,30 +3,31 @@ jest.mock('react-native-mmkv', () => {
   return { MMKV: jest.fn(() => createMockMMKV()) };
 });
 
+// The trigger is the one thing a reminder app must get right, so the mock records it (and the
+// user-visible text) rather than only identifiers, and it replaces on duplicate identifier the way
+// the real expo-notifications API does.
+type ScheduleInput = {
+  identifier: string;
+  content: {
+    title?: string;
+    body?: string;
+    data: Record<string, unknown>;
+    categoryIdentifier?: string;
+    autoDismiss?: boolean;
+    sticky?: boolean;
+  };
+  trigger?: { type: string; date: Date; channelId?: string };
+};
+
 const mockState: {
-  pending: Array<{
-    identifier: string;
-    content: { data: Record<string, unknown>; categoryIdentifier?: string; autoDismiss?: boolean; sticky?: boolean };
-  }>;
+  pending: ScheduleInput[];
   presented: Array<{ request: { identifier: string; content: { data?: Record<string, unknown>; dataString?: string } } }>;
 } = { pending: [], presented: [] };
-const mockSchedule = jest.fn(
-  async (input: {
-    identifier: string;
-    content: { data: Record<string, unknown>; categoryIdentifier?: string; autoDismiss?: boolean; sticky?: boolean };
-  }) => {
-    mockState.pending.push({
-      identifier: input.identifier,
-      content: {
-        data: input.content.data,
-        categoryIdentifier: input.content.categoryIdentifier,
-        autoDismiss: input.content.autoDismiss,
-        sticky: input.content.sticky,
-      },
-    });
-    return input.identifier;
-  },
-);
+const mockSchedule = jest.fn(async (input: ScheduleInput) => {
+  mockState.pending = mockState.pending.filter((p) => p.identifier !== input.identifier);
+  mockState.pending.push(input);
+  return input.identifier;
+});
 const mockCancelOne = jest.fn(async (id: string) => {
   mockState.pending = mockState.pending.filter((p) => p.identifier !== id);
 });
@@ -40,13 +41,7 @@ const mockSetCategory = jest.fn<Promise<unknown>, [string, unknown[]]>(async () 
 const mockRegisterNotificationTask = jest.fn(async (_name: string) => null);
 
 jest.mock('expo-notifications', () => ({
-  scheduleNotificationAsync: (i: unknown) =>
-    mockSchedule(
-      i as {
-        identifier: string;
-        content: { data: Record<string, unknown>; categoryIdentifier?: string; autoDismiss?: boolean; sticky?: boolean };
-      },
-    ),
+  scheduleNotificationAsync: (i: unknown) => mockSchedule(i as ScheduleInput),
   cancelAllScheduledNotificationsAsync: () => mockCancelAll(),
   cancelScheduledNotificationAsync: (id: string) => mockCancelOne(id),
   getAllScheduledNotificationsAsync: () => mockGetAll(),
@@ -76,12 +71,30 @@ import {
   NOTIFICATION_ACTION_TASK,
   PENDING_LIMIT,
   registerNotificationActionTask,
+  shouldSuppressForCompletion,
+  initNotificationHandlers,
+  syncNotificationPermissionStatus,
 } from '../NotificationScheduler';
 import { useUserStore } from '@/stores/useUserStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
 import { CITIES } from '@/data/cities';
 import type { Mitzvah } from '@/types/mitzvah';
+
+// Always strictly in the future, so `scheduleOne`'s `trigger <= Date.now()` guard cannot be the
+// reason a notification is absent — otherwise these tests would pass for the wrong reason.
+function nextWeekdayAt(weekday: number, hour: number): Date {
+  const d = new Date();
+  d.setHours(hour, 0, 0, 0);
+  while (d.getDay() !== weekday || d.getTime() <= Date.now()) {
+    d.setDate(d.getDate() + 1);
+  }
+  return d;
+}
+
+function idsFor(mitzvahId: string, key: string) {
+  return mockState.pending.filter((p) => p.identifier.startsWith(`${mitzvahId}__${key}__`));
+}
 
 function setupEnabled(ids: string[]) {
   const fresh: Record<string, { enabled: boolean }> = {};
@@ -146,12 +159,49 @@ describe('NotificationScheduler', () => {
     expect(mockState.pending.length).toBe(0);
   });
 
-  it('6.4 rebuild method exists (subscriber wired in initNotificationHandlers)', () => {
-    expect(typeof NotificationScheduler.rebuild).toBe('function');
+  // 6.4 and 6.5 were byte-identical `typeof rebuild === 'function'` assertions standing in for
+  // subscription coverage; initNotificationHandlers was never actually invoked by any test.
+  it('6.4 store changes drive a rebuild, and the teardown unsubscribes them', async () => {
+    const rebuild = jest.spyOn(NotificationScheduler, 'rebuild').mockResolvedValue();
+    const cancelAll = jest.spyOn(NotificationScheduler, 'cancelAll').mockResolvedValue();
+    const teardown = initNotificationHandlers();
+    rebuild.mockClear();
+
+    useUserStore.getState().setLocation(CITIES[1]);
+    expect(rebuild).toHaveBeenCalledTimes(1);
+
+    useUserStore.getState().setNusach('sefard');
+    expect(rebuild).toHaveBeenCalledTimes(2);
+
+    useMitzvotStore.getState().setEnabled('tefillin', true);
+    expect(rebuild).toHaveBeenCalledTimes(3);
+
+    useUserStore.getState().setNotificationsEnabled(false);
+    expect(cancelAll).toHaveBeenCalled();
+
+    teardown();
+    rebuild.mockClear();
+    useUserStore.getState().setLocation(CITIES[2]);
+    expect(rebuild).not.toHaveBeenCalled();
+
+    rebuild.mockRestore();
+    cancelAll.mockRestore();
   });
 
-  it('6.5 rebuild method exists (covers nusach trigger)', () => {
-    expect(typeof NotificationScheduler.rebuild).toBe('function');
+  it('6.5 granting permission after a denial triggers a rebuild', async () => {
+    useUserStore.getState().setNotificationPermission('denied');
+    const rebuild = jest.spyOn(NotificationScheduler, 'rebuild').mockResolvedValue();
+
+    await syncNotificationPermissionStatus();
+
+    expect(useUserStore.getState().notificationPermission).toBe('granted');
+    expect(rebuild).toHaveBeenCalledTimes(1);
+
+    rebuild.mockClear();
+    await syncNotificationPermissionStatus();
+    expect(rebuild).not.toHaveBeenCalled(); // already granted — no repeat rebuild
+
+    rebuild.mockRestore();
   });
 
   it('6.6 skipOn shabbat: tefillin not scheduled on Saturday', async () => {
@@ -162,17 +212,33 @@ describe('NotificationScheduler', () => {
     expect(sameDay.length).toBe(0);
   });
 
-  it('6.7 PENDING_LIMIT guard: when pending > limit, only schedule today', async () => {
+  // Replaces the old "when pending > PENDING_LIMIT only schedule today" test. That guard could
+  // never fire in production (rebuild cancels everything first, so pending was always 0) and the
+  // test picked tefillin, whose skipOn made it vacuous whenever the suite ran on a Friday.
+  it('6.7 caps the schedule and drops the furthest-out reminders, not tomorrow wholesale', async () => {
     expect(PENDING_LIMIT).toBe(60);
-    mockState.pending = Array.from({ length: 61 }, (_, i) => ({ identifier: `dummy__${i}`, content: { data: {} } }));
-    setupEnabled(['tefillin']);
-    const future = new Date(Date.now() + 1000);
-    const tomorrow = new Date(future);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    await NotificationScheduler.scheduleAll(future);
-    const tomorrowKey = dateKey(tomorrow);
-    const tomorrowOnes = mockState.pending.filter((p) => p.identifier.startsWith('tefillin__' + tomorrowKey));
-    expect(tomorrowOnes.length).toBe(0);
+    const window = { start: new Date(Date.now() + 60_000), end: new Date(Date.now() + 40 * 60_000) };
+    const many: Mitzvah[] = Array.from({ length: 40 }, (_, index) => ({
+      id: `bulk_${index}`,
+      name: { he: `בדיקה ${index}` },
+      icon: 'custom',
+      timeType: 'range-within-day',
+      category: 'daily-morning',
+      skipOn: [],
+      nuschaotSupported: ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'],
+      defaultReminders: [
+        { anchor: 'start', offsetMin: 1, label: 'a' },
+        { anchor: 'start', offsetMin: 2, label: 'b' },
+      ],
+      computeWindow: () => window,
+    }));
+
+    await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000), many);
+
+    expect(mockState.pending.length).toBeLessThanOrEqual(PENDING_LIMIT);
+    expect(mockState.pending.length).toBeGreaterThan(0);
+    const triggers = mockSchedule.mock.calls.map((call) => call[0].trigger!.date.getTime());
+    expect([...triggers].sort((a, b) => a - b)).toEqual(triggers);
   });
 
   it('6.8 identifier format: mitzvahId__YYYY-MM-DD__idx unique', async () => {
@@ -323,13 +389,187 @@ describe('NotificationScheduler', () => {
     expect(sameDay.length).toBe(0);
   });
 
-  it('6.11 concurrent rebuild shares one in-flight run', async () => {
+  it('6.10c skipIfDone flag is carried into the scheduled notification payload', async () => {
+    const future = new Date(Date.now() + 60_000);
+    const mitzvah: Mitzvah = {
+      id: 'flag_test',
+      name: { he: 'בדיקה', en: 'Flag test' },
+      icon: 'custom',
+      timeType: 'range-within-day',
+      category: 'daily-morning',
+      skipOn: [],
+      nuschaotSupported: ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'],
+      defaultReminders: [
+        { anchor: 'start', offsetMin: 1, label: 'primary' },
+        { anchor: 'start', offsetMin: 2, label: 'nudge', skipIfDone: true },
+      ],
+      computeWindow: ({ date }) => ({
+        start: new Date(date.getTime() + 60_000),
+        end: new Date(date.getTime() + 20 * 60_000),
+      }),
+    };
+
+    await NotificationScheduler.scheduleAll(future, [mitzvah]);
+
+    const scheduled = mockState.pending.filter((p) => p.identifier.startsWith('flag_test__'));
+    const primary = scheduled.find((p) => p.content.data.reminderIndex === 0);
+    const nudge = scheduled.find((p) => p.content.data.reminderIndex === 1);
+    expect(primary?.content.data.skipIfDone).toBe(false);
+    expect(nudge?.content.data.skipIfDone).toBe(true);
+  });
+
+  it('6.10d delivery is suppressed for a skipIfDone reminder once the mitzvah is done', () => {
+    const date = new Date(2026, 4, 6);
+    const key = dateKey(date);
+    const data = { mitzvahId: 'shacharit', dateKey: key, skipIfDone: true };
+
+    expect(shouldSuppressForCompletion(data, `shacharit__${key}__1`)).toBe(false);
+
+    useCompletionsStore.getState().markDone('shacharit', date);
+    expect(shouldSuppressForCompletion(data, `shacharit__${key}__1`)).toBe(true);
+
+    // A reminder without skipIfDone still fires even when done.
+    expect(shouldSuppressForCompletion({ mitzvahId: 'shacharit', dateKey: key }, `shacharit__${key}__0`)).toBe(false);
+  });
+
+  // The skip decision must come from the mitzvah's own window, not from the clock time the rebuild
+  // happened to run at. `isShabbat` is instant-sensitive, so a Friday-evening rebuild used to see
+  // "Saturday 20:00" (past tzeit) as not-Shabbat and queue tefillin for Shabbat morning.
+  it('6.13 a Friday-evening rebuild schedules nothing for Shabbat', async () => {
+    setupEnabled(['tefillin', 'shacharit']);
+    const fridayEvening = nextWeekdayAt(5, 20); // upcoming Friday 20:00, after shkia
+    const saturday = new Date(fridayEvening);
+    saturday.setDate(saturday.getDate() + 1);
+    const saturdayKey = dateKey(saturday);
+
+    await NotificationScheduler.scheduleAll(fridayEvening);
+
+    expect(idsFor('tefillin', saturdayKey)).toHaveLength(0);
+    // Proves the run reached Saturday at all: shacharit has no skipOn and is still scheduled.
+    expect(idsFor('shacharit', saturdayKey).length).toBeGreaterThan(0);
+  });
+
+  it('6.13b a Thursday-evening rebuild still schedules Friday morning', async () => {
+    setupEnabled(['tefillin']);
+    const thursdayEvening = nextWeekdayAt(4, 20); // upcoming Thursday 20:00, after shkia
+    const friday = new Date(thursdayEvening);
+    friday.setDate(friday.getDate() + 1);
+
+    await NotificationScheduler.scheduleAll(thursdayEvening);
+
+    expect(idsFor('tefillin', dateKey(friday)).length).toBeGreaterThan(0);
+  });
+
+  function bulkMitzvah(id: string, reminders: Mitzvah['defaultReminders'], window: { start: Date; end: Date }): Mitzvah {
+    return {
+      id,
+      name: { he: 'בדיקה', en: 'Test' },
+      icon: 'custom',
+      timeType: 'range-within-day',
+      category: 'daily-morning',
+      skipOn: [],
+      nuschaotSupported: ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'],
+      defaultReminders: reminders,
+      computeWindow: () => window,
+    };
+  }
+
+  it('6.14 the trigger is a date trigger at the exact anchor offset, on the app channel', async () => {
+    const start = new Date(Date.now() + 30 * 60_000);
+    const end = new Date(Date.now() + 120 * 60_000);
+    const mitzvah = bulkMitzvah('trigger_test', [
+      { anchor: 'start', offsetMin: 10, label: 'from start' },
+      { anchor: 'end', offsetMin: -45, label: 'before end' },
+    ], { start, end });
+
+    await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000), [mitzvah]);
+
+    const byIndex = (i: number) => mockState.pending.find((p) => p.content.data.reminderIndex === i)!;
+    expect(byIndex(0).trigger).toMatchObject({ type: 'date', channelId: 'default' });
+    expect(byIndex(0).trigger!.date.getTime()).toBe(start.getTime() + 10 * 60_000);
+    expect(byIndex(1).trigger!.date.getTime()).toBe(end.getTime() - 45 * 60_000);
+    for (const pending of mockState.pending) {
+      expect(pending.trigger!.date.getTime()).toBeGreaterThan(Date.now());
+    }
+  });
+
+  it('6.15 a reminder whose trigger falls outside its own window is never scheduled', async () => {
+    const start = new Date(Date.now() + 30 * 60_000);
+    const end = new Date(Date.now() + 90 * 60_000); // a one-hour window
+    const mitzvah = bulkMitzvah('outside_test', [
+      { anchor: 'start', offsetMin: 15, label: 'inside' },
+      { anchor: 'start', offsetMin: 600, label: 'hours after the window closed' },
+    ], { start, end });
+
+    await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000), [mitzvah]);
+
+    expect(mockState.pending.filter((p) => p.content.data.reminderIndex === 0).length).toBeGreaterThan(0);
+    expect(mockState.pending.filter((p) => p.content.data.reminderIndex === 1)).toHaveLength(0);
+  });
+
+  it('6.16 notification text follows the app language', async () => {
+    const window = { start: new Date(Date.now() + 30 * 60_000), end: new Date(Date.now() + 90 * 60_000) };
+    const mitzvah = bulkMitzvah('lang_test', [{ anchor: 'start', offsetMin: 1, label: 'טקסט עברי' }], window);
+
+    useUserStore.getState().setLanguage('en');
+    await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000), [mitzvah]);
+    expect(mockState.pending[0].content.title).toBe('Test');
+    expect(mockState.pending[0].content.body).not.toMatch(/[֐-׿]/);
+
+    mockState.pending = [];
+    useUserStore.getState().setLanguage('he');
+    await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000), [mitzvah]);
+    expect(mockState.pending[0].content.title).toBe('בדיקה');
+    expect(mockState.pending[0].content.body).toBe('טקסט עברי');
+  });
+
+  it('6.12 one mitzvah throwing does not abort scheduling for the rest', async () => {
+    const future = new Date(Date.now() + 1000);
+    const window = { start: new Date(Date.now() + 60_000), end: new Date(Date.now() + 20 * 60_000) };
+    const base = {
+      name: { he: 'בדיקה' },
+      icon: 'custom',
+      timeType: 'range-within-day' as const,
+      category: 'daily-morning' as const,
+      skipOn: [],
+      nuschaotSupported: ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'] as Mitzvah['nuschaotSupported'],
+      defaultReminders: [{ anchor: 'start' as const, offsetMin: 1, label: 'x' }],
+    };
+    const exploding: Mitzvah = {
+      ...base,
+      id: 'exploding',
+      computeWindow: () => {
+        throw new Error('zmanim blew up');
+      },
+    };
+    const healthy: Mitzvah = { ...base, id: 'healthy', computeWindow: () => window };
+
+    await expect(NotificationScheduler.scheduleAll(future, [exploding, healthy])).resolves.toBeUndefined();
+    expect(mockState.pending.some((p) => p.identifier.startsWith('healthy__'))).toBe(true);
+    expect(mockState.pending.some((p) => p.identifier.startsWith('exploding__'))).toBe(false);
+  });
+
+  // Previously asserted that the second rebuild was simply dropped — which was the bug: a toggle
+  // made while a rebuild was running never reached the schedule. It must be coalesced into exactly
+  // one trailing re-run instead.
+  it('6.11 a rebuild requested mid-run is re-run once, not dropped', async () => {
     setupEnabled(['tefillin']);
     await Promise.all([NotificationScheduler.rebuild(), NotificationScheduler.rebuild()]);
+
+    expect(mockCancelAll).toHaveBeenCalledTimes(2);
     const tefillinIds = mockState.pending
       .filter((p) => p.identifier.startsWith('tefillin__'))
       .map((p) => p.identifier);
     expect(new Set(tefillinIds).size).toBe(tefillinIds.length);
-    expect(mockCancelAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('6.11b the trailing re-run observes state changed during the in-flight run', async () => {
+    setupEnabled(['tefillin']);
+    const first = NotificationScheduler.rebuild();
+    setupEnabled(['tefillin', 'shacharit']);
+    const second = NotificationScheduler.rebuild();
+    await Promise.all([first, second]);
+
+    expect(mockState.pending.some((p) => p.identifier.startsWith('shacharit__'))).toBe(true);
   });
 });

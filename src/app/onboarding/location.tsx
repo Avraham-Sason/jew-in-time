@@ -18,10 +18,19 @@ export default function OnboardingLocationScreen() {
   const [busy, setBusy] = useState(false);
 
   const refreshLocation = async () => {
+    if (busy) return;
     setBusy(true);
-    const resolved = await LocationService.getCurrentLocation();
-    user.setLocationState(resolved.location, resolved.status, resolved.source);
-    setBusy(false);
+    try {
+      const resolved = await LocationService.getCurrentLocation();
+      if (resolved.location) {
+        user.setLocationState(resolved.location, resolved.status, resolved.source);
+      } else {
+        user.setLocationStatus(resolved.status);
+      }
+    } finally {
+      // Without this a rejection left the button reading "..." forever, dead-ending onboarding.
+      setBusy(false);
+    }
   };
 
   const allowNotifications = async () => {
@@ -46,7 +55,7 @@ export default function OnboardingLocationScreen() {
       </View>
 
       <View style={[styles.cityWrap, { borderColor: colors.border }]}>
-        {CITIES.slice(0, 8).map((city) => {
+        {CITIES.map((city) => {
           const selected = city.name === user.location.name;
           return (
             <Pressable
@@ -54,7 +63,7 @@ export default function OnboardingLocationScreen() {
               onPress={() => user.setLocationState(city, 'ready', 'manual')}
               style={[styles.cityPill, { backgroundColor: selected ? colors.gold : colors.surface2 }]}
             >
-              <Text style={[typography.small, { color: selected ? '#fff' : colors.textSub }]}>{getLocationName(city, language)}</Text>
+              <Text style={[typography.small, { color: selected ? colors.onGold : colors.textSub }]}>{getLocationName(city, language)}</Text>
             </Pressable>
           );
         })}
@@ -70,7 +79,7 @@ export default function OnboardingLocationScreen() {
 
       <Dots step={2} />
       <Pressable onPress={() => router.push('/onboarding/ready')} style={[styles.cta, { backgroundColor: colors.gold }]}>
-        <Text style={[typography.bodyBold, { color: '#fff' }]}>{t('common.continue')}</Text>
+        <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.continue')}</Text>
       </Pressable>
       <Pressable onPress={() => router.back()} style={styles.backBtn}>
         <Text style={[typography.small, { color: colors.textSub }]}>{t('common.back')}</Text>

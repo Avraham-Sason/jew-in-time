@@ -6,8 +6,9 @@ import { ComputeContext, ContentBlock, Mitzvah, Reminder, UserSettings } from '@
 import { Location } from '@/types/zmanim';
 import { getAllMitzvot } from '@/data/customMitzvotAdapter';
 import { ZmanimService } from '@/services/ZmanimService';
-import { HebcalService } from '@/services/HebcalService';
 import { StorageService } from '@/services/StorageService';
+import { isSkippedAt } from '@/utils/skipRules';
+import { t } from '@/i18n';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
@@ -17,8 +18,10 @@ const DAILY_REBUILD_TASK = 'jew-in-time-daily-rebuild';
 const NOTIFICATION_ACTION_TASK = 'jew-in-time-notification-actions';
 const MITZVAH_REMINDER_CATEGORY = 'mitzvah_reminder';
 const MARK_DONE_ACTION = 'MARK_DONE';
+const ANDROID_CHANNEL_ID = 'default';
 const PENDING_LIMIT = 60;
 const IOS_MAX = 64;
+const IOS_HEADROOM = 4;
 const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
 const REBUILD_HOUR = 0;
 const REBUILD_MINUTE = 15;
@@ -43,6 +46,7 @@ export type PendingNotificationMeta = {
   dateKey?: string;
   reminderIndex?: number;
   customId?: string;
+  skipIfDone?: boolean;
   fullContent?: ContentBlock[] | null;
 };
 
@@ -80,20 +84,14 @@ function parseDateKey(value: string): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function contextFor(date: Date, location: Location, settings: UserSettings): ComputeContext {
-  return { date, location, settings, zmanim: ZmanimService.getZmanim(date, location) };
+function contextFor(date: Date, location: Location, settings: UserSettings): ComputeContext | null {
+  const zmanim = ZmanimService.getZmanim(date, location);
+  return zmanim ? { date, location, settings, zmanim } : null;
 }
 
-function buildTriggerTime(reminder: Reminder, window: { start: Date; end: Date }): Date {
+export function buildTriggerTime(reminder: Reminder, window: { start: Date; end: Date }): Date {
   const anchor = reminder.anchor === 'start' ? window.start : window.end;
   return new Date(anchor.getTime() + reminder.offsetMin * 60_000);
-}
-
-function shouldSkip(mitzvah: Mitzvah, date: Date, location: Location): boolean {
-  if (!mitzvah.skipOn.length) return false;
-  if (mitzvah.skipOn.includes('shabbat') && HebcalService.isShabbat(date, location)) return true;
-  if (mitzvah.skipOn.includes('yomtov') && HebcalService.isYomTov(date, location)) return true;
-  return false;
 }
 
 function remindersFor(mitzvah: Mitzvah): Reminder[] {
@@ -103,7 +101,7 @@ function remindersFor(mitzvah: Mitzvah): Reminder[] {
 
 function enabledMitzvot(): Mitzvah[] {
   const active = useMitzvotStore.getState().activeMitzvot;
-  return getAllMitzvot().filter((m) => active[m.id]?.enabled);
+  return getAllMitzvot(useUserStore.getState().nusach).filter((m) => active[m.id]?.enabled);
 }
 
 function hasNotificationPermission(): boolean {
@@ -114,8 +112,8 @@ function hasNotificationPermission(): boolean {
 
 async function ensureAndroidChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync('default', {
-    name: 'מצוות',
+  await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
+    name: t('notifications.channelName'),
     importance: Notifications.AndroidImportance.HIGH,
     sound: 'default',
     enableVibrate: true,
@@ -132,7 +130,7 @@ async function ensureNotificationCategory(): Promise<void> {
     await Notifications.setNotificationCategoryAsync(MITZVAH_REMINDER_CATEGORY, [
       {
         identifier: MARK_DONE_ACTION,
-        buttonTitle: 'עשיתי',
+        buttonTitle: t('notifications.markDone'),
         options: { opensAppToForeground: false },
       },
     ]);
@@ -152,61 +150,96 @@ function shouldRunDailyRebuild(now: Date = new Date()): boolean {
   return hours > REBUILD_HOUR || (hours === REBUILD_HOUR && minutes >= REBUILD_MINUTE);
 }
 
+function isEnglish(): boolean {
+  return useUserStore.getState().language === 'en';
+}
+
+function mitzvahTitle(mitzvah: Mitzvah): string {
+  return isEnglish() && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he;
+}
+
 export function pickBodyForReminder(reminder: Reminder, mitzvah: Mitzvah, trigger: Date): string {
+  // Registry labels and bodyVariants are Hebrew-only. Rather than deliver unreadable text to an
+  // English user, fall back to a translated line built from the English mitzvah name.
+  const english = isEnglish() && mitzvah.name.en;
   const variants = reminder.bodyVariants?.filter((value) => value.trim().length > 0) ?? [];
   const source = variants.length ? variants : [reminder.label];
   const idx = Math.floor(trigger.getTime() / 86_400_000) % source.length;
-  const base = source[idx] ?? reminder.label;
+  const base = english
+    ? t('notifications.timeFor', { name: mitzvah.name.en })
+    : (source[idx] ?? reminder.label);
   if (!reminder.includeContentInBody || !mitzvah.contentBlocks?.length) return base;
   const content = mitzvah.contentBlocks
     .filter((block) => block.type === 'text' || block.type === 'blessing')
-    .map((block) => block.he.trim())
+    .map((block) => (english ? (block.en ?? block.he) : block.he).trim())
     .filter(Boolean)
     .join('\n');
   return content ? `${base}\n${content}` : base;
 }
 
-async function scheduleOne(
+type ScheduleCandidate = {
+  trigger: Date;
+  input: Notifications.NotificationRequestInput;
+};
+
+function candidatesFor(
   mitzvah: Mitzvah,
   date: Date,
   location: Location,
   settings: UserSettings,
-): Promise<void> {
-  if (shouldSkip(mitzvah, date, location)) return;
+): ScheduleCandidate[] {
   const ctx = contextFor(date, location, settings);
+  if (!ctx) return [];
   const window = mitzvah.computeWindow(ctx);
-  if (!window) return;
+  if (!window) return [];
+  if (isSkippedAt(mitzvah, window.start, location)) return [];
+  const completions = useCompletionsStore.getState();
+  if (completions.isDone(mitzvah.id, date) || completions.isSkipped(mitzvah.id, date)) return [];
+
   const now = Date.now();
-  const completed = useCompletionsStore.getState().isDone(mitzvah.id, date);
-  const skipped = useCompletionsStore.getState().isSkipped(mitzvah.id, date);
-  if (completed || skipped) return;
   const reminders = remindersFor(mitzvah);
+  const candidates: ScheduleCandidate[] = [];
 
   for (let i = 0; i < reminders.length; i++) {
     const r = reminders[i];
     const trigger = buildTriggerTime(r, window);
     if (trigger.getTime() <= now) continue;
-    await Notifications.scheduleNotificationAsync({
-      identifier: buildId(mitzvah.id, date, i),
-      content: {
-        title: mitzvah.name.he,
-        body: pickBodyForReminder(r, mitzvah, trigger),
-        data: {
-          mitzvahId: mitzvah.id,
-          windowEnd: window.end.toISOString(),
-          dateKey: dateKey(date),
-          reminderIndex: i,
-          customId: buildId(mitzvah.id, date, i),
-          fullContent: mitzvah.contentBlocks ?? null,
+    // A reminder outside its own window cannot do its job — "time for X" after X has closed. The
+    // reminder editor rejects these up front; this is the backstop for already-persisted ones.
+    if (trigger.getTime() < window.start.getTime() || trigger.getTime() > window.end.getTime()) continue;
+    candidates.push({
+      trigger,
+      input: {
+        identifier: buildId(mitzvah.id, date, i),
+        content: {
+          title: mitzvahTitle(mitzvah),
+          body: pickBodyForReminder(r, mitzvah, trigger),
+          data: {
+            mitzvahId: mitzvah.id,
+            windowEnd: window.end.toISOString(),
+            dateKey: dateKey(date),
+            reminderIndex: i,
+            customId: buildId(mitzvah.id, date, i),
+            skipIfDone: r.skipIfDone === true,
+            fullContent: mitzvah.contentBlocks ?? null,
+          },
+          categoryIdentifier: MITZVAH_REMINDER_CATEGORY,
+          autoDismiss: true,
+          sticky: false,
+          sound: 'default',
         },
-        categoryIdentifier: MITZVAH_REMINDER_CATEGORY,
-        autoDismiss: true,
-        sticky: false,
-        sound: 'default',
+        // Android resolves the channel from the trigger. Without it every reminder lands on
+        // expo's "Miscellaneous" fallback channel and the configured one is dead.
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: trigger,
+          channelId: ANDROID_CHANNEL_ID,
+        },
       },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: trigger },
     });
   }
+
+  return candidates;
 }
 
 function notificationTargetFromData(
@@ -269,7 +302,15 @@ async function dismissPresentedNotificationsForMitzvah(
   await dismissNotificationIds(ids);
 }
 
-async function dismissCompletedPresentedNotifications(): Promise<void> {
+function shouldSuppressForCompletion(data: PendingNotificationMeta, notificationId?: string): boolean {
+  if (!data.skipIfDone) return false;
+  const target = notificationTargetFromData(data, notificationId);
+  if (!target) return false;
+  const completions = useCompletionsStore.getState();
+  return completions.isDone(target.mitzvahId, target.date) || completions.isSkipped(target.mitzvahId, target.date);
+}
+
+export async function dismissCompletedPresentedNotifications(): Promise<void> {
   const ids: string[] = [];
   const completions = useCompletionsStore.getState();
   const presented = await getPresentedNotificationsSafe();
@@ -277,7 +318,9 @@ async function dismissCompletedPresentedNotifications(): Promise<void> {
     const id = notification.request.identifier;
     const data = pendingNotificationMetaFromContent(notification.request.content as NotificationContentLike);
     const target = notificationTargetFromData(data, id);
-    if (target && completions.isDone(target.mitzvahId, target.date)) {
+    // Skipped counts as resolved, exactly like scheduleOne and shouldSuppressForCompletion treat
+    // it — otherwise a mitzvah the user deliberately skipped keeps nagging from the tray.
+    if (target && (completions.isDone(target.mitzvahId, target.date) || completions.isSkipped(target.mitzvahId, target.date))) {
       ids.push(id);
     }
   }
@@ -316,12 +359,33 @@ async function scheduleAllImpl(
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const pending = await Notifications.getAllScheduledNotificationsAsync();
-  const days = pending.length > PENDING_LIMIT ? [today] : [today, tomorrow];
-
-  for (const d of days) {
+  const candidates: ScheduleCandidate[] = [];
+  for (const d of [today, tomorrow]) {
     for (const m of activeMitzvot) {
-      await scheduleOne(m, d, location, settings);
+      // Isolate per mitzvah: one failure must never abort the rest of the batch, or a single
+      // bad computation leaves the user with an empty schedule (cancelAll already ran).
+      try {
+        candidates.push(...candidatesFor(m, d, location, settings));
+      } catch (err) {
+        if (__DEV__) console.warn('[notifications] scheduling failed', m.id, err);
+      }
+    }
+  }
+
+  // iOS keeps only the 64 soonest pending requests and silently discards the rest. Order by
+  // trigger and cap deliberately, so what gets dropped is the furthest away rather than —
+  // as with a day-major loop — all of tomorrow.
+  candidates.sort((a, b) => a.trigger.getTime() - b.trigger.getTime());
+  const cap = Platform.OS === 'ios' ? IOS_MAX - IOS_HEADROOM : PENDING_LIMIT;
+  if (candidates.length > cap) {
+    console.warn(`[notifications] ${candidates.length - cap} reminder(s) beyond the ${cap} slot cap were not scheduled`);
+  }
+
+  for (const candidate of candidates.slice(0, cap)) {
+    try {
+      await Notifications.scheduleNotificationAsync(candidate.input);
+    } catch (err) {
+      if (__DEV__) console.warn('[notifications] schedule failed', candidate.input.identifier, err);
     }
   }
 }
@@ -329,9 +393,26 @@ async function scheduleAllImpl(
 export const NotificationScheduler = {
   inFlight: null as Promise<void> | null,
 
+  rerunQueued: false,
+
+  // Trailing-edge coalescing, not drop-on-conflict. A rebuild reads the store INSIDE the locked
+  // task, so a request arriving mid-run reflects state the running task never saw; dropping it
+  // left the newest toggle or city change unscheduled until the next day.
   async withLock(task: () => Promise<void>): Promise<void> {
-    if (this.inFlight) return this.inFlight;
-    const run = task().finally(() => {
+    if (this.inFlight) {
+      this.rerunQueued = true;
+      return this.inFlight;
+    }
+    const run = (async () => {
+      try {
+        await task();
+      } finally {
+        while (this.rerunQueued) {
+          this.rerunQueued = false;
+          await task();
+        }
+      }
+    })().finally(() => {
       if (this.inFlight === run) {
         this.inFlight = null;
       }
@@ -371,6 +452,7 @@ export const NotificationScheduler = {
   },
 
   async rebuild(): Promise<void> {
+    if (schedulingSuspended) return;
     return this.withLock(async () => {
       await this.cancelAll();
       await scheduleAllImpl(
@@ -379,16 +461,41 @@ export const NotificationScheduler = {
         useUserStore.getState().location,
         (({ nusach, halachicOpinions, inIsrael }) => ({ nusach, halachicOpinions, inIsrael }))(useUserStore.getState()),
       );
-      StorageService.set(LAST_REBUILD_KEY, dateKey(new Date()));
     });
+  },
+
+  // Only the day-rollover path stamps LAST_REBUILD_KEY. A settings-driven rebuild used to stamp it
+  // too, which suppressed that night's recovery run for the rest of the day.
+  async rebuildForNewDay(): Promise<void> {
+    await this.rebuild();
+    StorageService.set(LAST_REBUILD_KEY, dateKey(new Date()));
   },
 };
 
 export async function syncNotificationPermissionStatus(): Promise<boolean> {
   const { status } = await Notifications.getPermissionsAsync();
   const granted = status === 'granted';
+  const previous = useUserStore.getState().notificationPermission;
   useUserStore.getState().setNotificationPermission(granted ? 'granted' : 'denied');
+  // Nothing else reacts to this field, so without an explicit rebuild a user who grants permission
+  // in OS settings (which the home banner invites them to do) never gets a single reminder.
+  if (granted && previous !== 'granted') {
+    NotificationScheduler.rebuild().catch(() => {});
+  }
   return granted;
+}
+
+// Extends the today+tomorrow horizon whenever the app is opened. Background fetch is opportunistic
+// — iOS runs it never for a force-quit app — so it must not be the only path that keeps reminders
+// alive, or they simply stop after two days with no signal.
+export async function refreshSchedulingOnForeground(): Promise<void> {
+  if (!useUserStore.getState().isOnboarded) return;
+  if (shouldRunDailyRebuild()) {
+    await NotificationScheduler.rebuildForNewDay();
+    return;
+  }
+  const pending = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
+  if (!pending.length) await NotificationScheduler.rebuild();
 }
 
 export async function requestNotificationPermissions(): Promise<boolean> {
@@ -409,7 +516,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 TaskManager.defineTask(DAILY_REBUILD_TASK, async () => {
   try {
     if (shouldRunDailyRebuild()) {
-      await NotificationScheduler.rebuild();
+      await NotificationScheduler.rebuildForNewDay();
     }
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (err) {
@@ -453,20 +560,37 @@ export async function registerNotificationActionTask(): Promise<void> {
   }
 }
 
-export function initNotificationHandlers(): void {
+// Returns a teardown. The caller owns it — without one, a remount (fast refresh, or a second
+// mount) stacks another full set of store subscriptions and every change fans out N rebuilds.
+export function initNotificationHandlers(): () => void {
+  if (teardownHandlers) teardownHandlers();
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async (notification) => {
+      const data = pendingNotificationMetaFromContent(notification.request.content as NotificationContentLike);
+      if (shouldSuppressForCompletion(data, notification.request.identifier)) {
+        return {
+          shouldShowAlert: false,
+          shouldShowBanner: false,
+          shouldShowList: false,
+          shouldPlaySound: false,
+          shouldSetBadge: false,
+        };
+      }
+      return {
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      };
+    },
   });
   ensureNotificationCategory().catch(() => {});
   registerNotificationActionTask().catch(() => {});
   syncNotificationPermissionStatus().catch(() => {});
   dismissCompletedPresentedNotifications().catch(() => {});
+  refreshSchedulingOnForeground().catch(() => {});
+  const unsubscribers = [
   useUserStore.subscribe((state, prev) => {
     if (state.notificationsEnabled !== prev.notificationsEnabled) {
       if (state.notificationsEnabled) {
@@ -484,19 +608,36 @@ export function initNotificationHandlers(): void {
     ) {
       NotificationScheduler.rebuild().catch(() => {});
     }
-  });
+  }),
   useMitzvotStore.subscribe((state, prev) => {
     if (state.activeMitzvot === prev.activeMitzvot) return;
     if (mitzvotConfigChanged(state.activeMitzvot, prev.activeMitzvot)) {
       NotificationScheduler.rebuild().catch(() => {});
     }
-  });
+  }),
   useCustomMitzvotStore.subscribe((state, prev) => {
     if (state.items !== prev.items) {
       NotificationScheduler.rebuild().catch(() => {});
     }
-  });
+  }),
+  ];
   registerDailyRebuildTask().catch(() => {});
+  teardownHandlers = () => {
+    unsubscribers.forEach((unsubscribe) => unsubscribe());
+    teardownHandlers = null;
+  };
+  return teardownHandlers;
+}
+
+let teardownHandlers: (() => void) | null = null;
+
+// App reset resets four stores in a row, and every one of them fires the subscriptions above.
+// Without this the reset would re-arm a full schedule from the freshly restored defaults —
+// reminders at Jerusalem zmanim for a profile the user just deleted.
+let schedulingSuspended = false;
+
+export function setSchedulingSuspended(value: boolean): void {
+  schedulingSuspended = value;
 }
 
 function mitzvotConfigChanged(
@@ -521,4 +662,5 @@ export {
   LAST_REBUILD_KEY,
   MITZVAH_REMINDER_CATEGORY,
   MARK_DONE_ACTION,
+  shouldSuppressForCompletion,
 };

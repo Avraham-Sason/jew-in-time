@@ -1,22 +1,28 @@
 import { ComplexZmanimCalendar, GeoLocation } from 'kosher-zmanim';
+import { DateTime } from 'luxon';
 import { Location, Zmanim } from '@/types/zmanim';
+import { candleLightingMinutes } from '@/data/mitzvot';
 
 const ZMANIM_CACHE_LIMIT = 90;
+const ALOT_FALLBACK_MIN = 72;
+const MISHEYAKIR_FALLBACK_MIN = 52;
+const TZEIT_FALLBACK_MIN = 30;
+const MGA_OFFSET_MIN = 72;
 const zmanimCache = new Map<string, Zmanim>();
 
-function toDate(d: unknown): Date {
-  if (!d) throw new Error('Zmanim computation returned null');
-  if (d instanceof Date) return d;
-  if (typeof (d as { toDate?: () => Date }).toDate === 'function') {
-    return (d as { toDate: () => Date }).toDate();
-  }
-  if (typeof (d as { toJSDate?: () => Date }).toJSDate === 'function') {
-    return (d as { toJSDate: () => Date }).toJSDate();
-  }
-  const s = String(d);
-  const parsed = new Date(s);
-  if (Number.isNaN(parsed.getTime())) throw new Error(`Cannot parse zman: ${s}`);
-  return parsed;
+function toDateOrNull(value: unknown): Date | null {
+  if (!value) return null;
+  const candidate =
+    value instanceof Date
+      ? value
+      : ((value as { toDate?: () => Date }).toDate?.() ??
+        (value as { toJSDate?: () => Date }).toJSDate?.() ??
+        new Date(String(value)));
+  return candidate instanceof Date && !Number.isNaN(candidate.getTime()) ? candidate : null;
+}
+
+function shift(base: Date, minutes: number): Date {
+  return new Date(base.getTime() + minutes * 60_000);
 }
 
 function buildCalendar(date: Date, loc: Location): ComplexZmanimCalendar {
@@ -28,15 +34,16 @@ function buildCalendar(date: Date, loc: Location): ComplexZmanimCalendar {
     loc.tz,
   );
   const cal = new ComplexZmanimCalendar(geo);
-  cal.setDate(date);
+  // Resolve the calendar day in the LOCATION's zone. kosher-zmanim's setDate materialises a plain
+  // Date in the system zone, so a traveller whose device zone differs from their selected city got
+  // that city's zmanim for the device's day — every evening, off by one.
+  cal.setDate(DateTime.fromJSDate(date).setZone(loc.tz));
   return cal;
 }
 
 function cacheKey(date: Date, loc: Location): string {
   return [
-    date.getFullYear(),
-    date.getMonth() + 1,
-    date.getDate(),
+    DateTime.fromJSDate(date).setZone(loc.tz).toISODate(),
     loc.lat,
     loc.lng,
     loc.elevation ?? 0,
@@ -53,6 +60,7 @@ function cloneZmanim(zmanim: Zmanim): Zmanim {
     sofZmanShmaMA: new Date(zmanim.sofZmanShmaMA),
     sofZmanTfilaGra: new Date(zmanim.sofZmanTfilaGra),
     chatzot: new Date(zmanim.chatzot),
+    chatzotLayla: new Date(zmanim.chatzotLayla),
     minchaGedola: new Date(zmanim.minchaGedola),
     minchaKetana: new Date(zmanim.minchaKetana),
     plagHaMincha: new Date(zmanim.plagHaMincha),
@@ -76,40 +84,77 @@ export type CandleLightingOptions = {
 };
 
 export const ZmanimService = {
-  getZmanim(date: Date, loc: Location): Zmanim {
+  // Returns null only when the sun does not rise or set at all on this date (polar day/night).
+  // Depression-angle zmanim (alot 16.1°, misheyakir 11.5°/11°) have no solution above ~50°N
+  // around midsummer — London, Antwerp and Moscow all hit this — so each falls back to its
+  // fixed-minutes shita rather than failing the whole day.
+  getZmanim(date: Date, loc: Location): Zmanim | null {
     const key = cacheKey(date, loc);
     const cached = zmanimCache.get(key);
     if (cached) return cloneZmanim(cached);
+
     const cal = buildCalendar(date, loc);
     const sunrise = cal.getSeaLevelSunrise();
     const sunset = cal.getSeaLevelSunset();
-    const zmanim = {
-      alotHaShachar: toDate(cal.getAlosHashachar()),
-      misheyakir: toDate(cal.getMisheyakir11Point5Degrees() ?? cal.getMisheyakir11Degrees()),
-      netzHaChama: toDate(sunrise),
-      sofZmanShmaGra: toDate(cal.getSofZmanShmaGRA()),
-      sofZmanShmaMA: toDate(cal.getSofZmanShmaMGA()),
-      sofZmanTfilaGra: toDate(cal.getSofZmanTfilaGRA()),
-      chatzot: toDate(cal.getChatzos()),
-      minchaGedola: toDate(cal.getMinchaGedola()),
-      minchaKetana: toDate(cal.getMinchaKetana(sunrise, sunset)),
-      plagHaMincha: toDate(cal.getPlagHamincha(sunrise, sunset)),
-      shkia: toDate(sunset),
-      tzeitHakochavim: toDate(cal.getTzaisGeonim7Point083Degrees()),
+    const netzHaChama = toDateOrNull(sunrise);
+    const shkia = toDateOrNull(sunset);
+    if (!netzHaChama || !shkia) return null;
+
+    const proportionalHour = (shkia.getTime() - netzHaChama.getTime()) / 12;
+    const fromNetz = (hours: number) => new Date(netzHaChama.getTime() + hours * proportionalHour);
+    const mgaStart = shift(netzHaChama, -MGA_OFFSET_MIN);
+    const mgaHour = (shift(shkia, MGA_OFFSET_MIN).getTime() - mgaStart.getTime()) / 12;
+
+    const alotHaShachar =
+      toDateOrNull(cal.getAlosHashachar()) ??
+      toDateOrNull(cal.getAlos72()) ??
+      shift(netzHaChama, -ALOT_FALLBACK_MIN);
+    // Once alot falls back to fixed minutes, a still-solvable depression angle for misheyakir can
+    // land before it. Misheyakir must sit between alot and sunrise, so fall back there too.
+    const misheyakirCandidate =
+      toDateOrNull(cal.getMisheyakir11Point5Degrees()) ?? toDateOrNull(cal.getMisheyakir11Degrees());
+    const misheyakir =
+      misheyakirCandidate &&
+      misheyakirCandidate.getTime() >= alotHaShachar.getTime() &&
+      misheyakirCandidate.getTime() < netzHaChama.getTime()
+        ? misheyakirCandidate
+        : shift(netzHaChama, -MISHEYAKIR_FALLBACK_MIN);
+
+    const zmanim: Zmanim = {
+      alotHaShachar,
+      misheyakir,
+      netzHaChama,
+      sofZmanShmaGra: toDateOrNull(cal.getSofZmanShmaGRA()) ?? fromNetz(3),
+      sofZmanShmaMA: toDateOrNull(cal.getSofZmanShmaMGA()) ?? new Date(mgaStart.getTime() + 3 * mgaHour),
+      sofZmanTfilaGra: toDateOrNull(cal.getSofZmanTfilaGRA()) ?? fromNetz(4),
+      chatzot: toDateOrNull(cal.getChatzos()) ?? fromNetz(6),
+      // Chatzot halayla — the solar midnight of the night that FOLLOWS this day, so it belongs to
+      // the next civil date. Never derive it by adding a calendar day to midday chatzot.
+      chatzotLayla:
+        toDateOrNull(cal.getSolarMidnight()) ??
+        new Date((toDateOrNull(cal.getChatzos()) ?? fromNetz(6)).getTime() + 12 * 3_600_000),
+      minchaGedola: toDateOrNull(cal.getMinchaGedola()) ?? fromNetz(6.5),
+      minchaKetana: toDateOrNull(cal.getMinchaKetana(sunrise, sunset)) ?? fromNetz(9.5),
+      plagHaMincha: toDateOrNull(cal.getPlagHamincha(sunrise, sunset)) ?? fromNetz(10.75),
+      shkia,
+      tzeitHakochavim:
+        toDateOrNull(cal.getTzaisGeonim7Point083Degrees()) ?? shift(shkia, TZEIT_FALLBACK_MIN),
     };
+
     cacheZmanim(key, zmanim);
     return cloneZmanim(zmanim);
   },
 
-  getCandleLighting(date: Date, loc: Location, opts: CandleLightingOptions): Date {
-    const cal = buildCalendar(date, loc);
-    const shkia = toDate(cal.getSeaLevelSunset());
-    const minutes = opts.minutesBefore ?? (loc.inIsrael ? 18 : 20);
-    return new Date(shkia.getTime() - minutes * 60_000);
+  getCandleLighting(date: Date, loc: Location, opts: CandleLightingOptions): Date | null {
+    const shkia = toDateOrNull(buildCalendar(date, loc).getSeaLevelSunset());
+    if (!shkia) return null;
+    return shift(shkia, -(opts.minutesBefore ?? candleLightingMinutes(loc)));
   },
 
-  getHavdalah(date: Date, loc: Location): Date {
+  getHavdalah(date: Date, loc: Location): Date | null {
     const cal = buildCalendar(date, loc);
-    return toDate(cal.getTzaisGeonim7Point083Degrees());
+    const shkia = toDateOrNull(cal.getSeaLevelSunset());
+    if (!shkia) return null;
+    return toDateOrNull(cal.getTzaisGeonim7Point083Degrees()) ?? shift(shkia, TZEIT_FALLBACK_MIN);
   },
 };

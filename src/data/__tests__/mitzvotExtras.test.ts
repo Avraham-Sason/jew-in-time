@@ -6,7 +6,7 @@ jest.mock('react-native-mmkv', () => {
 import { MITZVOT } from '../mitzvot';
 import { CITIES } from '../cities';
 import { HebcalService } from '@/services/HebcalService';
-import { ZmanimService } from '@/services/ZmanimService';
+import { zmanimFor } from '@/testing/zmanim';
 
 describe('Mitzvot extras', () => {
   it('7.2 nusach options match supported set', () => {
@@ -19,9 +19,29 @@ describe('Mitzvot extras', () => {
     }
   });
 
-  it('11.4 every mitzvah has at least one defaultReminder', () => {
+  // Named "at least one" but only asserted `Array.isArray`, so `defaultReminders: []` passed — a
+  // mitzvah that shows up everywhere in the UI and can never notify.
+  it('11.4 every mitzvah has at least one usable defaultReminder', () => {
     for (const m of MITZVOT) {
-      expect(Array.isArray(m.defaultReminders)).toBe(true);
+      expect(m.defaultReminders.length).toBeGreaterThan(0);
+      for (const reminder of m.defaultReminders) {
+        expect(reminder.label.trim().length).toBeGreaterThan(0);
+        expect(['start', 'end']).toContain(reminder.anchor);
+        expect(Number.isFinite(reminder.offsetMin)).toBe(true);
+      }
+    }
+  });
+
+  // A duration in the text that disagrees with the offset tells the user they have more time than
+  // they do — tefillin promised "an hour" while firing 45 minutes before the window closed.
+  it('11.4b end-anchored labels that name a duration match their offset', () => {
+    for (const m of MITZVOT) {
+      for (const reminder of m.defaultReminders) {
+        if (reminder.anchor !== 'end') continue;
+        const stated = /(\d+)\s*דק/.exec(reminder.label);
+        if (stated) expect(Number(stated[1])).toBe(Math.abs(reminder.offsetMin));
+        if (/נותרה שעה/.test(reminder.label)) expect(Math.abs(reminder.offsetMin)).toBe(60);
+      }
     }
   });
 
@@ -65,17 +85,21 @@ describe('shouldSkip via HebcalService (16.1, 16.2 extra)', () => {
     expect(HebcalService.isShabbat(sun, CITIES[0])).toBe(false);
   });
 
-  it('16.2 yom tov detection works (Pesach 2026 = 1-7 Nisan)', () => {
-    const pesach = new Date('2026-04-02T10:00:00Z'); // 14 Nisan eve, but check first day 15 Nisan
-    const firstDay = new Date('2026-04-02T20:00:00Z');
-    const tested = HebcalService.isYomTov(firstDay, CITIES[0]);
-    expect(typeof tested).toBe('boolean');
+  // Was `expect(typeof tested).toBe('boolean')` — a tautology. The boundary behaviour now lives in
+  // HebcalService.test.ts (2.5b/2.5c); this one guards the `il` flag, which decides whether the
+  // second day of a chag is Yom Tov at all.
+  it('16.2 16 Nisan is chol hamoed in Israel and second-day Yom Tov in chu"l', () => {
+    const sixteenNisan = new Date(2026, 3, 3, 12);
+    const newYork = CITIES.find((c) => c.nameEn === 'New York')!;
+
+    expect(HebcalService.isYomTov(sixteenNisan, CITIES[0])).toBe(false);
+    expect(HebcalService.isYomTov(sixteenNisan, newYork)).toBe(true);
   });
 });
 
 describe('Zmanim sanity (covers more of zone 1)', () => {
   it('1.x getZmanim returns non-null fields for Jerusalem today', () => {
-    const z = ZmanimService.getZmanim(new Date('2026-04-23T10:00:00Z'), CITIES[0]);
+    const z = zmanimFor(new Date('2026-04-23T10:00:00Z'), CITIES[0]);
     expect(z.alotHaShachar).toBeInstanceOf(Date);
     expect(z.netzHaChama).toBeInstanceOf(Date);
     expect(z.shkia).toBeInstanceOf(Date);
@@ -84,10 +108,26 @@ describe('Zmanim sanity (covers more of zone 1)', () => {
   });
 
   it('1.x zmanim are monotonically increasing', () => {
-    const z = ZmanimService.getZmanim(new Date('2026-04-23T10:00:00Z'), CITIES[0]);
+    const z = zmanimFor(new Date('2026-04-23T10:00:00Z'), CITIES[0]);
     expect(z.alotHaShachar.getTime()).toBeLessThan(z.netzHaChama.getTime());
     expect(z.netzHaChama.getTime()).toBeLessThan(z.chatzot.getTime());
     expect(z.chatzot.getTime()).toBeLessThan(z.shkia.getTime());
     expect(z.shkia.getTime()).toBeLessThan(z.tzeitHakochavim.getTime());
+  });
+});
+
+describe('nusach filtering', () => {
+  it('getAllMitzvot honours nuschaotSupported and returns everything when unfiltered', () => {
+    const { getAllMitzvot } = require('@/data/customMitzvotAdapter');
+    const all = getAllMitzvot();
+    expect(all.length).toBeGreaterThan(0);
+    expect(getAllMitzvot('ashkenaz').length).toBe(all.filter((m: { nuschaotSupported: string[] }) =>
+      m.nuschaotSupported.includes('ashkenaz')).length);
+
+    const restricted = { ...all[0], id: 'chabad_only', nuschaotSupported: ['chabad'] };
+    const filter = (nusach: string) =>
+      [...all, restricted].filter((m: { nuschaotSupported: string[] }) => m.nuschaotSupported.includes(nusach));
+    expect(filter('chabad').map((m: { id: string }) => m.id)).toContain('chabad_only');
+    expect(filter('ashkenaz').map((m: { id: string }) => m.id)).not.toContain('chabad_only');
   });
 });

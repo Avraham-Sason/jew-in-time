@@ -32,18 +32,32 @@ export function customToMitzvah(c: CustomMitzvah): Mitzvah {
     contentBlocks: c.contentBlocks,
     isCustom: true,
     computeWindow: ({ date, location }) => {
-      const tz = location.tz;
-      const base = DateTime.fromJSDate(date).setZone(tz);
-      const start = base.set({ hour: sh, minute: sm, second: 0, millisecond: 0 }).toJSDate();
-      const end = base.set({ hour: eh, minute: em, second: 0, millisecond: 0 }).toJSDate();
-      return buildWindow(start, end);
+      // Anchor on the caller's calendar day rather than re-zoning the raw instant: callers pass
+      // local midnight (schedule/history) or "now" (home), and re-zoning made those resolve to
+      // different days whenever the device zone differed from the location's — so the same custom
+      // mitzvah showed up on different days on Home and Schedule.
+      const base = DateTime.fromObject(
+        { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate() },
+        { zone: location.tz },
+      );
+      const start = base.set({ hour: sh, minute: sm, second: 0, millisecond: 0 });
+      let end = base.set({ hour: eh, minute: em, second: 0, millisecond: 0 });
+      // On a DST spring-forward day both endpoints can collapse onto the same instant, which used
+      // to make the mitzvah silently not exist that day. Preserve the configured duration instead.
+      if (end <= start) {
+        end = start.plus({ minutes: (eh * 60 + em) - (sh * 60 + sm) });
+      }
+      return buildWindow(start.toJSDate(), end.toJSDate());
     },
   };
 }
 
-export function getAllMitzvot(): Mitzvah[] {
+export function getAllMitzvot(nusach?: Nusach): Mitzvah[] {
   const customs = useCustomMitzvotStore.getState().list().map(customToMitzvah);
-  return [...MITZVOT, ...customs];
+  const all = [...MITZVOT, ...customs];
+  // `nuschaotSupported` was declared on every mitzvah and read nowhere, so the nusach the user
+  // picks in onboarding decided nothing. Honour it wherever the caller knows the nusach.
+  return nusach ? all.filter((m) => m.nuschaotSupported.includes(nusach)) : all;
 }
 
 export function findAnyMitzvah(id: string): Mitzvah | undefined {

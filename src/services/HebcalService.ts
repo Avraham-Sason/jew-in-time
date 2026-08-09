@@ -10,16 +10,56 @@ function buildLocation(loc: Location): HebcalLocation {
   return new HebcalLocation(loc.lat, loc.lng, loc.inIsrael, loc.tz, loc.name, 'XX');
 }
 
+// A Hebrew day runs nightfall to nightfall, so an instant after sunset already belongs to the next
+// Hebrew date. Between shkia and tzeit (bein hashmashot) the day is doubtful, so both candidates
+// are returned and an observance counts if EITHER carries it — the stringency the original
+// isShabbat encoded by hand (enter at shkia, leave at tzeit), now shared with isYomTov.
+function hebrewDaysAt(instant: Date, loc?: Location): HDate[] {
+  const civilDay = toHDate(instant);
+  const zmanim = loc ? ZmanimService.getZmanim(instant, loc) : null;
+  if (!zmanim) return [civilDay];
+  const afterShkia = instant.getTime() >= zmanim.shkia.getTime();
+  const afterTzeit = instant.getTime() >= zmanim.tzeitHakochavim.getTime();
+  if (afterShkia === afterTzeit) return [afterShkia ? civilDay.next() : civilDay];
+  return [civilDay, civilDay.next()];
+}
+
+function isYomTovOnHebrewDay(hd: HDate, loc: Location): boolean {
+  const greg = hd.greg();
+  const events = HebrewCalendar.calendar({
+    start: greg,
+    end: greg,
+    location: buildLocation(loc),
+    il: loc.inIsrael,
+  });
+  return events.some((e) => {
+    const f = e.getFlags();
+    return Boolean(f & flags.CHAG) && !(f & flags.CHOL_HAMOED);
+  });
+}
+
+function renderHebrewDate(hd: HDate): HebrewDate {
+  return {
+    year: hd.getFullYear(),
+    month: hd.getMonth(),
+    day: hd.getDate(),
+    hebrewYearStr: hd.renderGematriya().split(' ').slice(-1)[0] ?? '',
+    hebrewDateStr: hd.renderGematriya(),
+  };
+}
+
 export const HebcalService = {
+  // The Hebrew date whose DAYTIME falls on this civil day. Right for calendar grids, where each
+  // cell is a civil day.
   getHebrewDate(date: Date): HebrewDate {
-    const hd = toHDate(date);
-    return {
-      year: hd.getFullYear(),
-      month: hd.getMonth(),
-      day: hd.getDate(),
-      hebrewYearStr: hd.renderGematriya().split(' ').slice(-1)[0] ?? '',
-      hebrewDateStr: hd.renderGematriya(),
-    };
+    return renderHebrewDate(toHDate(date));
+  },
+
+  // The Hebrew date in effect AT this instant — it advances at shkia. Use this for "today", or the
+  // header shows yesterday's date all evening.
+  getHebrewDateAt(instant: Date, loc?: Location): HebrewDate {
+    const days = hebrewDaysAt(instant, loc);
+    return renderHebrewDate(days[days.length - 1]);
   },
 
   getParasha(date: Date, loc: Location): string | undefined {
@@ -57,30 +97,11 @@ export const HebcalService = {
   },
 
   isShabbat(date: Date, loc?: Location): boolean {
-    const day = date.getDay();
-    if (!loc) return day === 6;
-    if (day === 5) {
-      const shkia = ZmanimService.getZmanim(date, loc).shkia;
-      return date.getTime() >= shkia.getTime();
-    }
-    if (day === 6) {
-      const tzeit = ZmanimService.getZmanim(date, loc).tzeitHakochavim;
-      return date.getTime() < tzeit.getTime();
-    }
-    return false;
+    return hebrewDaysAt(date, loc).some((hd) => hd.getDay() === 6);
   },
 
   isYomTov(date: Date, loc: Location): boolean {
-    const events = HebrewCalendar.calendar({
-      start: date,
-      end: date,
-      location: buildLocation(loc),
-      il: loc.inIsrael,
-    });
-    return events.some((e) => {
-      const f = e.getFlags();
-      return (f & flags.CHAG) && !(f & flags.CHOL_HAMOED);
-    });
+    return hebrewDaysAt(date, loc).some((hd) => isYomTovOnHebrewDay(hd, loc));
   },
 
   getDafYomi(date: Date): string | undefined {
@@ -107,7 +128,7 @@ export const HebcalService = {
 
   getCalendarInfo(date: Date, loc: Location): CalendarInfo {
     return {
-      hebrew: this.getHebrewDate(date),
+      hebrew: this.getHebrewDateAt(date, loc),
       parasha: this.getParasha(date, loc),
       holidays: this.getHolidays(date, loc),
       isShabbat: this.isShabbat(date, loc),

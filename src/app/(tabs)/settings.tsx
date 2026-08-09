@@ -21,6 +21,10 @@ import {
   syncNotificationPermissionStatus,
 } from '@/services/NotificationScheduler';
 import { AppResetService } from '@/services/AppResetService';
+import {
+  openBatteryOptimizationSettings,
+  supportsBatteryOptimizationSettings,
+} from '@/services/deviceSettings';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
@@ -38,6 +42,10 @@ export default function SettingsScreen() {
   const { t, language } = useI18n();
   const router = useRouter();
   const user = useUserStore();
+  // Held locally and committed on blur. Bound straight to the store, every keystroke serialised
+  // the whole user store to MMKV and re-rendered the entire settings tree.
+  const [nameDraft, setNameDraft] = useState(user.profileName);
+  const [phoneDraft, setPhoneDraft] = useState(user.profilePhone);
   const [statusText, setStatusText] = useState('');
   const [resetVisible, setResetVisible] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -53,12 +61,26 @@ export default function SettingsScreen() {
     }
   };
 
-  const cityOptions = useMemo(() => CITIES.slice(0, 12), []);
+  const cityOptions = CITIES;
+
+  const [locating, setLocating] = useState(false);
 
   const refreshLocation = async () => {
-    const resolved = await LocationService.getCurrentLocation();
-    user.setLocationState(resolved.location, resolved.status, resolved.source);
-    setStatusText(resolved.status === 'ready' ? t('settings.gpsUpdated') : t('settings.gpsFallback'));
+    if (locating) return;
+    setLocating(true);
+    try {
+      const resolved = await LocationService.getCurrentLocation();
+      // Only commit a location the lookup actually produced. A failed refresh must keep the city
+      // the user chose, not silently move them to the default.
+      if (resolved.location) {
+        user.setLocationState(resolved.location, resolved.status, resolved.source);
+      } else {
+        user.setLocationStatus(resolved.status);
+      }
+      setStatusText(resolved.location ? t('settings.gpsUpdated') : t('settings.gpsFallback'));
+    } finally {
+      setLocating(false);
+    }
   };
 
   const openOsSettings = () => {
@@ -99,8 +121,9 @@ export default function SettingsScreen() {
             {t('settings.profileName')}
           </Text>
           <TextInput
-            value={user.profileName}
-            onChangeText={user.setProfileName}
+            value={nameDraft}
+            onChangeText={setNameDraft}
+            onBlur={() => user.setProfileName(nameDraft.trim())}
             placeholder={t('settings.profileNamePlaceholder')}
             placeholderTextColor={colors.textMuted}
             style={[
@@ -119,8 +142,9 @@ export default function SettingsScreen() {
             {t('settings.profilePhone')}
           </Text>
           <TextInput
-            value={user.profilePhone}
-            onChangeText={user.setProfilePhone}
+            value={phoneDraft}
+            onChangeText={setPhoneDraft}
+            onBlur={() => user.setProfilePhone(phoneDraft.trim())}
             placeholder={t('settings.profilePhonePlaceholder')}
             placeholderTextColor={colors.textMuted}
             keyboardType="phone-pad"
@@ -164,7 +188,7 @@ export default function SettingsScreen() {
           />
           {!permGranted ? (
             <Pressable onPress={openOsSettings} style={[styles.primaryBtn, { backgroundColor: colors.gold }]}>
-              <Text style={[typography.bodyBold, { color: '#fff' }]}>
+              <Text style={[typography.bodyBold, { color: colors.onGold }]}>
                 {t('settings.openOsSettings')}
               </Text>
             </Pressable>
@@ -179,6 +203,21 @@ export default function SettingsScreen() {
           </Text>
         </Section>
 
+        {/* Exact alarms are declared in the manifest, but OEM battery managers can still defer
+            them. Exempting the app is the one part only the user can do. */}
+        {supportsBatteryOptimizationSettings() ? (
+          <Section title={t('settings.batteryTitle')}>
+            <Text style={[typography.small, { color: colors.textMuted }]}>{t('settings.batteryHint')}</Text>
+            <Pressable
+              onPress={() => openBatteryOptimizationSettings()}
+              accessibilityRole="button"
+              style={[styles.primaryBtn, { backgroundColor: colors.gold }]}
+            >
+              <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.batteryAction')}</Text>
+            </Pressable>
+          </Section>
+        ) : null}
+
         <Section title={t('settings.nusach')}>
           <ChipRow values={NUSACHAOT} selected={user.nusach} onSelect={(value) => user.setNusach(value)} renderLabel={(value) => t(`nusach.${value}`)} />
         </Section>
@@ -189,7 +228,7 @@ export default function SettingsScreen() {
             {t(`settings.locationStatus.${user.locationStatus}`)}
           </Text>
           <Pressable onPress={refreshLocation} style={[styles.primaryBtn, { backgroundColor: colors.gold }]}>
-            <Text style={[typography.bodyBold, { color: '#fff' }]}>{t('settings.useCurrentLocation')}</Text>
+            <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.useCurrentLocation')}</Text>
           </Pressable>
           {statusText ? <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>{statusText}</Text> : null}
           <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 14, marginBottom: 8 }]}>{t('settings.pickCity')}</Text>
@@ -207,7 +246,7 @@ export default function SettingsScreen() {
                     },
                   ]}
                 >
-                  <Text style={[typography.small, { color: selected ? '#fff' : colors.textSub }]}>{getLocationName(city, language)}</Text>
+                  <Text style={[typography.small, { color: selected ? colors.onGold : colors.textSub }]}>{getLocationName(city, language)}</Text>
                 </Pressable>
               );
             })}
@@ -276,7 +315,7 @@ export default function SettingsScreen() {
                 disabled={resetting}
                 style={[styles.modalBtn, { backgroundColor: colors.urgent, opacity: resetting ? 0.6 : 1 }]}
               >
-                <Text style={[typography.bodyBold, { color: '#fff' }]}>{t('settings.logoutConfirmAction')}</Text>
+                <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.logoutConfirmAction')}</Text>
               </Pressable>
             </View>
           </View>
@@ -333,7 +372,7 @@ function ChipRow<T extends string>({
               },
             ]}
           >
-            <Text style={[typography.small, { color: active ? '#fff' : colors.textSub }]}>{renderLabel(value)}</Text>
+            <Text style={[typography.small, { color: active ? colors.onGold : colors.textSub }]}>{renderLabel(value)}</Text>
           </Pressable>
         );
       })}

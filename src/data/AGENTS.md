@@ -16,6 +16,8 @@
 
 - Static mitzvah changes must preserve the `Mitzvah` contract from [../types/mitzvah.ts](../types/mitzvah.ts).
 - Mitzvah windows must avoid UTC date shortcuts and stay compatible with [../services/ZmanimService.ts](../services/ZmanimService.ts) and [../services/HebcalService.ts](../services/HebcalService.ts).
+- Never build a night-time window end with `Date.setDate(+1)` on `zmanim.chatzot` — that is midday chatzot and yields the next day's noon. Use `zmanim.chatzotLayla` (solar midnight, already the next civil date) or the next day's `alotHaShachar`.
+- `omerDayFor()` returns the count due on the night that OPENS at tzeit of the given day, which belongs to the next Hebrew day: night 1 on the evening of 15 Nisan, night 49 on the evening of 4 Sivan. Do not re-anchor it to the daytime Hebrew date.
 - When a screen or service must include custom mitzvot, use `getAllMitzvot()` or `findAnyMitzvah()`.
 - New user-facing labels or text must be reflected in [../i18n/AGENTS.md](../i18n/AGENTS.md) when they are normal UI copy.
 

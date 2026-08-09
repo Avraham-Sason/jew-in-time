@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
+import type { ThemeColors } from '@/theme/colors';
 import { typography } from '@/theme/typography';
 import { ribbonThresholds } from '@/theme/tokens';
 import { useI18n } from '@/i18n';
@@ -10,11 +11,17 @@ type Props = {
   timeLeft: string;
 };
 
+// Exported so the test can exercise the shipped implementation instead of re-declaring a copy.
+export function ribbonColor(pct: number, colors: Pick<ThemeColors, 'safe' | 'warning' | 'urgent'>): string {
+  const p = Math.max(0, Math.min(1, pct));
+  return p > ribbonThresholds.safe ? colors.safe : p > ribbonThresholds.warning ? colors.warning : colors.urgent;
+}
+
 export function TimeRibbon({ pct, timeLeft }: Props) {
   const { colors } = useTheme();
   const { t } = useI18n();
   const p = Math.max(0, Math.min(1, pct));
-  const col = p > ribbonThresholds.safe ? colors.safe : p > ribbonThresholds.warning ? colors.warning : colors.urgent;
+  const col = ribbonColor(pct, colors);
 
   return (
     <View style={styles.wrap}>

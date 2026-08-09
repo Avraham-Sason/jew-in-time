@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  InteractionManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -44,8 +45,8 @@ export default function ScheduleScreen() {
     const customs = Object.values(customMap)
       .sort((a, b) => a.createdAt - b.createdAt)
       .map(customToMitzvah);
-    return [...MITZVOT, ...customs];
-  }, [customMap]);
+    return [...MITZVOT, ...customs].filter((m) => m.nuschaotSupported.includes(nusach));
+  }, [customMap, nusach]);
   const enabledMitzvot = useMemo(
     () => allMitzvot.filter((item) => activeMap[item.id]?.enabled),
     [allMitzvot, activeMap],
@@ -71,7 +72,9 @@ export default function ScheduleScreen() {
 
   const weekDays = useMemo(() => {
     if (view !== 'week') return [];
-    const start = cursor.startOf('week');
+    // Luxon's startOf('week') is ISO (Monday). The month grid and the weekday header are Sunday-first,
+    // and a Hebrew calendar week must end on Shabbat.
+    const start = cursor.startOf('day').minus({ days: cursor.weekday % 7 });
     return Array.from({ length: 7 }, (_, index) => {
       const day = start.plus({ days: index });
       const items = buildDayTimeline(day.toJSDate(), enabledMitzvot, completions, location, settings, language, t)
@@ -82,8 +85,20 @@ export default function ScheduleScreen() {
     });
   }, [view, enabledMitzvot, completions, cursor, location, settings, language, t]);
 
+  // 42 cells × (hebcal calendar + zmanim + every window) on the render thread. Deferred behind
+  // InteractionManager the way the history screen already does, so opening the tab is not a freeze.
+  const [monthReady, setMonthReady] = useState(false);
+  useEffect(() => {
+    if (view !== 'month') {
+      setMonthReady(false);
+      return undefined;
+    }
+    const task = InteractionManager.runAfterInteractions(() => setMonthReady(true));
+    return () => task.cancel?.();
+  }, [view]);
+
   const monthGrid = useMemo(() => {
-    if (view !== 'month') return [];
+    if (view !== 'month' || !monthReady) return [];
     const monthStart = cursor.startOf('month');
     const gridStart = monthStart.minus({ days: monthStart.weekday % 7 });
     return Array.from({ length: 42 }, (_, index) => {
@@ -100,7 +115,7 @@ export default function ScheduleScreen() {
         openCount,
       };
     });
-  }, [view, cursor, enabledMitzvot, completions, location, settings, language, t]);
+  }, [view, monthReady, cursor, enabledMitzvot, completions, location, settings, language, t]);
 
   const highlightIndex = useMemo(() => {
     if (!isSelectedToday) return -1;

@@ -1,7 +1,7 @@
 import 'expo-dev-client';
 import 'react-native-gesture-handler';
 import React, { useEffect, useRef } from 'react';
-import { DevSettings, I18nManager, View, ActivityIndicator, Platform } from 'react-native';
+import { DevSettings, I18nManager, View, ActivityIndicator, Platform, Pressable, StyleSheet, Text } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
@@ -21,8 +21,12 @@ import {
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 import { useUserStore } from '@/stores/useUserStore';
 import { initNotificationHandlers } from '@/services/NotificationScheduler';
-import { initNotificationResponseHandler } from '@/services/notificationResponseHandler';
-import { setLocale } from '@/i18n';
+import {
+  initNotificationResponseHandler,
+  consumePendingNotificationRoute,
+} from '@/services/notificationResponseHandler';
+import { setLocale, t } from '@/i18n';
+import { StorageService } from '@/services/StorageService';
 
 function syncDocumentDirection(language: 'he' | 'en') {
   if (Platform.OS !== 'web' || typeof document === 'undefined') return;
@@ -46,6 +50,8 @@ async function reloadApp() {
   }
 }
 
+const RTL_BOOTSTRAP_KEY = 'layout:rtl-bootstrapped';
+
 function syncLayoutDirection(language: 'he' | 'en', allowReload = false) {
   const wantRTL = language === 'he';
   setLocale(language);
@@ -59,8 +65,17 @@ function syncLayoutDirection(language: 'he' | 'en', allowReload = false) {
   }
 }
 
+// `I18nManager.isRTL` is snapshotted at JS load and `forceRTL` only takes effect on the NEXT
+// process start, so a fresh install on a non-RTL device renders the whole first session LTR — the
+// root `direction: 'rtl'` style is iOS-only, so Android gets nothing. Reload once, guarded by a
+// persisted flag so a reload that does not take cannot become a boot loop.
 const initialLanguage = useUserStore.getState().language;
-syncLayoutDirection(initialLanguage);
+const needsRtlBootstrap =
+  Platform.OS !== 'web' &&
+  I18nManager.isRTL !== (initialLanguage === 'he') &&
+  !StorageService.get<boolean>(RTL_BOOTSTRAP_KEY);
+if (needsRtlBootstrap) StorageService.set(RTL_BOOTSTRAP_KEY, true);
+syncLayoutDirection(initialLanguage, needsRtlBootstrap);
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -90,7 +105,8 @@ function RootInner() {
 
   useEffect(() => {
     const sub = initNotificationResponseHandler();
-    if (__DEV__) console.log('[notifications] response handler mounted');
+    // Replays a tap that arrived before the router was mounted (cold start from a notification).
+    consumePendingNotificationRoute();
     return () => sub.remove();
   }, []);
 
@@ -113,8 +129,40 @@ function RootInner() {
   );
 }
 
+// Picked up automatically by expo-router. Deliberately self-contained: it must render even when
+// ThemeProvider or a store is the thing that failed, so it uses no context and no hooks.
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+  return (
+    <View style={errorStyles.wrap}>
+      <Text style={errorStyles.title}>{t('errors.boundaryTitle')}</Text>
+      <Text style={errorStyles.body}>{t('errors.boundaryBody')}</Text>
+      {__DEV__ ? <Text style={errorStyles.detail}>{error.message}</Text> : null}
+      <Pressable onPress={() => retry()} style={errorStyles.button} accessibilityRole="button">
+        <Text style={errorStyles.buttonLabel}>{t('errors.retry')}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const errorStyles = StyleSheet.create({
+  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: '#F5EFE4' },
+  title: { fontSize: 20, fontWeight: '700', color: '#1C2B4A', textAlign: 'center' },
+  body: { fontSize: 15, color: '#42506B', textAlign: 'center', marginTop: 10, lineHeight: 22 },
+  detail: { fontSize: 12, color: '#8A93A6', textAlign: 'center', marginTop: 14 },
+  button: {
+    marginTop: 24,
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 32,
+    backgroundColor: '#C9922A',
+  },
+  buttonLabel: { fontSize: 16, fontWeight: '700', color: '#fff' },
+});
+
 export default function RootLayout() {
-  const [loaded] = useFonts({
+  // A failed font fetch must not brick the app: `loaded` would stay false forever, leaving a bare
+  // spinner behind an un-hidden splash with notifications never initialised and no way out.
+  const [loaded, fontError] = useFonts({
     Heebo_300Light,
     Heebo_400Regular,
     Heebo_500Medium,
@@ -123,15 +171,15 @@ export default function RootLayout() {
     Heebo_800ExtraBold,
     Heebo_900Black,
   });
+  const ready = loaded || Boolean(fontError);
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync().catch(() => {});
-      initNotificationHandlers();
-    }
-  }, [loaded]);
+    if (!ready) return undefined;
+    SplashScreen.hideAsync().catch(() => {});
+    return initNotificationHandlers();
+  }, [ready]);
 
-  if (!loaded) {
+  if (!ready) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator />

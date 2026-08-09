@@ -7,6 +7,7 @@ export type ThemeColors = {
   textMuted: string;
   border: string;
   gold: string;
+  onGold: string;
   goldLight: string;
   urgent: string;
   urgentBg: string;
@@ -29,9 +30,11 @@ export const T_LIGHT: ThemeColors = {
   surface2: '#EDE7DB',
   text: '#1C2B4A',
   textSub: '#6A7280',
-  textMuted: '#A8B0B8',
+  textMuted: '#6E7781',
   border: '#DDD5C5',
   gold: '#C9922A',
+  // White on gold is 2.4:1 — far below AA for button labels. This is 5.1:1 on the same fill.
+  onGold: '#1C2B4A',
   goldLight: '#FDF0D8',
   urgent: '#D63030',
   urgentBg: '#FEF2F2',
@@ -54,9 +57,10 @@ export const T_DARK: ThemeColors = {
   surface2: '#1F3347',
   text: '#EDE7DB',
   textSub: '#7A8A99',
-  textMuted: '#445566',
+  textMuted: '#8C9AA8',
   border: '#253547',
   gold: '#D4A030',
+  onGold: '#12202F',
   goldLight: '#2A2010',
   urgent: '#EF4444',
   urgentBg: '#2A1515',

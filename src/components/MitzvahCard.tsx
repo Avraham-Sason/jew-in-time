@@ -93,6 +93,13 @@ export function MitzvahCard({
       onPress={onPress}
       onLongPress={onLongPress}
       disabled={!onPress && !onLongPress}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={[name, statusText, done ? t('state.completed') : timeLeft].filter(Boolean).join(', ')}
+      // Without this the long-press menu — the only way to skip a mitzvah for the day without
+      // falsely marking it done — is unreachable with a screen reader.
+      accessibilityActions={onLongPress ? [{ name: 'longpress', label: t('home.quick.title') }] : undefined}
+      onAccessibilityAction={onLongPress ? () => onLongPress() : undefined}
       style={({ pressed }) => [
         styles.card,
         {

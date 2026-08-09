@@ -2,23 +2,36 @@ const mockAddNotificationResponseReceivedListener = jest.fn();
 const mockMarkDoneFromNotificationData = jest.fn<Promise<boolean>, [unknown, string?]>(async () => true);
 const mockRouterPush = jest.fn();
 
+jest.mock('react-native-mmkv', () => {
+  const { createMockMMKV } = require('react-native-mmkv/lib/commonjs/createMMKV.mock');
+  return { MMKV: jest.fn(() => createMockMMKV()) };
+});
+
 jest.mock('expo-notifications', () => ({
   addNotificationResponseReceivedListener: (listener: unknown) => mockAddNotificationResponseReceivedListener(listener),
+  setNotificationHandler: jest.fn(),
+  SchedulableTriggerInputTypes: { DATE: 'date' },
+  AndroidImportance: { HIGH: 'high' },
+  AndroidNotificationVisibility: { PUBLIC: 'public' },
 }));
+
+jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
+jest.mock('expo-background-fetch', () => ({ registerTaskAsync: jest.fn(), BackgroundFetchResult: {} }));
 
 jest.mock('expo-router', () => ({
   router: { push: (...args: unknown[]) => mockRouterPush(...args) },
 }));
 
-jest.mock('@/services/NotificationScheduler', () => ({
-  MARK_DONE_ACTION: 'MARK_DONE',
-  markDoneFromNotificationData: (data: unknown, id?: string) => mockMarkDoneFromNotificationData(data, id),
-  pendingNotificationMetaFromContent: (content?: { data?: unknown; dataString?: string }) => {
-    if (content?.data) return content.data;
-    if (content?.dataString) return JSON.parse(content.dataString);
-    return {};
-  },
-}));
+// Only `markDoneFromNotificationData` is stubbed. The parser used to be re-implemented here too —
+// a looser copy with no isRecord guard and no try/catch — so the shipped one was never exercised on
+// the tap path, which is precisely where Android delivers payloads as `dataString`.
+jest.mock('@/services/NotificationScheduler', () => {
+  const actual = jest.requireActual('@/services/NotificationScheduler');
+  return {
+    ...actual,
+    markDoneFromNotificationData: (data: unknown, id?: string) => mockMarkDoneFromNotificationData(data, id),
+  };
+});
 
 import {
   DEFAULT_NOTIFICATION_ACTION,

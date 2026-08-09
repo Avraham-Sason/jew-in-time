@@ -6,12 +6,17 @@ export type LocationStatus = 'ready' | 'denied' | 'timeout' | 'missing';
 export type LocationSource = 'gps' | 'manual';
 
 export type LocationResolution = {
-  location: Location;
+  // null on every failure path. Returning CITIES[0] here made a denied/timed-out lookup
+  // indistinguishable from "the user really is in Jerusalem", and callers wrote it straight into
+  // the store — silently replacing a manually chosen city and flipping inIsrael with it.
+  location: Location | null;
   status: LocationStatus;
   source: LocationSource;
 };
 
 const DEFAULT_TIMEOUT_MS = 10000;
+const NEAREST_CITY_KM = 25;
+const CURRENT_LOCATION_NAME = { he: 'מיקום נוכחי', en: 'Current location' };
 
 function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const toRad = (value: number) => (value * Math.PI) / 180;
@@ -34,12 +39,48 @@ function nearestCity(lat: number, lng: number): Location {
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return await Promise.race([
-    promise,
-    new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('timeout')), timeoutMs);
-    }),
-  ]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('timeout')), timeoutMs);
+      }),
+    ]);
+  } finally {
+    // The old version left this pending for the full timeout even after the position resolved.
+    if (timer) clearTimeout(timer);
+  }
+}
+
+// Only lat/lng are real. Inheriting tz/inIsrael/elevation from the nearest of 20 hard-coded cities
+// put a user in Chicago on New York time and, worse, flagged anyone nearest to Eilat as being in
+// Israel — which is what hebcal uses to decide whether second-day Yom Tov exists at all.
+function resolvedLocation(lat: number, lng: number): Location {
+  const nearest = nearestCity(lat, lng);
+  const closeEnough = distanceKm(lat, lng, nearest.lat, nearest.lng) <= NEAREST_CITY_KM;
+  const deviceTz = deviceTimeZone();
+  return {
+    name: closeEnough ? nearest.name : CURRENT_LOCATION_NAME.he,
+    nameEn: closeEnough ? nearest.nameEn : CURRENT_LOCATION_NAME.en,
+    lat,
+    lng,
+    tz: closeEnough ? nearest.tz : deviceTz,
+    inIsrael: closeEnough ? nearest.inIsrael : isInIsrael(lat, lng),
+    elevation: closeEnough ? nearest.elevation : undefined,
+  };
+}
+
+function deviceTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || CITIES[0].tz;
+  } catch {
+    return CITIES[0].tz;
+  }
+}
+
+function isInIsrael(lat: number, lng: number): boolean {
+  return lat >= 29.4 && lat <= 33.4 && lng >= 34.2 && lng <= 35.9;
 }
 
 export const LocationService = {
@@ -56,40 +97,33 @@ export const LocationService = {
     return perm.canAskAgain === false ? 'denied' : 'missing';
   },
 
+  // Always resolves, never rejects: the permission calls throw in practice (a concurrent request,
+  // Play services unavailable) and an unhandled rejection here left onboarding stuck on "...".
   async getCurrentLocation(timeoutMs: number = DEFAULT_TIMEOUT_MS): Promise<LocationResolution> {
-    const currentStatus = await this.getPermissionStatus();
-    if (currentStatus === 'missing') {
-      const requested = await this.requestPermission();
-      if (requested !== 'ready') {
-        return { location: CITIES[0], status: requested, source: 'manual' };
-      }
-    }
-    if ((await this.getPermissionStatus()) !== 'ready') {
-      return { location: CITIES[0], status: 'denied', source: 'manual' };
-    }
-
     try {
+      const currentStatus = await this.getPermissionStatus();
+      if (currentStatus === 'missing') {
+        const requested = await this.requestPermission();
+        if (requested !== 'ready') {
+          return { location: null, status: requested, source: 'manual' };
+        }
+      }
+      if ((await this.getPermissionStatus()) !== 'ready') {
+        return { location: null, status: 'denied', source: 'manual' };
+      }
+
       const result = await withTimeout(
-        ExpoLocation.getCurrentPositionAsync({
-          accuracy: ExpoLocation.Accuracy.Balanced,
-        }),
+        ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced }),
         timeoutMs,
       );
-      const city = nearestCity(result.coords.latitude, result.coords.longitude);
       return {
-        location: {
-          ...city,
-          lat: result.coords.latitude,
-          lng: result.coords.longitude,
-        },
+        location: resolvedLocation(result.coords.latitude, result.coords.longitude),
         status: 'ready',
         source: 'gps',
       };
     } catch (error) {
-      if (error instanceof Error && error.message === 'timeout') {
-        return { location: CITIES[0], status: 'timeout', source: 'manual' };
-      }
-      return { location: CITIES[0], status: 'missing', source: 'manual' };
+      const timedOut = error instanceof Error && error.message === 'timeout';
+      return { location: null, status: timedOut ? 'timeout' : 'missing', source: 'manual' };
     }
   },
 

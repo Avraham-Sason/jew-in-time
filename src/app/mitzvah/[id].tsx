@@ -35,11 +35,13 @@ function nextWindowFor(
   if (!mitzvah) return null;
   const dates = [new Date(), new Date(Date.now() + 24 * 60 * 60 * 1000)];
   for (const date of dates) {
+    const zmanim = ZmanimService.getZmanim(date, location);
+    if (!zmanim) continue;
     const ctx = {
       date,
       location,
       settings: { nusach, halachicOpinions: { ksSofZman }, inIsrael },
-      zmanim: ZmanimService.getZmanim(date, location),
+      zmanim,
     };
     const window = mitzvah.computeWindow(ctx);
     if (window && window.end.getTime() > Date.now()) return window;
@@ -311,6 +313,8 @@ export default function MitzvahDetailScreen() {
       <ReminderEditor
         visible={editorVisible}
         initialValue={editIndex === null ? null : reminders[editIndex]}
+        window={window}
+        mitzvahName={name}
         onClose={() => {
           setEditorVisible(false);
           setEditIndex(null);

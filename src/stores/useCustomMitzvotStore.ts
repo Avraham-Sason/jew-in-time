@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from './zustandMiddleware';
 import { createZustandStorage } from '@/services/StorageService';
+import { STORE_VERSION, onRehydrateStorage } from './persistOptions';
 import { CustomMitzvah } from '@/types/mitzvah';
 
 type CustomMitzvotState = {
@@ -36,6 +37,8 @@ export const useCustomMitzvotStore = create<CustomMitzvotState>()(
     {
       name: 'custom-mitzvot-store',
       storage: createJSONStorage(() => createZustandStorage()),
+      version: STORE_VERSION,
+      onRehydrateStorage: onRehydrateStorage('custom-mitzvot-store'),
     },
   ),
 );

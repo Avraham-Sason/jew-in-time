@@ -17,6 +17,8 @@
 
 - Stores persist through MMKV using [../services/StorageService.ts](../services/StorageService.ts).
 - Keep persisted defaults, reset behavior, and migrations/backward compatibility in sync when adding fields.
+- Every `persist()` passes `version` and `onRehydrateStorage` from [persistOptions.ts](persistOptions.ts). A store whose state is a keyed map also needs a `merge` that unions the current defaults back in, or entries added in a later release never reach existing users.
+- Completion maps are pruned to `RETENTION_DAYS` on hydrate and must never write empty day buckets.
 - `useCompletionsStore.markDone`, `markSkipped`, and `unmark` must preserve notification cancellation/rebuild side effects.
 - Do not replace the deliberate `../../node_modules/zustand/middleware.js` require in [zustandMiddleware.ts](zustandMiddleware.ts) unless Metro and Jest are both verified.
 

@@ -16,7 +16,7 @@
 - Keep dictionaries flat, with key parity between Hebrew and English.
 - Do not replace Hebrew source strings with English.
 - Normal route/component copy should use i18n keys rather than local string literals.
-- The app may install `i18n-js`, but current code relies on the lightweight wrapper in [index.ts](index.ts).
+- `currentLocale` tracks the user store through a subscription, so non-React callers (the notification scheduler) are never a render behind. `useI18n()` returns a `t` bound to the current render's language.
 
 ## Work Guidance
 

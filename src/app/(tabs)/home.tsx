@@ -31,9 +31,15 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTheme } from '@/theme/ThemeProvider';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { typography } from '@/theme/typography';
+import { durations } from '@/theme/tokens';
+import { isSkippedAt } from '@/utils/skipRules';
 import { ComputeContext, Mitzvah, MitzvahWindow } from '@/types/mitzvah';
 import { ZmanimService } from '@/services/ZmanimService';
-import { syncNotificationPermissionStatus } from '@/services/NotificationScheduler';
+import {
+  syncNotificationPermissionStatus,
+  dismissCompletedPresentedNotifications,
+  refreshSchedulingOnForeground,
+} from '@/services/NotificationScheduler';
 import { useI18n, t as translate } from '@/i18n';
 
 type LiveItem = {
@@ -57,14 +63,11 @@ function formatRemaining(ms: number, language: 'he' | 'en'): string {
   return `${totalMin} ${translate('time.unit.minutes')}`;
 }
 
-function buildContext(date: Date) {
+function buildContext(date: Date): ComputeContext | null {
   const { location, nusach, halachicOpinions, inIsrael } = useUserStore.getState();
-  return {
-    date,
-    location,
-    settings: { nusach, halachicOpinions, inIsrael },
-    zmanim: ZmanimService.getZmanim(date, location),
-  } satisfies ComputeContext;
+  const zmanim = ZmanimService.getZmanim(date, location);
+  if (!zmanim) return null;
+  return { date, location, settings: { nusach, halachicOpinions, inIsrael }, zmanim };
 }
 
 export default function HomeScreen() {
@@ -78,19 +81,21 @@ export default function HomeScreen() {
       notificationPermission: s.notificationPermission,
     })),
   );
+  const nusach = useUserStore((s) => s.nusach);
   const activeMap = useMitzvotStore((s) => s.activeMitzvot);
   const customMap = useCustomMitzvotStore((s) => s.items);
   const todayKey = CompletionService.getDateKey();
   const doneMap = useCompletionsStore((s) => s.completions[todayKey] ?? EMPTY_DAY_STATE);
   const skippedMap = useCompletionsStore((s) => s.skipped[todayKey] ?? EMPTY_DAY_STATE);
+  const [tick, setTick] = useState(0);
   const [stampingId, setStampingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { current, missed, completed, nextUp, totalActive, doneCount, hebrewTitle, subtitle } = useMemo(() => {
+  const { current, missed, completed, nextUp, totalActive, doneCount, hebrewTitle, subtitle, zmanimUnavailable } = useMemo(() => {
     const now = new Date();
     const ctx = buildContext(now);
-    const hebrew = HebcalService.getHebrewDate(now);
+    const hebrew = HebcalService.getHebrewDateAt(now, user.location);
     const greg = DateTime.fromJSDate(now).setLocale(language).toFormat(language === 'he' ? 'cccc · d LLLL' : 'cccc · LLL d');
     const parasha = HebcalService.getParasha(now, user.location);
     const subtitleText = [greg, getLocationName(user.location, language), parasha].filter(Boolean).join(' · ');
@@ -98,12 +103,13 @@ export default function HomeScreen() {
     const customs = Object.values(customMap)
       .sort((a, b) => a.createdAt - b.createdAt)
       .map(customToMitzvah);
-    const allMitzvot = [...MITZVOT, ...customs];
+    const allMitzvot = [...MITZVOT, ...customs].filter((m) => m.nuschaotSupported.includes(nusach));
     const enabled = allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled);
     const currentItems: LiveItem[] = [];
     const upcomingItems: LiveItem[] = [];
     const missedItems: LiveItem[] = [];
     const completedItems = Object.entries(doneMap)
+      .filter(([mitzvahId]) => mitzvahId !== stampingId)
       .map(([mitzvahId, ts]) => {
         const mitzvah = allMitzvot.find((item) => item.id === mitzvahId);
         if (!mitzvah) return null;
@@ -117,9 +123,14 @@ export default function HomeScreen() {
       .filter(Boolean)
       .sort((a, b) => (b?.timestamp ?? 0) - (a?.timestamp ?? 0)) as Array<{ id: string; name: string; time: string }>;
 
+    // Counts what actually applies today: enabled, has a window, and not skipped for Shabbat/Yom
+    // Tov. Using `enabled.length` made Shabbat read "5/6" with everything applicable done.
+    let applicable = 0;
     for (const mitzvah of enabled) {
-      const window = mitzvah.computeWindow(ctx);
+      const window = ctx ? mitzvah.computeWindow(ctx) : null;
       if (!window) continue;
+      if (isSkippedAt(mitzvah, window.start, user.location)) continue;
+      applicable += 1;
       const name = language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he;
       const totalMs = window.end.getTime() - window.start.getTime();
       const remainingMs = window.end.getTime() - now.getTime();
@@ -131,7 +142,9 @@ export default function HomeScreen() {
         urgent: remainingMs <= 45 * 60 * 1000,
         name,
       };
-      if (doneMap[mitzvah.id] || skippedMap[mitzvah.id]) {
+      // The card being stamped stays put until its animation ends, even though the completion is
+      // already persisted.
+      if ((doneMap[mitzvah.id] || skippedMap[mitzvah.id]) && mitzvah.id !== stampingId) {
         continue;
       }
       if (now > window.end) {
@@ -152,23 +165,27 @@ export default function HomeScreen() {
       missed: missedItems,
       completed: completedItems,
       nextUp: upcomingItems[0] ?? null,
-      totalActive: enabled.length,
+      totalActive: applicable,
       doneCount: completedItems.length,
       hebrewTitle: hebrew.hebrewDateStr,
       subtitle: subtitleText,
+      zmanimUnavailable: !ctx,
     };
-  }, [activeMap, customMap, doneMap, skippedMap, language, user.location]);
+  }, [activeMap, customMap, doneMap, skippedMap, language, user.location, tick, stampingId, nusach]);
 
+  // Persist first — the stamp is decoration. Deferring the write behind the 1.3s animation meant
+  // leaving the screen mid-animation silently discarded the completion, and the `stampingId` gate
+  // dropped every other card tapped during it. The card is held on screen while it animates.
   const complete = async (id: string) => {
-    if (stampingId) return;
-    setStampingId(id);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    CompletionService.markDone(id).catch(() => {});
+    setSelectedId(null);
+    setStampingId(id);
+    if (stampTimeoutRef.current) clearTimeout(stampTimeoutRef.current);
     stampTimeoutRef.current = setTimeout(() => {
-      CompletionService.markDone(id).catch(() => {});
-      setStampingId(null);
-      setSelectedId(null);
+      setStampingId((current) => (current === id ? null : current));
       stampTimeoutRef.current = null;
-    }, 1300);
+    }, durations.stamp);
   };
 
   const skipToday = async (id: string) => {
@@ -212,10 +229,28 @@ export default function HomeScreen() {
     syncNotificationPermissionStatus().catch(() => {});
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
+        setTick((value) => value + 1);
         syncNotificationPermissionStatus().catch(() => {});
+        dismissCompletedPresentedNotifications().catch(() => {});
+        refreshSchedulingOnForeground().catch(() => {});
       }
     });
     return () => sub.remove();
+  }, []);
+
+  // Without this the whole screen is frozen at mount: countdowns never move, nothing crosses into
+  // "missed", and at midnight the day never rolls over. Aligned to the next minute so the rollover
+  // lands on time rather than up to a tick late.
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const align = setTimeout(() => {
+      setTick((value) => value + 1);
+      interval = setInterval(() => setTick((value) => value + 1), 30_000);
+    }, 60_000 - (Date.now() % 60_000));
+    return () => {
+      clearTimeout(align);
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   return (
@@ -236,6 +271,9 @@ export default function HomeScreen() {
           <HebrewDate location={user.location} showParasha />
         </View>
 
+        {zmanimUnavailable ? (
+          <Banner text={t('home.zmanimUnavailable')} color={colors.warning} background={`${colors.warning}18`} />
+        ) : null}
         {user.locationStatus === 'missing' ? (
           <Banner text={t('home.noLocation')} color={colors.warning} background={`${colors.warning}18`} />
         ) : null}

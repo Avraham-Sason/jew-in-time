@@ -39,7 +39,7 @@ export default function NusachScreen() {
               <Text style={[typography.bodyBold, { color: isSelected ? colors.gold : colors.text }]}>{t(`nusach.${option}`)}</Text>
               {isSelected ? (
                 <View style={[styles.tick, { backgroundColor: colors.gold }]}>
-                  <Text style={[typography.micro, { color: '#fff' }]}>✓</Text>
+                  <Text style={[typography.micro, { color: colors.onGold }]}>✓</Text>
                 </View>
               ) : null}
             </Pressable>
@@ -48,7 +48,7 @@ export default function NusachScreen() {
       </ScrollView>
       <Dots step={1} />
       <Pressable onPress={() => router.push('/onboarding/location')} style={[styles.cta, { backgroundColor: colors.gold }]}>
-        <Text style={[typography.bodyBold, { color: '#fff' }]}>{t('common.continue')}</Text>
+        <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.continue')}</Text>
       </Pressable>
       <Pressable onPress={() => router.back()} style={styles.backBtn}>
         <Text style={[typography.small, { color: colors.textSub }]}>{t('common.back')}</Text>

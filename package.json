@@ -5,16 +5,24 @@
   "scripts": {
     "start": "expo start",
     "start:dev": "expo start --dev-client",
+    "prebuild:clean": "expo prebuild --clean",
     "android": "expo run:android",
     "android:device": "expo run:android --device",
     "ios": "expo run:ios",
-    "web": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/free-port.ps1 -Port 8081 && expo start --web",
-    "free-port": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/free-port.ps1",
+    "web": "node scripts/free-port.js 8081 && expo start --web",
+    "free-port": "node scripts/free-port.js",
     "build:android": "npx eas-cli build --platform android --profile preview",
     "update": "npx eas-cli update --channel preview",
     "doctor": "npx expo-doctor",
-    "test": "jest --passWithNoTests",
-    "typecheck": "tsc --noEmit"
+    "test": "jest",
+    "typecheck": "tsc --noEmit",
+    "build:android:development": "npx eas-cli build --platform android --profile development",
+    "build:android:preview": "npx eas-cli build --platform android --profile preview",
+    "build:android:production": "npx eas-cli build --platform android --profile production",
+    "update:development": "npx eas-cli update --channel development",
+    "update:preview": "npx eas-cli update --channel preview",
+    "update:production": "npx eas-cli update --channel production",
+    "test:tz": "node scripts/test-timezones.js"
   },
   "dependencies": {
     "@expo-google-fonts/heebo": "^0.2.3",
@@ -36,7 +44,6 @@
     "expo-system-ui": "~6.0.9",
     "expo-task-manager": "~14.0.9",
     "expo-updates": "~29.0.16",
-    "i18n-js": "^4.5.0",
     "kosher-zmanim": "^0.9.0",
     "luxon": "^3.5.0",
     "react": "19.1.0",
@@ -62,13 +69,15 @@
     "babel-preset-expo": "~54.0.10",
     "jest": "^29.7.0",
     "jest-expo": "~54.0.17",
-    "ts-jest": "^29.1.0",
     "typescript": "~5.9.2"
   },
   "jest": {
     "preset": "jest-expo",
     "transformIgnorePatterns": [
-      "node_modules/(?!(?:.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|kosher-zmanim|@hebcal/.*|luxon))"
+      "node_modules/(?!(?:.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?[/+].*|@expo-google-fonts[/+].*|react-navigation|@react-navigation[/+].*|@unimodules[/+].*|unimodules|sentry-expo|native-base|react-native-svg|kosher-zmanim|@hebcal[/+].*|luxon))"
+    ],
+    "setupFiles": [
+      "<rootDir>/scripts/jest-timezone-setup.js"
     ]
   },
   "private": true

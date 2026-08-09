@@ -6,7 +6,10 @@
 
 ## Ownership
 
-- [free-port.ps1](free-port.ps1) frees a local TCP port before `pnpm web`.
+- [withExactAlarmPermissions.js](withExactAlarmPermissions.js) caps `SCHEDULE_EXACT_ALARM` at `maxSdkVersion=32` so exact alarms work on every Android version without triggering Google's exact-alarm declaration form.
+- [free-port.js](free-port.js) frees a local TCP port before `pnpm web`, cross-platform.
+- [jest-timezone-setup.js](jest-timezone-setup.js) applies `JEST_TZ` inside the Jest process; a `TZ=` command prefix is ignored by Node on Windows.
+- [test-timezones.js](test-timezones.js) runs the whole suite across four zones.
 - [withMitzvahNotificationAction.js](withMitzvahNotificationAction.js) is an Expo config plugin that injects Android notification action handling.
 
 ## Local Contracts
@@ -22,7 +25,8 @@
 
 ## Verification
 
-- Run `pnpm web` or `pnpm run free-port -- -Port <port>` after changing [free-port.ps1](free-port.ps1).
+- Run `pnpm web` or `node scripts/free-port.js <port>` after changing [free-port.js](free-port.js).
+- Run `pnpm test:tz` after changing date or timezone handling.
 - Run `pnpm doctor` after changing Expo config plugin behavior.
 - Use a dev client or native build to verify Android notification-action behavior.
 

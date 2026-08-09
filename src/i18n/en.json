@@ -36,6 +36,7 @@
   "home.noLocation": "No precise location. Enable GPS or choose a city manually.",
   "home.notificationsDenied": "Notifications are not allowed. Tap to open settings and enable them.",
   "home.gpsTimeout": "GPS timed out. Showing your saved city for now.",
+  "home.zmanimUnavailable": "Zmanim cannot be calculated for this location on this date. Pick another city in Settings.",
   "home.quick.details": "Details",
   "home.quick.skipToday": "Skip today",
   "home.quick.edit": "Edit",
@@ -220,6 +221,9 @@
   "state.completeAction": "Mark %{name} as done",
   "state.stamped": "Done!",
   "errors.generic": "Something went wrong. Try again.",
+  "errors.boundaryTitle": "Something went wrong",
+  "errors.boundaryBody": "The app hit an unexpected error. Try again, and if it keeps happening switch to another city in Settings.",
+  "errors.retry": "Try again",
   "errors.noLocation": "No location found",
   "errors.gpsTimeout": "GPS search took too long",
   "errors.notificationsDenied": "Notifications are blocked",
@@ -252,5 +256,14 @@
   "weekday.short.3": "Wed",
   "weekday.short.4": "Thu",
   "weekday.short.5": "Fri",
-  "weekday.short.6": "Sat"
+  "weekday.short.6": "Sat",
+  "notifications.channelName": "Mitzvot",
+  "notifications.markDone": "Done",
+  "notifications.timeFor": "Time for %{name}",
+  "custom.errors.reminderRequired": "Add at least one reminder with text",
+  "reminder.errors.offsetRange": "Offset must be within %{max} minutes",
+  "reminder.errors.outsideWindow": "With this offset the reminder falls outside the time window and will never fire",
+  "settings.batteryTitle": "Reminder reliability",
+  "settings.batteryHint": "Some devices delay notifications to save battery, which can push a reminder past the end of its window. Exempting the app from battery optimisation fixes that — a one-time step.",
+  "settings.batteryAction": "Open battery settings"
 }

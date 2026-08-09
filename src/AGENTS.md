@@ -15,6 +15,7 @@
 - [theme/AGENTS.md](theme/AGENTS.md) owns tokens, colors, typography, shadows, and theme provider.
 - [types/AGENTS.md](types/AGENTS.md) owns shared TypeScript domain types.
 - [utils/AGENTS.md](utils/AGENTS.md) owns pure computation helpers.
+- [testing/zmanim.ts](testing/zmanim.ts) holds test-only fixture helpers. Nothing in the shipped app may import from `testing/`.
 
 ## Local Contracts
 

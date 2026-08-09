@@ -13,7 +13,8 @@
 
 - Use [../theme/AGENTS.md](../theme/AGENTS.md) tokens and `useTheme()` instead of hard-coded colors unless there is a narrow reason.
 - Keep components reusable and prop-driven; business rules belong in [../services/AGENTS.md](../services/AGENTS.md), [../stores/AGENTS.md](../stores/AGENTS.md), [../data/AGENTS.md](../data/AGENTS.md), or [../utils/AGENTS.md](../utils/AGENTS.md).
-- Preserve RTL and Hebrew-first layout behavior.
+- Preserve RTL and Hebrew-first layout behavior. Position with direction-relative `start`/`end`; never combine a `language`-driven rotation with physical `left`/`right`, which RN swaps by `I18nManager.isRTL` instead — two sources of truth that disagree on first launch.
+- Logic worth testing must be exported and imported by the test, never re-declared inside it.
 
 ## Work Guidance
 

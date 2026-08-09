@@ -29,13 +29,10 @@ export default function WelcomeScreen() {
   const [phone, setPhone] = useState(profilePhone);
   const [error, setError] = useState('');
 
+  // Name and phone are stored locally and used by no feature, so nothing is gained by blocking
+  // onboarding on them.
   const submit = () => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setError(t('onboarding.nameRequired'));
-      return;
-    }
-    setProfileName(trimmed);
+    setProfileName(name.trim());
     setProfilePhone(phone.trim());
     router.push('/onboarding/nusach');
   };
@@ -68,7 +65,7 @@ export default function WelcomeScreen() {
 
           <View style={styles.form}>
             <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>
-              {t('settings.profileName')} *
+              {t('settings.profileName')}
             </Text>
             <TextInput
               value={name}
@@ -101,7 +98,7 @@ export default function WelcomeScreen() {
         <View style={styles.footer}>
           <Dots step={0} />
           <Pressable onPress={submit} style={[styles.cta, { backgroundColor: colors.gold }]}>
-            <Text style={[typography.bodyBold, { color: '#fff' }]}>{t('common.continue')}</Text>
+            <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.continue')}</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>

@@ -36,6 +36,7 @@
   "home.noLocation": "אין מיקום מדויק. אפשר GPS או בחר עיר ידנית.",
   "home.notificationsDenied": "אין הרשאות להתראות. לחץ כדי לפתוח את ההגדרות ולאשר.",
   "home.gpsTimeout": "GPS לא ענה בזמן. כרגע מוצגת העיר השמורה.",
+  "home.zmanimUnavailable": "לא ניתן לחשב זמני היום במיקום הזה בתאריך הזה. בחר עיר אחרת בהגדרות.",
   "home.quick.details": "פרטים",
   "home.quick.skipToday": "דלג היום",
   "home.quick.edit": "עריכה",
@@ -220,6 +221,9 @@
   "state.completeAction": "סמן %{name} כהושלם",
   "state.stamped": "נעשה!",
   "errors.generic": "משהו השתבש. נסה שוב.",
+  "errors.boundaryTitle": "משהו השתבש",
+  "errors.boundaryBody": "האפליקציה נתקלה בתקלה בלתי צפויה. אפשר לנסות שוב, ואם זה חוזר — החלף עיר בהגדרות.",
+  "errors.retry": "נסה שוב",
   "errors.noLocation": "לא נמצא מיקום",
   "errors.gpsTimeout": "חיפוש GPS לקח יותר מדי זמן",
   "errors.notificationsDenied": "התראות חסומות",
@@ -252,5 +256,14 @@
   "weekday.short.3": "ד'",
   "weekday.short.4": "ה'",
   "weekday.short.5": "ו'",
-  "weekday.short.6": "ש'"
+  "weekday.short.6": "ש'",
+  "notifications.channelName": "מצוות",
+  "notifications.markDone": "עשיתי",
+  "notifications.timeFor": "זמן %{name}",
+  "custom.errors.reminderRequired": "יש להזין לפחות תזכורת אחת עם טקסט",
+  "reminder.errors.offsetRange": "ההיסט חייב להיות עד %{max} דקות",
+  "reminder.errors.outsideWindow": "בהיסט הזה התזכורת תיפול מחוץ לחלון הזמן ולא תישלח",
+  "settings.batteryTitle": "אמינות התראות",
+  "settings.batteryHint": "חלק מהמכשירים משהים התראות כדי לחסוך בסוללה, וזה עלול לאחר תזכורת עד אחרי סוף הזמן. פטור מאופטימיזציית סוללה פותר את זה — פעולה חד־פעמית.",
+  "settings.batteryAction": "פתח הגדרות סוללה"
 }

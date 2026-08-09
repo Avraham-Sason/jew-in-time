@@ -14,15 +14,30 @@ function getData(response: Notifications.NotificationResponse): PendingNotificat
   return pendingNotificationMetaFromContent(response.notification.request.content);
 }
 
+let pendingDeepLink: PendingNotificationMeta | null = null;
+
+// When the app is launched BY the tap, this listener can fire before the router tree is mounted
+// and expo-router silently drops the navigation. Buffer it and let the root replay it once
+// navigation is ready.
+export function consumePendingNotificationRoute(): void {
+  const data = pendingDeepLink;
+  pendingDeepLink = null;
+  if (data) openMitzvahDetail(data);
+}
+
 function openMitzvahDetail(data: PendingNotificationMeta) {
   if (!data.mitzvahId) return;
-  router.push({
-    pathname: '/mitzvah/[id]',
-    params: {
-      id: data.mitzvahId,
-      highlightContent: data.fullContent?.length ? '1' : '0',
-    },
-  });
+  try {
+    router.push({
+      pathname: '/mitzvah/[id]',
+      params: {
+        id: data.mitzvahId,
+        highlightContent: data.fullContent?.length ? '1' : '0',
+      },
+    });
+  } catch {
+    pendingDeepLink = data;
+  }
 }
 
 export function handleNotificationResponse(response: Notifications.NotificationResponse): void {

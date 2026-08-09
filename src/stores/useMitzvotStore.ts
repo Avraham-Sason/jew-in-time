@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from './zustandMiddleware';
 import { createZustandStorage } from '@/services/StorageService';
+import { STORE_VERSION, onRehydrateStorage } from './persistOptions';
 import { MITZVOT } from '@/data/mitzvot';
 import { Reminder } from '@/types/mitzvah';
 
@@ -75,6 +76,18 @@ export const useMitzvotStore = create<MitzvotState>()(
     {
       name: 'mitzvot-store',
       storage: createJSONStorage(() => createZustandStorage()),
+      version: STORE_VERSION,
+      onRehydrateStorage: onRehydrateStorage('mitzvot-store'),
+      // A mitzvah shipped in a later release has no key in a persisted map, so `active[id]?.enabled`
+      // is undefined forever and the mitzvah is invisible. Union the defaults back in on hydrate.
+      merge: (persisted: unknown, current: MitzvotState): MitzvotState => {
+        const saved = persisted as Partial<MitzvotState> | undefined;
+        return {
+          ...current,
+          ...saved,
+          activeMitzvot: { ...DEFAULT_ACTIVE, ...(saved?.activeMitzvot ?? {}) },
+        };
+      },
     },
   ),
 );

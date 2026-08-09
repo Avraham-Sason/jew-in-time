@@ -34,7 +34,7 @@ export default function ReadyScreen() {
         <Dots step={3} />
       </View>
       <Pressable onPress={finish} style={[styles.cta, { backgroundColor: colors.gold }]}>
-        <Text style={[typography.bodyBold, { color: '#fff' }]}>{t('onboarding.finish')}</Text>
+        <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('onboarding.finish')}</Text>
       </Pressable>
     </SafeAreaView>
   );

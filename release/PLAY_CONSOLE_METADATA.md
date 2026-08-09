@@ -6,7 +6,7 @@ Smart mitzvah reminders with accurate halachic zmanim.
 
 ## Full Description
 
-Jew In Time helps users track daily mitzvot with local-first reminders based on halachic time windows.
+Jewish Time helps users track daily mitzvot with local-first reminders based on halachic time windows.
 
 Core capabilities:
 

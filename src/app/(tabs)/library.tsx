@@ -125,11 +125,14 @@ export default function LibraryScreen() {
                                     {
                                         backgroundColor: enabled ? colors.gold : colors.surface2,
                                         borderColor: enabled ? colors.gold : colors.border,
-                                        transform: [{ rotate: language === "he" ? "180deg" : "0deg" }],
                                     },
                                 ]}
                             >
-                                <View style={[styles.toggleThumb, enabled ? { right: 2 } : { right: 22 }]} />
+                                {/* Direction-relative, so Yoga resolves it from the real layout direction. The old
+                                    version rotated the track by `language` while positioning the thumb by physical
+                                    `right`, which RN only swaps by `I18nManager.isRTL` — two sources of truth that
+                                    disagree on first launch and render every row inverted. */}
+                                <View style={[styles.toggleThumb, enabled ? { end: 2 } : { end: 22 }]} />
                             </Pressable>
                         </Pressable>
                     );

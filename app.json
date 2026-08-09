@@ -20,9 +20,9 @@
         "NSLocationWhenInUseUsageDescription": "מיקום נדרש לחישוב זמני הלכה מדויקים לפי האזור שלך.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "מיקום נדרש לחישוב זמני הלכה מדויקים ולרענון יומי של התראות.",
         "UIBackgroundModes": [
-          "fetch",
-          "processing"
-        ]
+          "fetch"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -36,7 +36,9 @@
         "ACCESS_FINE_LOCATION",
         "RECEIVE_BOOT_COMPLETED",
         "SCHEDULE_EXACT_ALARM",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "USE_EXACT_ALARM",
+        "WAKE_LOCK"
       ]
     },
     "web": {
@@ -61,6 +63,9 @@
         }
       ],
       "./scripts/withMitzvahNotificationAction",
+      "./scripts/withExactAlarmPermissions",
+      "expo-task-manager",
+      "expo-background-fetch",
       "expo-asset"
     ],
     "experiments": {

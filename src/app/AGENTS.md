@@ -6,7 +6,7 @@
 
 ## Ownership
 
-- [_layout.tsx](_layout.tsx) owns root providers, fonts, RTL sync, onboarding redirect guard, and notification handler initialization.
+- [_layout.tsx](_layout.tsx) owns root providers, fonts, RTL sync, onboarding redirect guard, notification handler initialization, and the exported `ErrorBoundary` that expo-router installs at the root.
 - [index.tsx](index.tsx) owns root redirects.
 - [(tabs)/AGENTS.md](<(tabs)/AGENTS.md>) owns the main tab screens.
 - [onboarding/AGENTS.md](onboarding/AGENTS.md) owns onboarding flow screens.

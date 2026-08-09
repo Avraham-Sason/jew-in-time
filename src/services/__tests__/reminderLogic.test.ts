@@ -1,49 +1,51 @@
-// Pure logic tests for the reminder math used in NotificationScheduler.
-// Covers tests 11.5 (negative offset), 16.4 (positive overshoot), 16.5 (skipIfDone).
+jest.mock('react-native-mmkv', () => {
+  const { createMockMMKV } = require('react-native-mmkv/lib/commonjs/createMMKV.mock');
+  return { MMKV: jest.fn(() => createMockMMKV()) };
+});
+jest.mock('expo-notifications', () => ({
+  setNotificationHandler: jest.fn(),
+  SchedulableTriggerInputTypes: { DATE: 'date' },
+  AndroidImportance: { HIGH: 'high' },
+  AndroidNotificationVisibility: { PUBLIC: 'public' },
+}));
+jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
+jest.mock('expo-background-fetch', () => ({ registerTaskAsync: jest.fn(), BackgroundFetchResult: {} }));
 
-type Anchor = 'start' | 'end';
-type Reminder = { anchor: Anchor; offsetMin: number; label: string; skipIfDone?: boolean };
-type Win = { start: Date; end: Date };
+// Previously this file re-declared its own copy of buildTriggerTime — the shipped one was not even
+// exported, so a sign flip in the real implementation could never fail a test here.
+import { buildTriggerTime } from '../NotificationScheduler';
+import { Reminder } from '@/types/mitzvah';
 
-function buildTriggerTime(r: Reminder, w: Win): Date {
-  const anchor = r.anchor === 'start' ? w.start : w.end;
-  return new Date(anchor.getTime() + r.offsetMin * 60_000);
-}
-
-const win: Win = {
-  start: new Date('2026-04-23T05:08:00Z'),
-  end: new Date('2026-04-23T19:13:00Z'),
+const window = {
+  start: new Date(2026, 4, 6, 6, 0, 0),
+  end: new Date(2026, 4, 6, 10, 0, 0),
 };
 
-describe('Reminder buildTriggerTime', () => {
-  it('11.5.a anchor=start + offset=0 → start time', () => {
-    expect(buildTriggerTime({ anchor: 'start', offsetMin: 0, label: 'x' }, win).toISOString())
-      .toBe(win.start.toISOString());
+describe('buildTriggerTime', () => {
+  it('16.1 offsets forward from the window start', () => {
+    const r: Reminder = { anchor: 'start', offsetMin: 30, label: 'x' };
+    expect(buildTriggerTime(r, window).getTime()).toBe(window.start.getTime() + 30 * 60_000);
   });
 
-  it('11.5.b anchor=start + offset=+30 → 30min after start', () => {
-    expect(buildTriggerTime({ anchor: 'start', offsetMin: 30, label: 'x' }, win).getTime())
-      .toBe(win.start.getTime() + 30 * 60_000);
+  it('16.2 a zero offset fires exactly at the anchor', () => {
+    expect(buildTriggerTime({ anchor: 'start', offsetMin: 0, label: 'x' }, window).getTime()).toBe(
+      window.start.getTime(),
+    );
+    expect(buildTriggerTime({ anchor: 'end', offsetMin: 0, label: 'x' }, window).getTime()).toBe(
+      window.end.getTime(),
+    );
   });
 
-  it('11.5.c anchor=end + offset=-45 → 45min before end (negative offset)', () => {
-    const t = buildTriggerTime({ anchor: 'end', offsetMin: -45, label: 'x' }, win);
-    expect(t.getTime()).toBe(win.end.getTime() - 45 * 60_000);
-    expect(t.getTime()).toBeLessThan(win.end.getTime());
+  it('16.3 a negative offset on the end anchor lands BEFORE the window closes', () => {
+    const r: Reminder = { anchor: 'end', offsetMin: -45, label: 'x' };
+    const trigger = buildTriggerTime(r, window);
+    expect(trigger.getTime()).toBe(window.end.getTime() - 45 * 60_000);
+    expect(trigger.getTime()).toBeLessThan(window.end.getTime());
+    expect(trigger.getTime()).toBeGreaterThan(window.start.getTime());
   });
 
-  it('11.5.d anchor=end + offset=0 → end time', () => {
-    expect(buildTriggerTime({ anchor: 'end', offsetMin: 0, label: 'x' }, win).toISOString())
-      .toBe(win.end.toISOString());
-  });
-
-  it('16.4 large positive offset overshoots window.end → trigger > end (caller must drop)', () => {
-    const t = buildTriggerTime({ anchor: 'start', offsetMin: 24 * 60, label: 'x' }, win);
-    expect(t.getTime()).toBeGreaterThan(win.end.getTime());
-  });
-
-  it('16.5 skipIfDone=true is on reminder shape (consumed by scheduler)', () => {
-    const r: Reminder = { anchor: 'start', offsetMin: 0, label: 'x', skipIfDone: true };
-    expect(r.skipIfDone).toBe(true);
+  it('16.4 a positive offset on the end anchor lands after the window — the scheduler drops these', () => {
+    const r: Reminder = { anchor: 'end', offsetMin: 30, label: 'x' };
+    expect(buildTriggerTime(r, window).getTime()).toBeGreaterThan(window.end.getTime());
   });
 });

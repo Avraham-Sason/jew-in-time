@@ -1,6 +1,6 @@
 import { HDate } from '@hebcal/core';
 import { MITZVOT, findMitzvah, omerDayFor } from '../mitzvot';
-import { ZmanimService } from '@/services/ZmanimService';
+import { zmanimFor } from '@/testing/zmanim';
 import { UserSettings } from '@/types/mitzvah';
 import { CITIES } from '../cities';
 
@@ -17,7 +17,7 @@ const DATES = [
 ];
 
 function ctxFor(date: Date) {
-  return { date, location: JERUSALEM, settings: SETTINGS, zmanim: ZmanimService.getZmanim(date, JERUSALEM) };
+  return { date, location: JERUSALEM, settings: SETTINGS, zmanim: zmanimFor(date, JERUSALEM) };
 }
 
 describe('mitzvot windows', () => {
@@ -50,13 +50,14 @@ describe('mitzvot windows', () => {
     expect(w!.end.getTime()).toBe(ctx.zmanim.shkia.getTime());
   });
 
-  it('omer day 10 is 25 Nisan', () => {
+  // omerDayFor answers "which count is due on the night that OPENS at tzeit of this day", and that
+  // night already belongs to the next Hebrew day — so the evening of 25 Nisan opens night 11.
+  it('the evening of 25 Nisan opens omer night 11', () => {
     const may2026 = new Date('2026-04-12T12:00:00Z');
-    const day = omerDayFor(may2026);
-    expect(day).toBe(10);
     const hd = new HDate(may2026);
     expect(hd.getMonthName()).toBe('Nisan');
     expect(hd.getDate()).toBe(25);
+    expect(omerDayFor(may2026)).toBe(11);
   });
 
   it('candle lighting returns null on non-Friday', () => {

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from './zustandMiddleware';
 import { createZustandStorage } from '@/services/StorageService';
+import { STORE_VERSION, onRehydrateStorage } from './persistOptions';
 import { Nusach, HalachicOpinion } from '@/types/mitzvah';
 import { Location } from '@/types/zmanim';
 import { CITIES } from '@/data/cities';
@@ -27,6 +28,7 @@ type UserState = {
   setNusach: (n: Nusach) => void;
   setLocation: (l: Location) => void;
   setLocationState: (l: Location, status: LocationStatus, source: LocationSource) => void;
+  setLocationStatus: (status: LocationStatus) => void;
   setTheme: (t: ThemeMode) => void;
   setLanguage: (l: Language) => void;
   setNotificationPermission: (status: NotificationPermissionStatus) => void;
@@ -61,6 +63,8 @@ export const useUserStore = create<UserState>()(
       setLocation: (l) => set({ location: l, inIsrael: l.inIsrael }),
       setLocationState: (l, status, source) =>
         set({ location: l, inIsrael: l.inIsrael, locationStatus: status, locationSource: source }),
+      // Records that a lookup failed without touching the chosen location.
+      setLocationStatus: (status) => set({ locationStatus: status }),
       setTheme: (t) => set({ theme: t }),
       setLanguage: (l) => set({ language: l }),
       setNotificationPermission: (status) => set({ notificationPermission: status }),
@@ -90,6 +94,8 @@ export const useUserStore = create<UserState>()(
     {
       name: 'user-store',
       storage: createJSONStorage(() => createZustandStorage()),
+      version: STORE_VERSION,
+      onRehydrateStorage: onRehydrateStorage('user-store'),
     },
   ),
 );

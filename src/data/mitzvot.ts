@@ -1,6 +1,8 @@
 import { HDate } from '@hebcal/core';
 import { DateTime } from 'luxon';
 import { ComputeContext, Mitzvah, MitzvahWindow, Nusach } from '@/types/mitzvah';
+import { Location } from '@/types/zmanim';
+import { HebcalService } from '@/services/HebcalService';
 import { ZmanimService } from '@/services/ZmanimService';
 
 const ALL_NUSCHAOT: Nusach[] = ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'];
@@ -20,18 +22,33 @@ function isFriday(d: Date): boolean {
   return d.getDay() === 5;
 }
 
+// Jerusalem's near-universal minhag is 40 minutes, and it is the app's default city — 18 minutes
+// there is simply the wrong time.
+const JERUSALEM_CANDLE_MINUTES = 40;
+
+export function candleLightingMinutes(location: Location): number {
+  if (location.candleLightingMinutes) return location.candleLightingMinutes;
+  if (location.inIsrael) return location.nameEn === 'Jerusalem' ? JERUSALEM_CANDLE_MINUTES : 18;
+  return 20;
+}
+
 function isSaturdayEvening(d: Date, shkia: Date): boolean {
   return d.getDay() === 6 && d.getTime() >= shkia.getTime();
 }
 
+// The Omer is counted at nightfall, and that night belongs to the NEXT Hebrew day. So the count
+// due on the night that opens at tzeit of Gregorian day D is the count of Hebrew day D+1: night 1
+// falls on the evening of 15 Nisan and night 49 on the evening of 4 Sivan. Anchoring to 16 Nisan
+// shifted every night one day late — no window at all on the first night, and a window (with the
+// bracha in the body) on the night of Shavuot, when there is nothing left to count.
 function omerDayFor(date: Date, timeZone?: string): number | null {
   const zoned = timeZone ? DateTime.fromJSDate(date).setZone(timeZone) : DateTime.fromJSDate(date);
   const zone = zoned.zoneName ?? undefined;
   const calendarDate = new Date(zoned.year, zoned.month - 1, zoned.day);
   const hd = new HDate(calendarDate);
   const year = hd.getFullYear();
-  const startGreg = new HDate(16, 'Nisan', year).greg();
-  const endGreg = new HDate(5, 'Sivan', year).greg();
+  const startGreg = new HDate(15, 'Nisan', year).greg();
+  const endGreg = new HDate(4, 'Sivan', year).greg();
   const start = DateTime.fromObject(
     { year: startGreg.getFullYear(), month: startGreg.getMonth() + 1, day: startGreg.getDate() },
     { zone },
@@ -44,6 +61,14 @@ function omerDayFor(date: Date, timeZone?: string): number | null {
   if (current < start || current > end) return null;
   const days = Math.floor(current.diff(start, 'days').days) + 1;
   return days >= 1 && days <= 49 ? days : null;
+}
+
+// Counting is valid all night, at the latest until alot hashachar. Noon-anchored so the calendar
+// day is unambiguous across a DST transition; falls back to chatzot halayla if the next day's
+// zmanim cannot be computed.
+function endOfOmerNight({ date, location, zmanim }: ComputeContext): Date {
+  const nextDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 12);
+  return ZmanimService.getZmanim(nextDay, location)?.alotHaShachar ?? zmanim.chatzotLayla;
 }
 
 export const MITZVOT: Mitzvah[] = [
@@ -63,7 +88,7 @@ export const MITZVOT: Mitzvah[] = [
         bodyVariants: ['הגיע זמן הנחת תפילין', 'תפילין מחכות לך עכשיו', 'עוד יום קדוש מתחיל עם תפילין'],
       },
       { anchor: 'start', offsetMin: 180, label: 'תזכורת — עדיין לא הנחת תפילין', skipIfDone: true },
-      { anchor: 'end', offsetMin: -45, label: 'נותרה שעה להנחת תפילין', skipIfDone: true },
+      { anchor: 'end', offsetMin: -45, label: 'נותרו 45 דק\' להנחת תפילין', skipIfDone: true },
     ],
     computeWindow: ({ zmanim }) => win(zmanim.misheyakir, zmanim.shkia),
   },
@@ -159,11 +184,7 @@ export const MITZVOT: Mitzvah[] = [
       },
       { anchor: 'start', offsetMin: 120, label: 'תזכורת — ערבית', skipIfDone: true },
     ],
-    computeWindow: ({ zmanim, date }) => {
-      const end = new Date(zmanim.chatzot);
-      end.setDate(end.getDate() + 1);
-      return win(zmanim.tzeitHakochavim, end);
-    },
+    computeWindow: ({ zmanim }) => win(zmanim.tzeitHakochavim, zmanim.chatzotLayla),
   },
   {
     id: 'birchot_hashachar',
@@ -201,9 +222,15 @@ export const MITZVOT: Mitzvah[] = [
       { anchor: 'start', offsetMin: 0, label: 'זמן הדלקת נרות' },
     ],
     computeWindow: ({ date, location, zmanim }) => {
-      if (!isFriday(date)) return null;
-      const mins = location.inIsrael ? 18 : 20;
-      const t = new Date(zmanim.shkia.getTime() - mins * 60_000);
+      // Candles are lit before Shabbat AND before Yom Tov. Weekday-only meant no reminder at all
+      // for any chag that does not happen to start on a Friday — Sukkot and Pesach 5786 both begin
+      // midweek. When Yom Tov starts on motzaei Shabbat, lighting is from an existing flame after
+      // tzeit rather than at this time, so that case is excluded.
+      const nextDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 12);
+      const erevYomTov = HebcalService.isYomTov(nextDay, location) && !HebcalService.isYomTov(date, location);
+      if (!isFriday(date) && !erevYomTov) return null;
+      if (HebcalService.isShabbat(date, location) && !isFriday(date)) return null;
+      const t = new Date(zmanim.shkia.getTime() - candleLightingMinutes(location) * 60_000);
       return win(t, zmanim.shkia);
     },
   },
@@ -253,11 +280,9 @@ export const MITZVOT: Mitzvah[] = [
       },
       { anchor: 'start', offsetMin: 60, label: 'תזכורת — ספירת העומר', skipIfDone: true },
     ],
-    computeWindow: ({ date, location, zmanim }) => {
-      if (omerDayFor(date, location.tz) === null) return null;
-      const end = new Date(zmanim.chatzot);
-      end.setDate(end.getDate() + 1);
-      return win(zmanim.tzeitHakochavim, end);
+    computeWindow: (ctx) => {
+      if (omerDayFor(ctx.date, ctx.location.tz) === null) return null;
+      return win(ctx.zmanim.tzeitHakochavim, endOfOmerNight(ctx));
     },
   },
 ];
