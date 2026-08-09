@@ -6,7 +6,7 @@
 
 ## Ownership
 
-- `icon.png`, `adaptive-icon.png`, `splash.png`, `favicon.png`, and `notification-icon.png` are release-facing assets.
+- [icon.png](icon.png), [adaptive-icon.png](adaptive-icon.png), [splash.png](splash.png), [favicon.png](favicon.png), and [notification-icon.png](notification-icon.png) are release-facing assets.
 - [README.md](README.md) records expected asset names and dimensions.
 
 ## Local Contracts

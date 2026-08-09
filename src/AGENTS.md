@@ -15,7 +15,7 @@
 - [theme/AGENTS.md](theme/AGENTS.md) owns tokens, colors, typography, shadows, and theme provider.
 - [types/AGENTS.md](types/AGENTS.md) owns shared TypeScript domain types.
 - [utils/AGENTS.md](utils/AGENTS.md) owns pure computation helpers.
-- [testing/zmanim.ts](testing/zmanim.ts) holds test-only fixture helpers. Nothing in the shipped app may import from `testing/`.
+- [testing/AGENTS.md](testing/AGENTS.md) owns test-only fixture helpers. Nothing in the shipped app may import from there.
 
 ## Local Contracts
 
@@ -46,4 +46,5 @@
 - [stores/AGENTS.md](stores/AGENTS.md) - Persisted Zustand stores and middleware.
 - [theme/AGENTS.md](theme/AGENTS.md) - Theme tokens, colors, typography, shadows, and provider.
 - [types/AGENTS.md](types/AGENTS.md) - Shared domain types.
+- [testing/AGENTS.md](testing/AGENTS.md) - Test-only fixture helpers.
 - [utils/AGENTS.md](utils/AGENTS.md) - Pure schedule/history helper logic.

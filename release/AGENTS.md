@@ -23,6 +23,9 @@
 
 ## Verification
 
+- Run `pnpm test -- src/i18n/__tests__/i18n.test.ts` after changing the app name, which the brand regression test pins.
+- Cross-check any permission or data claim against [../app.json](../app.json) and the privacy behavior described in [../src/services/AGENTS.md](../src/services/AGENTS.md) before publishing.
+- Confirm the display name here matches [../app.json](../app.json); the store listing, the on-device name and this copy must agree.
 
 ## Child DOX Index
 

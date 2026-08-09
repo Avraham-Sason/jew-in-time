@@ -22,7 +22,8 @@
     "update:development": "npx eas-cli update --channel development",
     "update:preview": "npx eas-cli update --channel preview",
     "update:production": "npx eas-cli update --channel production",
-    "test:tz": "node scripts/test-timezones.js"
+    "test:tz": "node scripts/test-timezones.js",
+    "check:dox": "node scripts/check-dox.js"
   },
   "dependencies": {
     "@expo-google-fonts/heebo": "^0.2.3",

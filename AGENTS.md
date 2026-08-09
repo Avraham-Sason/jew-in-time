@@ -4,11 +4,11 @@ Canonical working notes for AI agents in this repository. Keep this file current
 
 ## Project Snapshot
 
-- App: Hebrew-first Expo/React Native mobile app for daily mitzvah reminders inside halachic time windows. The current display name is configured in `app.json`; the package/slug remains `jew-in-time`.
+- App: Hebrew-first Expo/React Native mobile app for daily mitzvah reminders inside halachic time windows. The current display name is configured in [app.json](app.json); the package/slug remains `jew-in-time`.
 - EAS project: `@avraham-sason/jew-in-time`, ID `8cc2a377-fcc9-4c78-bdde-ec0fc8f2a84e`.
 - Runtime model: local/offline first. Zmanim, Hebrew calendar, history, settings, completions, and reminders are computed on-device. There is no backend.
 - Primary platforms: iOS, Android, and a web build for smoke/headless checks. Native notification/MMKV behavior requires a dev client or native build, not plain Expo Go.
-- Package manager: `pnpm-lock.yaml` is present. Prefer `pnpm` for installs and scripts to avoid lockfile churn.
+- Package manager: [pnpm-lock.yaml](pnpm-lock.yaml) is present. Prefer `pnpm` for installs and scripts to avoid lockfile churn.
 
 ## Commands
 
@@ -25,6 +25,7 @@ pnpm test:tz                       # full suite across UTC, Jerusalem, LA and Ki
 pnpm test -- path/to/file.test.ts  # single Jest file
 pnpm test -- -t "name fragment"    # Jest test-name filter
 pnpm typecheck                     # tsc --noEmit
+pnpm check:dox                     # AGENTS.md links, section order and Child DOX Index
 pnpm doctor                        # expo-doctor
 pnpm build:android:development     # EAS development APK
 pnpm build:android:preview         # EAS internal preview APK
@@ -32,32 +33,35 @@ pnpm update:development            # EAS update to development channel
 pnpm update:preview                # EAS update to preview channel
 ```
 
-`pnpm web` calls `scripts/free-port.js` (cross-platform) and may kill a listener on port 8081. Use a dev client/native build when verifying `react-native-mmkv`, background tasks, or notifications.
+`pnpm web` calls [scripts/free-port.js](scripts/free-port.js) (cross-platform) and may kill a listener on port 8081. Use a dev client/native build when verifying `react-native-mmkv`, background tasks, or notifications.
 
 ## Source Map
 
-- `src/app/` - Expo Router routes. The router root is set in `app.json` via `extra.router.root = "./src/app"`.
-- `src/app/_layout.tsx` - Root providers, font loading, onboarding redirect guard, RTL sync, notification handler init.
-- `src/app/(tabs)/` - Main tabs: `home`, `schedule`, `history`, `library`, `settings`; `(tabs)/index` redirects to home and is hidden.
-- `src/app/onboarding/` - Onboarding flow: welcome, nusach, location/notifications, ready.
-- `src/app/mitzvah/[id].tsx` - Static and custom mitzvah details, reminders, content blocks.
-- `src/app/day/[date].tsx` - Read-only per-day route for schedule/history drilldown.
-- `src/app/custom-mitzvah.tsx` - Create/edit custom mitzvot.
-- `src/data/` - Static registries: mitzvot, cities, nuschaot, and custom-to-static adapter.
-- `src/services/` - Non-React logic and native wrappers: zmanim, Hebcal, location, storage, notifications, completions, reset.
-- `src/stores/` - Zustand stores persisted through MMKV.
-- `src/components/` - Reusable React Native UI.
-- `src/theme/` - Theme colors, typography, spacing, animation/radius tokens.
-- `src/i18n/` - Flat `he.json` and `en.json` dictionaries plus a tiny translation wrapper.
-- `design/jew-in-time/` - Claude Design handoff. Use it only when doing UI/design work; read its README and `project/Hi-Fi.html` before porting visuals.
-- `release/` - Store listing and privacy policy drafts.
-- `tasks.md` - Historical/current task checklist. The only unchecked item at this scan was manual mobile end-to-end verification.
+- [src/app/](src/app) - Expo Router routes. The router root is set in [app.json](app.json) via `extra.router.root`.
+- [src/app/_layout.tsx](src/app/_layout.tsx) - Root providers, font loading, onboarding redirect guard, RTL bootstrap, notification handler init, and the exported `ErrorBoundary`.
+- [src/app/(tabs)/](<src/app/(tabs)>) - Main tabs: home, schedule, history, library, settings; the hidden `index` redirects to home.
+- [src/app/onboarding/](src/app/onboarding) - Onboarding flow: welcome, nusach, location/notifications, ready.
+- [src/app/mitzvah/[id].tsx](<src/app/mitzvah/[id].tsx>) - Static and custom mitzvah details, reminders, content blocks.
+- [src/app/day/[date].tsx](<src/app/day/[date].tsx>) - Read-only per-day route for schedule/history drilldown.
+- [src/app/custom-mitzvah.tsx](src/app/custom-mitzvah.tsx) - Create/edit custom mitzvot.
+- [src/data/](src/data) - Static registries: mitzvot, cities, nuschaot, and custom-to-static adapter.
+- [src/services/](src/services) - Non-React logic and native wrappers: zmanim, Hebcal, location, storage, notifications, completions, reset, OS-settings deep links.
+- [src/stores/](src/stores) - Zustand stores persisted through MMKV.
+- [src/components/](src/components) - Reusable React Native UI.
+- [src/theme/](src/theme) - Theme colors, typography, spacing, animation/radius tokens.
+- [src/utils/](src/utils) - Pure helpers: day timeline, history stats, and the shared `skipOn` predicate.
+- [src/i18n/](src/i18n) - Flat [he.json](src/i18n/he.json) and [en.json](src/i18n/en.json) dictionaries plus a tiny translation wrapper.
+- [src/testing/](src/testing) - Test-only fixture helpers. Never imported by shipped code.
+- [scripts/](scripts) - Local workflow scripts and Expo config plugins.
+- [design/jew-in-time/](design/jew-in-time) - Claude Design handoff. Use it only for UI/design work; read its README and Hi-Fi prototype before porting visuals.
+- [release/](release) - Store listing and privacy policy drafts.
+- [AUDIT.md](AUDIT.md) - Failure-point audit with per-finding status. Read before assuming a known defect is still open.
 
 [CLAUDE.md](CLAUDE.md) is the Claude Code compatibility bridge. This file remains the canonical cross-agent context.
 
 ## Architecture Rules
 
-- TypeScript is strict. The `@/*` alias maps to `src/*` in both `tsconfig.json` and `babel.config.js`; update both if aliases change.
+- TypeScript is strict. The `@/*` alias maps to `src/*` in both [tsconfig.json](tsconfig.json) and [babel.config.js](babel.config.js); update both if aliases change.
 - Keep app logic in services/utils/stores where possible. Components and routes should mostly compose state, services, and UI.
 - Do not add a backend or remote API call for calendar/zmanim behavior. Existing logic is local through `kosher-zmanim`, `@hebcal/core`, and `luxon`.
 - Do not commit generated native folders unless the user explicitly asks for native project changes. `ios/` and `android/` are gitignored and normally generated by Expo prebuild/run.
@@ -66,7 +70,7 @@ pnpm update:preview                # EAS update to preview channel
 
 ## Mitzvah Data Model
 
-The central registry is `src/data/mitzvot.ts`.
+The central registry is [src/data/mitzvot.ts](src/data/mitzvot.ts).
 
 Static mitzvah IDs currently include:
 
@@ -93,9 +97,9 @@ Each `Mitzvah` has:
 - `nuschaotSupported`: supported nusach IDs.
 - optional `contentBlocks`: text/blessing/link blocks shown on detail screens and optionally included in notifications.
 
-When adding or changing a mitzvah, update `MITZVOT`, any relevant i18n/UI labels, and tests under `src/data/__tests__/`, `src/services/__tests__/`, and any affected route/component tests.
+When adding or changing a mitzvah, update `MITZVOT`, any relevant i18n/UI labels, and tests under [src/data/__tests__/](src/data/__tests__), [src/services/__tests__/](src/services/__tests__), and any affected route/component tests.
 
-Custom mitzvot live in `useCustomMitzvotStore` and are adapted through `src/data/customMitzvotAdapter.ts`. Custom IDs are generated as `custom_<timestamp>_<suffix>`. Use `getAllMitzvot()` or `findAnyMitzvah()` when a screen/service must include custom mitzvot.
+Custom mitzvot live in `useCustomMitzvotStore` and are adapted through [customMitzvotAdapter.ts](src/data/customMitzvotAdapter.ts). Custom IDs are generated as `custom_<timestamp>_<suffix>`. Use `getAllMitzvot(nusach?)` or `findAnyMitzvah()` when a screen/service must include custom mitzvot. Passing the nusach applies `nuschaotSupported` filtering; every surface that lists mitzvot must filter the same way.
 
 ## Zmanim and Calendar
 
@@ -108,7 +112,7 @@ Custom mitzvot live in `useCustomMitzvotStore` and are adapted through `src/data
 
 ## Notification Engine
 
-`src/services/NotificationScheduler.ts` is the scheduling brain. Keep API parity with `src/services/NotificationScheduler.web.ts`.
+[NotificationScheduler.ts](src/services/NotificationScheduler.ts) is the scheduling brain. Keep API parity with [NotificationScheduler.web.ts](src/services/NotificationScheduler.web.ts).
 
 Important constants and contracts:
 
@@ -119,7 +123,7 @@ Important constants and contracts:
 - Normal horizon: today + tomorrow. Candidates are ordered by trigger time and capped at `IOS_MAX - 4` on iOS / `PENDING_LIMIT` elsewhere, so an overflow drops the furthest-out reminders rather than all of tomorrow.
 - Daily rebuild task: `jew-in-time-daily-rebuild`, gated by `notifications:last-rebuild-date` and intended to run once per local day at/after 00:15.
 - Background notification action task: `jew-in-time-notification-actions`.
-- Delivery must stay EXACT. expo-notifications only calls `setExactAndAllowWhileIdle` when `AlarmManager.canScheduleExactAlarms()` is true, and there is no JS API to detect the fallback — so the manifest is the only guarantee. `USE_EXACT_ALARM` covers API 33+, `SCHEDULE_EXACT_ALARM` (capped at `maxSdkVersion=32` by [scripts/withExactAlarmPermissions.js](scripts/withExactAlarmPermissions.js)) covers Android 12. Pinned by `src/services/__tests__/exactAlarmConfig.test.ts`.
+- Delivery must stay EXACT. expo-notifications only calls `setExactAndAllowWhileIdle` when `AlarmManager.canScheduleExactAlarms()` is true, and there is no JS API to detect the fallback — so the manifest is the only guarantee. `USE_EXACT_ALARM` covers API 33+, `SCHEDULE_EXACT_ALARM` (capped at `maxSdkVersion=32` by [scripts/withExactAlarmPermissions.js](scripts/withExactAlarmPermissions.js)) covers Android 12. Pinned by [exactAlarmConfig.test.ts](src/services/__tests__/exactAlarmConfig.test.ts).
 
 Behavior to preserve:
 
@@ -128,9 +132,9 @@ Behavior to preserve:
 - `scheduleOne()` skips disabled/no-permission cases, Shabbat/Yom Tov skips, `null` windows, skipped or completed mitzvot for that date, and past triggers.
 - `cancelForMitzvah(id, date)` cancels all pending reminders for that mitzvah/date so marking a mitzvah done prevents later same-day notifications.
 - `useCompletionsStore.markDone`, `markSkipped`, and `unmark` also trigger notification cancellation/rebuild through a queued `require()` to avoid import cycles.
-- `initNotificationHandlers()` is called from `src/app/_layout.tsx` after fonts load and returns a teardown the layout runs on unmount. It also calls `refreshSchedulingOnForeground()`, which home repeats on `AppState 'active'` so the horizon cannot silently expire. It sets the foreground handler, registers category/action tasks, syncs permission, dismisses already-completed presented notifications, subscribes to store changes, and registers the daily rebuild task.
+- `initNotificationHandlers()` is called from [_layout.tsx](src/app/_layout.tsx) after fonts load and returns a teardown the layout runs on unmount. It also calls `refreshSchedulingOnForeground()`, which home repeats on `AppState 'active'` so the horizon cannot silently expire. It sets the foreground handler, registers category/action tasks, syncs permission, dismisses already-completed presented notifications, subscribes to store changes, and registers the daily rebuild task.
 - Tapping the notification body routes to `/mitzvah/[id]`; tapping `MARK_DONE` marks completion without foregrounding the app.
-- `scripts/withMitzvahNotificationAction.js` is an Expo config plugin that writes an Android Kotlin service to dismiss a notification after the mark-done action. Keep this in mind when changing notification action IDs.
+- [withMitzvahNotificationAction.js](scripts/withMitzvahNotificationAction.js) is an Expo config plugin that writes an Android Kotlin service to dismiss a notification after the mark-done action. Keep this in mind when changing notification action IDs.
 
 The web scheduler file is intentionally a no-op shim. If adding exported scheduler helpers, add matching exports to both native and web files.
 
@@ -143,15 +147,15 @@ All primary stores use Zustand with MMKV persistence through `StorageService.cre
 - `useCompletionsStore` (`completions-store`): `completions[YYYY-MM-DD][mitzvahId] = timestamp` and parallel `skipped` map.
 - `useCustomMitzvotStore` (`custom-mitzvot-store`): user-created mitzvah definitions.
 
-`src/stores/zustandMiddleware.ts` deliberately requires `../../node_modules/zustand/middleware.js`. Do not replace it with a direct ESM import unless Metro and Jest are both verified.
+[zustandMiddleware.ts](src/stores/zustandMiddleware.ts) deliberately requires `../../node_modules/zustand/middleware.js`. Do not replace it with a direct ESM import unless Metro and Jest are both verified.
 
 `AppResetService.reset()` cancels notifications, resets all stores, and clears MMKV on native.
 
 ## UI, Theme, RTL, and i18n
 
-- The app loads Heebo font weights in `src/app/_layout.tsx`.
+- The app loads Heebo font weights in [_layout.tsx](src/app/_layout.tsx).
 - Use `useTheme()` and `src/theme/*` tokens. Avoid hard-coded colors in new UI unless there is a narrow reason.
-- Translation tables are flat JSON dictionaries in `src/i18n/he.json` and `src/i18n/en.json`; tests enforce key parity and non-empty values.
+- Translation tables are flat JSON dictionaries in [he.json](src/i18n/he.json) and [en.json](src/i18n/en.json); tests enforce key parity and non-empty values.
 - `setLocale()` and `useI18n()` are lightweight wrappers. The `i18n-js` package is installed but the current app does not rely on the normal `i18n-js` runtime API.
 - RTL is dynamic based on `useUserStore.language`. `_layout.tsx` calls `I18nManager.allowRTL/forceRTL`; native language direction changes can require a reload.
 - Web also sets `document.documentElement.dir/lang` and `body.dir`.
@@ -159,20 +163,27 @@ All primary stores use Zustand with MMKV persistence through `StorageService.cre
 
 ## Tests
 
-Jest uses the `jest-expo` preset configured in `package.json`.
+Jest uses the `jest-expo` preset configured in [package.json](package.json).
 
 Coverage areas:
 
-- `src/data/__tests__/` - registry integrity, windows, city data, skip metadata.
-- `src/services/__tests__/` - zmanim, Hebcal, location, storage, scheduler, notification responses, settings logic.
-- `src/stores/__tests__/` - store behavior and completion/skipped edge cases.
-- `src/utils/__tests__/` - day timeline and history stats.
-- `src/i18n/__tests__/` - translation parity and brand regression checks.
-- `src/theme/__tests__/` - token/key sanity.
-- `src/app/__tests__/routes.test.ts` - Expo Router route discovery/regression tests.
-- `src/components/__tests__/TimeRibbon.test.ts` - threshold and urgency ordering behavior.
+- [src/data/__tests__/](src/data/__tests__) - registry integrity, windows, city data, skip metadata, nusach filtering.
+- [src/services/__tests__/](src/services/__tests__) - zmanim, Hebcal, location, storage, scheduler, notification responses, settings logic, web-shim parity, exact-alarm config.
+- [src/stores/__tests__/](src/stores/__tests__) - store behavior and completion/skipped edge cases.
+- [src/utils/__tests__/](src/utils/__tests__) - day timeline, history stats, and cross-surface `skipOn` agreement.
+- [src/i18n/__tests__/](src/i18n/__tests__) - translation parity and brand regression checks.
+- [src/theme/__tests__/](src/theme/__tests__) - token/key sanity.
+- [src/app/__tests__/routes.test.ts](src/app/__tests__/routes.test.ts) - Expo Router route discovery/regression tests.
+- [src/components/__tests__/](src/components/__tests__) - reusable component behavior.
 
-When adding ESM or native-adjacent dependencies, check `transformIgnorePatterns` in `package.json`; Jest may need the dependency allowlisted.
+Test rules that exist because the suite once passed while the app was broken:
+
+- A test must import the shipped implementation. Re-declaring the logic under test asserts only that the test agrees with itself.
+- Assert values, not types. `expect(typeof x).toBe('boolean')` passes for both answers.
+- A test must be able to fail for the reason it claims. `scheduleOne` compares triggers against the real clock, so fixtures in the past pass vacuously; derive dates from `Date.now()` instead.
+- Date fixtures are read through device-local getters. Run [pnpm test:tz](scripts/test-timezones.js) after touching date or timezone logic.
+
+When adding ESM or native-adjacent dependencies, check `transformIgnorePatterns` in [package.json](package.json); Jest may need the dependency allowlisted.
 
 For notification changes, run at least:
 
@@ -194,17 +205,20 @@ pnpm typecheck
 
 ## Common Change Checklist
 
-- New route: add the file under `src/app/`, update navigation/tabs if needed, then update `src/app/__tests__/routes.test.ts`.
-- New UI copy: update both `src/i18n/he.json` and `src/i18n/en.json`, then run i18n tests.
-- New theme token: update both `T_LIGHT` and `T_DARK`, then run theme tests.
-- New mitzvah: update registry, default enabled behavior if needed, detail/schedule/history expectations, and tests.
-- New scheduler export: update both native and `.web.ts` scheduler implementations.
-- New notification action/category ID: update scheduler constants, response handling, Android config plugin, and notification tests.
-- New persisted store field: add a sensible default, reset behavior, and migration/backward-compatibility handling if old persisted data may exist.
+- New route: add the file under [src/app/](src/app), update navigation/tabs if needed, then update [routes.test.ts](src/app/__tests__/routes.test.ts).
+- New UI copy: update both [he.json](src/i18n/he.json) and [en.json](src/i18n/en.json), then run i18n tests.
+- New theme token: update both `T_LIGHT` and `T_DARK` in [colors.ts](src/theme/colors.ts), then run theme tests.
+- New mitzvah: update the registry, default enabled behavior, detail/schedule/history expectations, and tests. A mitzvah added after release needs the `merge` in [useMitzvotStore.ts](src/stores/useMitzvotStore.ts) to reach existing users.
+- New scheduler export: update [NotificationScheduler.web.ts](src/services/NotificationScheduler.web.ts) too; [schedulerWebParity.test.ts](src/services/__tests__/schedulerWebParity.test.ts) enforces it.
+- New notification action/category ID: update scheduler constants, response handling, the [Android config plugin](scripts/withMitzvahNotificationAction.js), and notification tests.
+- New persisted store field: add a default, reset behavior, and a `version`/`migrate` step in [persistOptions.ts](src/stores/persistOptions.ts) if old persisted data may exist.
+- New decision about whether a mitzvah applies to a day: extend [skipRules.ts](src/utils/skipRules.ts). Never add a second copy of that predicate.
+- New Android permission or config plugin: re-run [pnpm prebuild:clean](package.json) and check the generated manifest, then [pnpm check:dox](scripts/check-dox.js).
+- New or moved AGENTS.md: run [pnpm check:dox](scripts/check-dox.js) — it verifies links, section order, and every Child DOX Index.
 
 ## Documentation Notes
 
-Older docs/prototypes may still use older branding or assumptions. Treat the current code, `app.json`, `tasks.md`, and this file as authoritative unless the user says otherwise.
+Older docs and prototypes may still use earlier branding or assumptions. Treat the current code, [app.json](app.json), [AUDIT.md](AUDIT.md), and this file as authoritative unless the user says otherwise.
 
 ## DOX Framework
 
@@ -287,8 +301,12 @@ Default section order:
 2. Update nearest owning docs and any affected parents or children
 3. Refresh every affected Child DOX Index
 4. Remove stale or contradictory text
-5. Run existing verification when relevant
+5. Run `pnpm check:dox`, plus the verification named by the docs you touched
 6. Report any docs intentionally left unchanged and why
+
+`pnpm check:dox` ([scripts/check-dox.js](scripts/check-dox.js)) enforces the mechanical half of this
+contract: dead links, missing or misordered sections, and a Child DOX Index that disagrees with the
+tree. It cannot judge whether the prose is still true — that part is still the closeout's job.
 
 ## User Preferences
 

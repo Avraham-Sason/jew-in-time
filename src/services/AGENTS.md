@@ -19,7 +19,7 @@
 
 ## Local Contracts
 
-- Keep `NotificationScheduler.ts` and `NotificationScheduler.web.ts` API-compatible.
+- Keep [NotificationScheduler.ts](NotificationScheduler.ts) and [NotificationScheduler.web.ts](NotificationScheduler.web.ts) API-compatible.
 - Preserve notification identifiers as `${mitzvahId}__${YYYY-MM-DD}__${reminderIndex}` unless all scheduler, response, and tests are updated together.
 - `MARK_DONE` must stay aligned with [../../scripts/withMitzvahNotificationAction.js](../../scripts/withMitzvahNotificationAction.js).
 - `cancelForMitzvah(id, date)` must cancel all pending reminders for that mitzvah/date.
