@@ -39,6 +39,7 @@
 - `ZmanimService.getZmanim()` must never throw. It returns `Zmanim | null`, where `null` means the sun neither rises nor sets that day; every caller must handle `null` instead of assuming a value. Depression-angle zmanim that have no solution fall back to their fixed-minute shita (alot 72 min, misheyakir 52 min before sunrise), and misheyakir is always kept inside `(alot, netz)`.
 - `scheduleAllImpl()` must isolate each `scheduleOne()` in try/catch so one failing mitzvah cannot empty the whole schedule.
 - `skipOn` decisions come from `isSkippedAt()` in [../utils/skipRules.ts](../utils/skipRules.ts), evaluated at the computed window's `start`. Do not add a local copy of that predicate here, and do not judge the skip from `fromDate` — that instant carries the rebuild's clock time.
+- `TaskManager.defineTask` calls stay at [NotificationScheduler.ts](NotificationScheduler.ts) module scope, and that module stays imported from the root [../../index.js](../../index.js) entry so both background tasks are defined during headless launches (killed-state `MARK_DONE` taps, background fetch). Route-only imports do not reach headless mode. Pinned by [backgroundTaskEntry.test.ts](__tests__/backgroundTaskEntry.test.ts).
 
 ## Work Guidance
 

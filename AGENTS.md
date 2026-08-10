@@ -135,6 +135,7 @@ Behavior to preserve:
 - `initNotificationHandlers()` is called from [_layout.tsx](src/app/_layout.tsx) after fonts load and returns a teardown the layout runs on unmount. It also calls `refreshSchedulingOnForeground()`, which home repeats on `AppState 'active'` so the horizon cannot silently expire. It sets the foreground handler, registers category/action tasks, syncs permission, dismisses already-completed presented notifications, subscribes to store changes, and registers the daily rebuild task.
 - Tapping the notification body routes to `/mitzvah/[id]`; tapping `MARK_DONE` marks completion without foregrounding the app.
 - [withMitzvahNotificationAction.js](scripts/withMitzvahNotificationAction.js) is an Expo config plugin that writes an Android Kotlin service to dismiss a notification after the mark-done action. Keep this in mind when changing notification action IDs.
+- Both `TaskManager.defineTask` calls live at [NotificationScheduler.ts](src/services/NotificationScheduler.ts) module scope, and the bundle entry is the root [index.js](index.js) (the `main` field in [package.json](package.json)), which imports that module. A killed-state `MARK_DONE` tap and background fetch arrive as headless launches that never load route modules — a `defineTask` reachable only through the router tree never runs and the OS-invoked event is silently dropped. Pinned by [backgroundTaskEntry.test.ts](src/services/__tests__/backgroundTaskEntry.test.ts).
 
 The web scheduler file is intentionally a no-op shim. If adding exported scheduler helpers, add matching exports to both native and web files.
 
@@ -211,6 +212,7 @@ pnpm typecheck
 - New mitzvah: update the registry, default enabled behavior, detail/schedule/history expectations, and tests. A mitzvah added after release needs the `merge` in [useMitzvotStore.ts](src/stores/useMitzvotStore.ts) to reach existing users.
 - New scheduler export: update [NotificationScheduler.web.ts](src/services/NotificationScheduler.web.ts) too; [schedulerWebParity.test.ts](src/services/__tests__/schedulerWebParity.test.ts) enforces it.
 - New notification action/category ID: update scheduler constants, response handling, the [Android config plugin](scripts/withMitzvahNotificationAction.js), and notification tests.
+- New background task (`TaskManager.defineTask`): define it in a module imported from the root [index.js](index.js), never only behind a route module — headless launches do not load the router tree.
 - New persisted store field: add a default, reset behavior, and a `version`/`migrate` step in [persistOptions.ts](src/stores/persistOptions.ts) if old persisted data may exist.
 - New decision about whether a mitzvah applies to a day: extend [skipRules.ts](src/utils/skipRules.ts). Never add a second copy of that predicate.
 - New Android permission or config plugin: re-run [pnpm prebuild:clean](package.json) and check the generated manifest, then [pnpm check:dox](scripts/check-dox.js).

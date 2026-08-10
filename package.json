@@ -1,7 +1,7 @@
 {
   "name": "jew-in-time",
-  "version": "1.0.0",
-  "main": "expo-router/entry",
+  "version": "1.0.12",
+  "main": "index.js",
   "scripts": {
     "start": "expo start",
     "start:dev": "expo start --dev-client",
@@ -19,6 +19,7 @@
     "build:android:development": "npx eas-cli build --platform android --profile development",
     "build:android:preview": "npx eas-cli build --platform android --profile preview",
     "build:android:production": "npx eas-cli build --platform android --profile production",
+    "build:android:production-apk": "npx eas-cli build --platform android --profile production-apk",
     "update:development": "npx eas-cli update --channel development",
     "update:preview": "npx eas-cli update --channel preview",
     "update:production": "npx eas-cli update --channel production",

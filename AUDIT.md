@@ -10,6 +10,12 @@ All 63 findings below are annotated. **58 are fixed**, verified by `pnpm typeche
 174-test suite that passes in four timezones (`pnpm test:tz`: UTC, Asia/Jerusalem,
 America/Los_Angeles, Pacific/Kiritimati). Each fix carries a note under its finding.
 
+Found after the audit:
+
+- **§3.10** — a killed-state "עשיתי" tap was silently dropped: neither background task was ever
+  defined in headless JS, because `defineTask` was reachable only through route modules. Fixed
+  2026-08-10 via a root `index.js` entry.
+
 Still open, deliberately:
 
 - **§2.11 / the second half of §2.8** — completions and notification identifiers still key off the
@@ -373,6 +379,15 @@ Fix: one shared `isResolved(mitzvahId, date)` predicate for all three call sites
 `src/services/notificationResponseHandler.ts:19`
 
 `router.push` is called from the response listener. When the app is launched *by* the tap, the listener can fire before the router tree is mounted and expo-router drops the navigation. There is no pending-deep-link buffer.
+
+### 3.10 A killed-app "עשיתי" tap is silently dropped — the background tasks are never defined in headless JS **[verified]** — ✅ FIXED
+`package.json` (`"main": "expo-router/entry"`), `src/services/NotificationScheduler.ts:516`, `:528`
+
+> **Fixed 2026-08-10.** The bundle entry is now a root `index.js` that imports `expo-router/entry` and then `src/services/NotificationScheduler`, so both `defineTask` calls run on every bundle load, headless included. Pinned by `src/services/__tests__/backgroundTaskEntry.test.ts`. Ships over OTA — the entry is part of the JS bundle.
+
+Both `TaskManager.defineTask` calls sit at the module scope of `NotificationScheduler.ts`, which is imported only by route modules (`_layout.tsx`, home, settings, onboarding) and by lazy `require()`s inside store actions. expo-router loads route modules at render time. A headless launch evaluates only the entry graph and renders nothing — so neither task was ever defined there, and expo-task-manager logs *"Task "jew-in-time-notification-actions" has been executed but looks like it is not defined"* and drops the event.
+
+Headless is exactly how Android delivers a MARK_DONE tap when the app process is dead: `ExpoHandlingDelegate.handleNotificationResponse` → `runTaskManagerTasks` → JobScheduler → TaskService boots headless JS (verified in the installed expo-notifications 0.32 source). The trap is invisible because the config-plugin receiver (`MitzvahNotificationService`) dismisses the tray notification *before* delegating — the tap looks successful, but `markDone` and `cancelForMitzvah` never run: the mitzvah stays unmarked and the rest of that day's reminders for it keep firing. With the app alive the JS listener path handles the tap correctly, which made the failure look random. Android's pending-response replay (delivered when a listener attaches in the same process) sometimes rescued a tap if the app was opened moments later — more randomness. The same gap killed `jew-in-time-daily-rebuild` in the killed state, leaving `refreshSchedulingOnForeground` as the only working day-rollover path.
 
 ---
 
