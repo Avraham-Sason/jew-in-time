@@ -29,11 +29,37 @@ pnpm check:dox                     # AGENTS.md links, section order and Child DO
 pnpm doctor                        # expo-doctor
 pnpm build:android:development     # EAS development APK
 pnpm build:android:preview         # EAS internal preview APK
+pnpm build:android:production      # EAS production AAB for the store
+pnpm build:android:production-apk  # EAS production APK for direct install
 pnpm update:development            # EAS update to development channel
 pnpm update:preview                # EAS update to preview channel
+pnpm update:production             # EAS update to production — reaches installed users
 ```
 
 `pnpm web` calls [scripts/free-port.js](scripts/free-port.js) (cross-platform) and may kill a listener on port 8081. Use a dev client/native build when verifying `react-native-mmkv`, background tasks, or notifications.
+
+## Release and Updates
+
+Two different mechanisms ship this app, and the choice is not stylistic: one reaches everybody within a minute, the other reaches nobody until users install a new binary.
+
+- **Anything Metro bundles** — TypeScript, JSX, i18n strings, and bundled assets — ships as an over-the-air update: `pnpm update:preview`, or `pnpm update:production` for real users.
+- **Anything native** — a dependency with native code, an Android permission, a config plugin under [scripts/](scripts), or an identity field in [app.json](app.json) — needs a build: `pnpm build:android:production`. EAS builds it on its own servers and runs prebuild there, which is why the native folders stay gitignored and are safe to delete locally.
+
+An update carries no native code, so shipping a native change as an update produces a bundle that calls into something the installed binary does not have. Prefer an update; reach for a build only when the change is actually native.
+
+### Never raise `version` for a JS change
+
+[app.json](app.json) sets `runtimeVersion` to the `appVersion` policy, so an update only reaches installs whose build carried the **same** `version`. Raising `version` therefore cuts every existing install off from over-the-air updates until a new build ships **and** each user installs it — the previous version keeps running the last bundle published under it, and nothing warns that the two diverged.
+
+Bump `version` only in the change that also produces a native build, and update [package.json](package.json) in the same edit: nothing enforces that the two agree, and they were already one release apart at 1.0.12 / 1.0.13.
+
+### Version codes are remote
+
+[eas.json](eas.json) sets `appVersionSource` to `remote`, so EAS owns the Android `versionCode` and both production profiles increment it themselves. Never hand-edit a version code or add one to [app.json](app.json).
+
+### Store submission is manual
+
+`submit.production` in [eas.json](eas.json) is empty — there is no Google Play service account — so `eas submit` cannot run unattended. A production build produces an artifact; uploading it to the Play Console is a human step. Store copy lives in [release/](release).
 
 ## Source Map
 
@@ -217,6 +243,7 @@ pnpm typecheck
 - New decision about whether a mitzvah applies to a day: extend [skipRules.ts](src/utils/skipRules.ts). Never add a second copy of that predicate.
 - New Android permission or config plugin: re-run [pnpm prebuild:clean](package.json) and check the generated manifest, then [pnpm check:dox](scripts/check-dox.js).
 - New or moved AGENTS.md: run [pnpm check:dox](scripts/check-dox.js) — it verifies links, section order, and every Child DOX Index.
+- Version bump: raise `version` in [app.json](app.json) and [package.json](package.json) in the same edit, and only in a change that also produces a native build. See [Release and Updates](#release-and-updates) for why a bump on its own strands every installed user.
 
 ## Documentation Notes
 
