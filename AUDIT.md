@@ -706,9 +706,7 @@ Fix: `@hebcal[/+].*` (and likewise for the others), or drop the trailing `/.*` s
 
 ### 7.6 Release identity is inconsistent and store URLs are placeholders — ✅ FIXED
 
-> **Fixed 2026-09-01.** `release/APP_STORE_METADATA_HE.md` still carried the old name `יהודי כשר`, which `src/i18n/__tests__/i18n.test.ts` explicitly forbids; all three listings now read `יהודי בזמן` / `Jewish Time`, matching [app.json](app.json). The privacy policy moved out of `release/` and is published as real pages under [docs/](docs) — Hebrew and English — with a real contact address. Support, Marketing and Privacy Policy URLs in all three metadata files now hold live GitHub Pages URLs instead of "Add before submission". The generated Android project is disposable cache and regenerates from [app.json](app.json).
->
-> Still a human step: enabling GitHub Pages on the repository so those URLs resolve.
+> **Fixed 2026-09-01.** `release/APP_STORE_METADATA_HE.md` still carried the old name `יהודי כשר`, which `src/i18n/__tests__/i18n.test.ts` explicitly forbids; all three listings now read `יהודי בזמן` / `Jewish Time`, matching [app.json](app.json). The privacy policy moved out of `release/` and is published as real pages under [docs/](docs) — Hebrew and English — with a real contact address. Support, Marketing and Privacy Policy URLs in all three metadata files now hold live GitHub Pages URLs instead of "Add before submission". The generated Android project is disposable cache and regenerates from [app.json](app.json). GitHub Pages serves the folder from `main`, and all three URLs return 200.
 
 ### 7.7 Smaller release blockers — ✅ FIXED
 - **`ITSAppUsesNonExemptEncryption` is not declared** (`app.json:19`). Every TestFlight/App Store upload stalls on "Missing Compliance" until answered by hand, for every build. The app only uses HTTPS — add `"ITSAppUsesNonExemptEncryption": false`.
