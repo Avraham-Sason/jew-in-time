@@ -21,8 +21,8 @@ Core capabilities:
 
 Potential collected or processed data categories:
 
-- Location, used for app functionality
-- App interactions and diagnostics only if optional crash reporting is enabled in production
+- Location, used for app functionality, processed on device and never transmitted
+- No analytics, no crash reporting and no advertising SDK ship in the app
 
 Default current app behavior:
 
@@ -48,4 +48,4 @@ Questionnaire notes:
 - Feature graphic
 - Phone screenshots
 - App icon
-- Privacy policy public URL
+- Privacy policy public URL: https://avraham-sason.github.io/jew-in-time/privacy/

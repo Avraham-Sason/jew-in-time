@@ -31,6 +31,8 @@ pnpm build:android:development     # EAS development APK
 pnpm build:android:preview         # EAS internal preview APK
 pnpm build:android:production      # EAS production AAB for the store
 pnpm build:android:production-apk  # EAS production APK for direct install
+pnpm build:ios:production          # EAS production build for App Store / TestFlight
+pnpm submit:ios                    # upload the latest iOS build to App Store Connect
 pnpm update:development            # EAS update to development channel
 pnpm update:preview                # EAS update to preview channel
 pnpm update:production             # EAS update to production — reaches installed users
@@ -55,11 +57,17 @@ Bump `version` only in the change that also produces a native build, and update 
 
 ### Version codes are remote
 
-[eas.json](eas.json) sets `appVersionSource` to `remote`, so EAS owns the Android `versionCode` and both production profiles increment it themselves. Never hand-edit a version code or add one to [app.json](app.json).
+[eas.json](eas.json) sets `appVersionSource` to `remote`, so EAS owns the Android `versionCode` and the iOS `buildNumber`, and every profile with `autoIncrement` raises them itself. Never hand-edit a version code or build number, and never add one to [app.json](app.json).
 
 ### Store submission is manual
 
-`submit.production` in [eas.json](eas.json) is empty — there is no Google Play service account — so `eas submit` cannot run unattended. A production build produces an artifact; uploading it to the Play Console is a human step. Store copy lives in [release/](release).
+`submit.production` in [eas.json](eas.json) is empty, so no submission runs unattended.
+
+Android has no Google Play service account, so `eas submit` cannot upload at all: a production build produces an artifact and uploading it to the Play Console is a human step.
+
+iOS has no stored credentials either, but `pnpm submit:ios` still works — `eas submit --latest` prompts for the Apple account and target app each run. Do not hardcode an Apple ID, team ID or ASC app ID into [eas.json](eas.json) unless the user supplies real values.
+
+Store copy lives in [release/](release).
 
 ## Source Map
 
@@ -80,6 +88,7 @@ Bump `version` only in the change that also produces a native build, and update 
 - [src/testing/](src/testing) - Test-only fixture helpers. Never imported by shipped code.
 - [scripts/](scripts) - Local workflow scripts and Expo config plugins.
 - [design/jew-in-time/](design/jew-in-time) - Claude Design handoff. Use it only for UI/design work; read its README and Hi-Fi prototype before porting visuals.
+- [docs/](docs) - Public site published through GitHub Pages: support page and the privacy policy both stores link to.
 - [release/](release) - Store listing and privacy policy drafts.
 - [AUDIT.md](AUDIT.md) - Failure-point audit with per-finding status. Read before assuming a known defect is still open.
 
@@ -349,6 +358,7 @@ tree. It cannot judge whether the prose is still true — that part is still the
 
 - [assets/AGENTS.md](assets/AGENTS.md) - Static image assets for icons, splash, favicon, and notifications.
 - [design/AGENTS.md](design/AGENTS.md) - Design handoff materials and prototype boundaries.
+- [docs/AGENTS.md](docs/AGENTS.md) - Public GitHub Pages site: support page and privacy policy.
 - [release/AGENTS.md](release/AGENTS.md) - Store metadata, privacy copy, and release-facing documents.
 - [scripts/AGENTS.md](scripts/AGENTS.md) - Local utility scripts and Expo config plugins.
 - [src/AGENTS.md](src/AGENTS.md) - Application source, routes, services, stores, data, i18n, theme, and tests.

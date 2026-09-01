@@ -2,7 +2,7 @@
 
 ## App Name
 
-יהודי כשר
+יהודי בזמן
 
 ## Subtitle
 
@@ -14,7 +14,7 @@
 
 ## Description
 
-יהודי כשר עוזר לך לא לפספס מצוות יומיומיות.
+יהודי בזמן עוזר לך לא לפספס מצוות יומיומיות.
 
 האפליקציה מחשבת זמני הלכה מדויקים לפי המיקום שלך, מציגה מה רלוונטי עכשיו, ושולחת תזכורות בזמן הנכון.
 
@@ -34,15 +34,15 @@
 
 ## Support URL
 
-להוסיף לפני העלאה
+https://avraham-sason.github.io/jew-in-time/
 
 ## Marketing URL
 
-להוסיף לפני העלאה
+https://avraham-sason.github.io/jew-in-time/
 
 ## Privacy Policy URL
 
-להצביע על `release/PRIVACY_POLICY.md` לאחר פרסום באתר תומך
+https://avraham-sason.github.io/jew-in-time/privacy/
 
 ## Age Rating Draft
 
@@ -64,8 +64,7 @@ Suggested rating draft: `4+`
 - Mitzvah detail
 - Settings
 
-Target sizes:
+Target sizes (Apple scales down from the largest of each family):
 
-- 6.7 inch
-- 6.5 inch
-- 5.5 inch
+- 6.9 inch iPhone — 1320x2868
+- 13 inch iPad — 2064x2752, required while `supportsTablet` is true in [../app.json](../app.json)

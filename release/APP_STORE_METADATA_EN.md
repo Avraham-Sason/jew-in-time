@@ -34,15 +34,15 @@ mitzvah, zmanim, tefillin, shema, shacharit, mincha, maariv, omer, jewish calend
 
 ## Support URL
 
-Add before submission
+https://avraham-sason.github.io/jew-in-time/
 
 ## Marketing URL
 
-Add before submission
+https://avraham-sason.github.io/jew-in-time/
 
 ## Privacy Policy URL
 
-Publish `release/PRIVACY_POLICY.md` on a public URL before submission
+https://avraham-sason.github.io/jew-in-time/privacy/en/
 
 ## Age Rating Draft
 
@@ -57,8 +57,7 @@ Suggested draft: `4+`
 - Mitzvah detail
 - Settings
 
-Sizes:
+Sizes (Apple scales down from the largest of each family):
 
-- 6.7 inch
-- 6.5 inch
-- 5.5 inch
+- 6.9 inch iPhone — 1320x2868
+- 13 inch iPad — 2064x2752, required while `supportsTablet` is true in [../app.json](../app.json)

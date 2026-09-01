@@ -704,10 +704,11 @@ Add or bump any scoped ESM-only dependency and `pnpm test` dies with `Cannot use
 
 Fix: `@hebcal[/+].*` (and likewise for the others), or drop the trailing `/.*` so they behave as prefix matches.
 
-### 7.6 Release identity is inconsistent and store URLs are placeholders — ⚠️ PARTIAL
-`release/APP_STORE_METADATA_EN.md:5`, `release/PRIVACY_POLICY.md`
+### 7.6 Release identity is inconsistent and store URLs are placeholders — ✅ FIXED
 
-Three different names: `יהודי בזמן` (app.json), `יהודי כשר` (generated Android project), `Jew In Time` (store listings and the privacy policy). Support URL, Marketing URL and Privacy Policy URL all read "Add before submission", and the privacy policy ends with an instruction to fill in a contact rather than an actual one. Both stores require the listing name to match the on-device name and a reachable privacy-policy URL.
+> **Fixed 2026-09-01.** `release/APP_STORE_METADATA_HE.md` still carried the old name `יהודי כשר`, which `src/i18n/__tests__/i18n.test.ts` explicitly forbids; all three listings now read `יהודי בזמן` / `Jewish Time`, matching [app.json](app.json). The privacy policy moved out of `release/` and is published as real pages under [docs/](docs) — Hebrew and English — with a real contact address. Support, Marketing and Privacy Policy URLs in all three metadata files now hold live GitHub Pages URLs instead of "Add before submission". The generated Android project is disposable cache and regenerates from [app.json](app.json).
+>
+> Still a human step: enabling GitHub Pages on the repository so those URLs resolve.
 
 ### 7.7 Smaller release blockers — ✅ FIXED
 - **`ITSAppUsesNonExemptEncryption` is not declared** (`app.json:19`). Every TestFlight/App Store upload stalls on "Missing Compliance" until answered by hand, for every build. The app only uses HTTPS — add `"ITSAppUsesNonExemptEncryption": false`.
