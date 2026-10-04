@@ -2,6 +2,7 @@ import { Mitzvah, UserSettings } from '@/types/mitzvah';
 import { Location } from '@/types/zmanim';
 import { ZmanimService } from '@/services/ZmanimService';
 import { DayObservance, isSkippedAt, observanceFor } from '@/utils/skipRules';
+import { locationNoon } from '@/utils/locationDay';
 import { Completions, dateKey } from '@/stores/useCompletionsStore';
 
 export type HistoryStats = {
@@ -38,7 +39,8 @@ export function computeStats(
     date.setDate(start.getDate() + offset);
     const key = dateKey(date);
     const doneMap = completions[key] ?? {};
-    const zmanim = ZmanimService.getZmanim(date, location);
+    const noon = locationNoon(date, location);
+    const zmanim = ZmanimService.getZmanim(noon, location);
     if (!zmanim) {
       daily.push({ date: key, doneCount: 0, totalCount: 0, observed: { isShabbat: false, isYomTov: false } });
       continue;
@@ -61,7 +63,7 @@ export function computeStats(
       }
     }
 
-    daily.push({ date: key, doneCount, totalCount, observed: observanceFor(date, location) });
+    daily.push({ date: key, doneCount, totalCount, observed: observanceFor(noon, location) });
     if (key === yesterdayKey) {
       missedYesterday = missed;
     }

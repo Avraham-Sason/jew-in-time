@@ -6,11 +6,20 @@ Audit date: 2026-08-09 · Commit `edf9211` (+ the uncommitted `skipIfDone` work)
 
 ## Status
 
-All 63 findings below are annotated. **58 are fixed**, verified by `pnpm typecheck` plus a
-174-test suite that passes in four timezones (`pnpm test:tz`: UTC, Asia/Jerusalem,
-America/Los_Angeles, Pacific/Kiritimati). Each fix carries a note under its finding.
+All 63 findings below are annotated. **58 are fixed**, verified by `pnpm typecheck` plus the Jest
+suite in four timezones (`pnpm test:tz`: UTC, Asia/Jerusalem, America/Los_Angeles,
+Pacific/Kiritimati). The four-zone part was only genuine from 2026-10-04 (see §8.7 below). Each fix
+carries a note under its finding.
 
 Found after the audit:
+
+- **§8.7** — `pnpm test:tz` never changed zone. The setup file assigned `TZ` inside Jest, whose
+  `setupFiles` see a copy of `process.env`, so every run used the machine's own zone. Fixed
+  2026-10-04: the zone is set on the spawned Jest process, and a guard fails any run where it did
+  not take effect. The real matrix then exposed four places that read the location's day through
+  device-local getters: `hebrewDaysAt`, the candle-lighting/havdalah/Omer windows, and the
+  history/timeline day mapping. All four are fixed. Erev-Yom-Tov candle lighting also stopped
+  depending on the clock time of the rebuild.
 
 - **§3.10** — a killed-state "עשיתי" tap was silently dropped: neither background task was ever
   defined in headless JS, because `defineTask` was reachable only through route modules. Fixed

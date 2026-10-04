@@ -9,6 +9,7 @@
 - [buildDayTimeline.ts](buildDayTimeline.ts) owns day schedule item construction.
 - [historyStats.ts](historyStats.ts) owns streak, daily, per-mitzvah, and missed-yesterday statistics.
 - [skipRules.ts](skipRules.ts) owns the single `skipOn` predicate shared by the scheduler, timeline, home, and history.
+- [locationDay.ts](locationDay.ts) owns `locationNoon()`, which maps a device calendar day to the same date at the location.
 - Utility tests live in [__tests__/](__tests__/).
 
 ## Local Contracts
@@ -16,6 +17,7 @@
 - Keep utilities pure: no direct Zustand, MMKV, navigation, notifications, or native side effects.
 - Accept required services/data as inputs instead of importing route state.
 - Preserve local-date and halachic-location assumptions from [../services/AGENTS.md](../services/AGENTS.md) and [../data/AGENTS.md](../data/AGENTS.md).
+- [buildDayTimeline.ts](buildDayTimeline.ts) and [historyStats.ts](historyStats.ts) take device calendar days, the day `dateKey()` names. They resolve zmanim and the day's observance from `locationNoon(day, location)`, never from the day's device-local midnight, which is the previous day at a location west of the device.
 - Zmanim can be unavailable: [buildDayTimeline.ts](buildDayTimeline.ts) returns an empty timeline and [historyStats.ts](historyStats.ts) records a zero-eligibility day when `getZmanim()` returns `null`.
 - Never re-implement the `skipOn` check. Any surface that decides whether a mitzvah applies must call `isSkippedAt()` from [skipRules.ts](skipRules.ts), or the surfaces disagree with each other.
 - Judge the skip at the mitzvah window's own `start` instant, after `computeWindow()`, never at "now" and never at civil midnight. `HebcalService.isShabbat` is instant-sensitive, so any other instant makes the answer depend on when the caller happened to ask.
@@ -29,6 +31,7 @@
 
 - Run `pnpm test -- src/utils/__tests__/buildDayTimeline.test.ts` after timeline changes.
 - Run `pnpm test -- src/utils/__tests__/historyStats.test.ts` after history/statistics changes.
+- Run `pnpm test:tz -- src/utils` after changing how a day maps to the location.
 - Run `pnpm typecheck` after utility API changes.
 
 ## Child DOX Index

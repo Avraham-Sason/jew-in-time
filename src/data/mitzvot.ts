@@ -1,11 +1,13 @@
 import { HDate } from '@hebcal/core';
 import { DateTime } from 'luxon';
 import { ComputeContext, Mitzvah, MitzvahWindow, Nusach } from '@/types/mitzvah';
-import { Location } from '@/types/zmanim';
+import { Location, Zmanim } from '@/types/zmanim';
 import { HebcalService } from '@/services/HebcalService';
 import { ZmanimService } from '@/services/ZmanimService';
 
 const ALL_NUSCHAOT: Nusach[] = ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'];
+const FRIDAY = 5;
+const SATURDAY = 6;
 
 function win(start: Date, end: Date): MitzvahWindow {
   if (end.getTime() <= start.getTime()) return null;
@@ -18,8 +20,12 @@ function sofZmanShma(ctx: ComputeContext): Date {
     : ctx.zmanim.sofZmanShmaGra;
 }
 
-function isFriday(d: Date): boolean {
-  return d.getDay() === 5;
+// The LOCATION's calendar day that ctx.zmanim were computed for, at its midday. Calendar questions
+// go through it, so neither the device's zone nor the clock time ctx.date carries can move the
+// answer: device-local getters on ctx.date picked a different day whenever the zones disagreed,
+// and an evening ctx.date already sits in the next Hebrew day.
+function dayOf(zmanim: Zmanim, location: Location): DateTime {
+  return DateTime.fromJSDate(zmanim.chatzot).setZone(location.tz);
 }
 
 // Jerusalem's near-universal minhag is 40 minutes, and it is the app's default city — 18 minutes
@@ -30,10 +36,6 @@ export function candleLightingMinutes(location: Location): number {
   if (location.candleLightingMinutes) return location.candleLightingMinutes;
   if (location.inIsrael) return location.nameEn === 'Jerusalem' ? JERUSALEM_CANDLE_MINUTES : 18;
   return 20;
-}
-
-function isSaturdayEvening(d: Date, shkia: Date): boolean {
-  return d.getDay() === 6 && d.getTime() >= shkia.getTime();
 }
 
 // The Omer is counted at nightfall, and that night belongs to the NEXT Hebrew day. So the count
@@ -63,11 +65,10 @@ function omerDayFor(date: Date, timeZone?: string): number | null {
   return days >= 1 && days <= 49 ? days : null;
 }
 
-// Counting is valid all night, at the latest until alot hashachar. Noon-anchored so the calendar
-// day is unambiguous across a DST transition; falls back to chatzot halayla if the next day's
-// zmanim cannot be computed.
-function endOfOmerNight({ date, location, zmanim }: ComputeContext): Date {
-  const nextDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 12);
+// Counting is valid all night, at the latest until alot hashachar. Falls back to chatzot halayla if
+// the next day's zmanim cannot be computed.
+function endOfOmerNight({ location, zmanim }: ComputeContext): Date {
+  const nextDay = dayOf(zmanim, location).plus({ days: 1 }).toJSDate();
   return ZmanimService.getZmanim(nextDay, location)?.alotHaShachar ?? zmanim.chatzotLayla;
 }
 
@@ -221,15 +222,17 @@ export const MITZVOT: Mitzvah[] = [
       },
       { anchor: 'start', offsetMin: 0, label: 'זמן הדלקת נרות' },
     ],
-    computeWindow: ({ date, location, zmanim }) => {
+    computeWindow: ({ location, zmanim }) => {
       // Candles are lit before Shabbat AND before Yom Tov. Weekday-only meant no reminder at all
       // for any chag that does not happen to start on a Friday — Sukkot and Pesach 5786 both begin
       // midweek. When Yom Tov starts on motzaei Shabbat, lighting is from an existing flame after
       // tzeit rather than at this time, so that case is excluded.
-      const nextDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 12);
-      const erevYomTov = HebcalService.isYomTov(nextDay, location) && !HebcalService.isYomTov(date, location);
-      if (!isFriday(date) && !erevYomTov) return null;
-      if (HebcalService.isShabbat(date, location) && !isFriday(date)) return null;
+      const day = dayOf(zmanim, location);
+      const erevYomTov =
+        HebcalService.isYomTov(day.plus({ days: 1 }).toJSDate(), location) &&
+        !HebcalService.isYomTov(day.toJSDate(), location);
+      if (day.weekday !== FRIDAY && !erevYomTov) return null;
+      if (day.weekday === SATURDAY) return null;
       const t = new Date(zmanim.shkia.getTime() - candleLightingMinutes(location) * 60_000);
       return win(t, zmanim.shkia);
     },
@@ -250,8 +253,8 @@ export const MITZVOT: Mitzvah[] = [
         bodyVariants: ['זמן הבדלה', 'מבדילים בין קודש לחול', 'צאת שבת — זמן הבדלה'],
       },
     ],
-    computeWindow: ({ date, zmanim }) => {
-      if (date.getDay() !== 6) return null;
+    computeWindow: ({ location, zmanim }) => {
+      if (dayOf(zmanim, location).weekday !== SATURDAY) return null;
       const end = new Date(zmanim.tzeitHakochavim.getTime() + 90 * 60_000);
       return win(zmanim.tzeitHakochavim, end);
     },
@@ -281,7 +284,7 @@ export const MITZVOT: Mitzvah[] = [
       { anchor: 'start', offsetMin: 60, label: 'תזכורת — ספירת העומר', skipIfDone: true },
     ],
     computeWindow: (ctx) => {
-      if (omerDayFor(ctx.date, ctx.location.tz) === null) return null;
+      if (omerDayFor(ctx.zmanim.chatzot, ctx.location.tz) === null) return null;
       return win(ctx.zmanim.tzeitHakochavim, endOfOmerNight(ctx));
     },
   },

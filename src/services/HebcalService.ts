@@ -1,9 +1,17 @@
 import { HDate, HebrewCalendar, Location as HebcalLocation, flags } from '@hebcal/core';
+import { DateTime } from 'luxon';
 import { CalendarInfo, HebrewDate, Location } from '@/types/zmanim';
 import { ZmanimService } from '@/services/ZmanimService';
 
 function toHDate(date: Date): HDate {
   return new HDate(date);
+}
+
+// The civil day at the LOCATION, matching the zmanim ZmanimService resolves for it. HDate reads a
+// Date through device-local getters, so it gets a local Date carrying the location's calendar date.
+function civilDayAt(instant: Date, loc: Location): HDate {
+  const { year, month, day } = DateTime.fromJSDate(instant).setZone(loc.tz);
+  return toHDate(new Date(year, month - 1, day, 12));
 }
 
 function buildLocation(loc: Location): HebcalLocation {
@@ -15,8 +23,9 @@ function buildLocation(loc: Location): HebcalLocation {
 // are returned and an observance counts if EITHER carries it — the stringency the original
 // isShabbat encoded by hand (enter at shkia, leave at tzeit), now shared with isYomTov.
 function hebrewDaysAt(instant: Date, loc?: Location): HDate[] {
-  const civilDay = toHDate(instant);
-  const zmanim = loc ? ZmanimService.getZmanim(instant, loc) : null;
+  if (!loc) return [toHDate(instant)];
+  const civilDay = civilDayAt(instant, loc);
+  const zmanim = ZmanimService.getZmanim(instant, loc);
   if (!zmanim) return [civilDay];
   const afterShkia = instant.getTime() >= zmanim.shkia.getTime();
   const afterTzeit = instant.getTime() >= zmanim.tzeitHakochavim.getTime();

@@ -75,6 +75,7 @@ import {
   initNotificationHandlers,
   syncNotificationPermissionStatus,
 } from '../NotificationScheduler';
+import { DateTime } from 'luxon';
 import { useUserStore } from '@/stores/useUserStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
@@ -82,14 +83,14 @@ import { CITIES } from '@/data/cities';
 import type { Mitzvah } from '@/types/mitzvah';
 
 // Always strictly in the future, so `scheduleOne`'s `trigger <= Date.now()` guard cannot be the
-// reason a notification is absent — otherwise these tests would pass for the wrong reason.
+// reason a notification is absent — otherwise these tests would pass for the wrong reason. Read on
+// the clock of the user's LOCATION, with Luxon weekdays (Monday = 1): "Friday 20:00, after shkia"
+// on the device's clock is Saturday morning in Jerusalem once the device sits in Los Angeles.
 function nextWeekdayAt(weekday: number, hour: number): Date {
-  const d = new Date();
-  d.setHours(hour, 0, 0, 0);
-  while (d.getDay() !== weekday || d.getTime() <= Date.now()) {
-    d.setDate(d.getDate() + 1);
-  }
-  return d;
+  const now = DateTime.now().setZone(useUserStore.getState().location.tz);
+  let d = now.set({ hour, minute: 0, second: 0, millisecond: 0 });
+  while (d.weekday !== weekday || d <= now) d = d.plus({ days: 1 });
+  return d.toJSDate();
 }
 
 function idsFor(mitzvahId: string, key: string) {

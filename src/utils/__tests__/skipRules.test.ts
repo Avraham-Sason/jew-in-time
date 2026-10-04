@@ -4,11 +4,16 @@ import { isSkipped, isSkippedAt, observanceFor } from '../skipRules';
 import { findMitzvah } from '@/data/mitzvot';
 import { CITIES } from '@/data/cities';
 import { UserSettings } from '@/types/mitzvah';
+import { at } from '@/testing/zmanim';
 
 const JERUSALEM = CITIES[0];
 const SETTINGS: UserSettings = { nusach: 'ashkenaz', halachicOpinions: { ksSofZman: 'GRA' }, inIsrael: true };
+// Calendar days for the day-level surfaces (timeline, history), which read the device's date.
 const SHABBAT = new Date(2026, 3, 25); // Saturday, well clear of Pesach
 const WEEKDAY = new Date(2026, 3, 23); // Thursday
+// The same days as instants, for the instant-level predicates.
+const SHABBAT_NOON = at(JERUSALEM, '2026-04-25T12:00');
+const WEEKDAY_NOON = at(JERUSALEM, '2026-04-23T12:00');
 
 const tefillin = findMitzvah('tefillin')!;
 const shacharit = findMitzvah('shacharit')!;
@@ -16,23 +21,23 @@ const identity = (key: string) => key;
 
 describe('skipRules', () => {
   it('recognises Shabbat and a plain weekday', () => {
-    expect(observanceFor(SHABBAT, JERUSALEM)).toEqual({ isShabbat: true, isYomTov: false });
-    expect(observanceFor(WEEKDAY, JERUSALEM)).toEqual({ isShabbat: false, isYomTov: false });
+    expect(observanceFor(SHABBAT_NOON, JERUSALEM)).toEqual({ isShabbat: true, isYomTov: false });
+    expect(observanceFor(WEEKDAY_NOON, JERUSALEM)).toEqual({ isShabbat: false, isYomTov: false });
   });
 
   it('skips only mitzvot that opt in via skipOn', () => {
-    const shabbat = observanceFor(SHABBAT, JERUSALEM);
+    const shabbat = observanceFor(SHABBAT_NOON, JERUSALEM);
     expect(tefillin.skipOn).toContain('shabbat');
     expect(isSkipped(tefillin, shabbat)).toBe(true);
-    expect(isSkipped(tefillin, observanceFor(WEEKDAY, JERUSALEM))).toBe(false);
+    expect(isSkipped(tefillin, observanceFor(WEEKDAY_NOON, JERUSALEM))).toBe(false);
     expect(shacharit.skipOn).toEqual([]);
     expect(isSkipped(shacharit, shabbat)).toBe(false);
   });
 
   // Judged at the window's own start, so the answer never depends on when the caller asks.
   it('gives the same answer for a Shabbat window whenever it is asked', () => {
-    const shabbatMorning = new Date(2026, 3, 25, 8, 0, 0);
-    const motzaeiShabbat = new Date(2026, 3, 25, 22, 0, 0); // after tzeit — no longer Shabbat "now"
+    const shabbatMorning = at(JERUSALEM, '2026-04-25T08:00');
+    const motzaeiShabbat = at(JERUSALEM, '2026-04-25T22:00'); // after tzeit — no longer Shabbat "now"
     expect(isSkippedAt(tefillin, shabbatMorning, JERUSALEM)).toBe(true);
     // The old code asked "is it Shabbat right now", so at 22:00 tefillin reappeared as missed.
     expect(observanceFor(motzaeiShabbat, JERUSALEM).isShabbat).toBe(false);
@@ -41,14 +46,14 @@ describe('skipRules', () => {
 
   it('skips a Friday-evening window that civil-day granularity would have allowed', () => {
     const eveningMitzvah = { skipOn: ['shabbat'] as const };
-    const fridayMorning = new Date(2026, 3, 24, 8, 0, 0);
-    const fridayEvening = new Date(2026, 3, 24, 20, 0, 0); // after shkia — already Shabbat
+    const fridayMorning = at(JERUSALEM, '2026-04-24T08:00');
+    const fridayEvening = at(JERUSALEM, '2026-04-24T20:00'); // after shkia — already Shabbat
     expect(isSkippedAt({ skipOn: [...eveningMitzvah.skipOn] }, fridayMorning, JERUSALEM)).toBe(false);
     expect(isSkippedAt({ skipOn: [...eveningMitzvah.skipOn] }, fridayEvening, JERUSALEM)).toBe(true);
   });
 
   it('never consults the calendar for a mitzvah with no skipOn', () => {
-    expect(isSkippedAt({ skipOn: [] }, SHABBAT, JERUSALEM)).toBe(false);
+    expect(isSkippedAt({ skipOn: [] }, SHABBAT_NOON, JERUSALEM)).toBe(false);
   });
 
   // The bug: the scheduler and history honoured skipOn while the timeline and home did not, so

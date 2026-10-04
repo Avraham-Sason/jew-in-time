@@ -24,7 +24,7 @@
 - `MARK_DONE` must stay aligned with [../../scripts/withMitzvahNotificationAction.js](../../scripts/withMitzvahNotificationAction.js).
 - `cancelForMitzvah(id, date)` must cancel all pending reminders for that mitzvah/date.
 - Always pass `Location` to `HebcalService.isShabbat(date, location)` when halachic boundary behavior matters.
-- `isShabbat` and `isYomTov` both derive from one internal `hebrewDaysAt(instant, loc)` primitive: a Hebrew day turns over at shkia, and between shkia and tzeit both candidate days are returned so an observance counts if either carries it. Do not reintroduce a Gregorian-day check for either.
+- `isShabbat` and `isYomTov` both derive from one internal `hebrewDaysAt(instant, loc)` primitive. Its civil day is the instant's date in the LOCATION's zone, the same day `ZmanimService` resolves, never the device's. A Hebrew day turns over at shkia, and between shkia and tzeit both candidate days are returned so an observance counts if either carries it. Do not reintroduce a Gregorian-day check for either.
 - Use `getHebrewDateAt(instant, loc)` for "today" displays (it advances at shkia) and `getHebrewDate(date)` only for calendar grids, where each cell is a civil day.
 - Avoid UTC date shortcuts for mitzvah logic.
 - `Zmanim.chatzotLayla` is chatzot halayla (solar midnight) for the night FOLLOWING that day, so it falls on the next civil date. It is the correct end for night windows.
