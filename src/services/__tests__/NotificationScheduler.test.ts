@@ -64,6 +64,7 @@ jest.mock('expo-background-fetch', () => ({
   BackgroundFetchResult: { NewData: 1, Failed: 2 },
 }));
 
+import { DateTime } from 'luxon';
 import {
   MARK_DONE_ACTION,
   MITZVAH_REMINDER_CATEGORY,
@@ -75,7 +76,6 @@ import {
   initNotificationHandlers,
   syncNotificationPermissionStatus,
 } from '../NotificationScheduler';
-import { DateTime } from 'luxon';
 import { useUserStore } from '@/stores/useUserStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
@@ -84,8 +84,9 @@ import type { Mitzvah } from '@/types/mitzvah';
 
 // Always strictly in the future, so `scheduleOne`'s `trigger <= Date.now()` guard cannot be the
 // reason a notification is absent — otherwise these tests would pass for the wrong reason. Read on
-// the clock of the user's LOCATION, with Luxon weekdays (Monday = 1): "Friday 20:00, after shkia"
-// on the device's clock is Saturday morning in Jerusalem once the device sits in Los Angeles.
+// the clock of the user's LOCATION, with Luxon weekdays (Monday = 1, Saturday = 6): that is the day
+// the scheduler resolves zmanim and Shabbat for. "Friday 20:00, after shkia" on the device's clock
+// is Saturday morning in Jerusalem once the device sits in Los Angeles.
 function nextWeekdayAt(weekday: number, hour: number): Date {
   const now = DateTime.now().setZone(useUserStore.getState().location.tz);
   let d = now.set({ hour, minute: 0, second: 0, millisecond: 0 });
@@ -206,11 +207,15 @@ describe('NotificationScheduler', () => {
   });
 
   it('6.6 skipOn shabbat: tefillin not scheduled on Saturday', async () => {
-    setupEnabled(['tefillin']);
-    const sat = new Date('2026-04-25T03:00:00Z');
-    await NotificationScheduler.scheduleAll(sat);
-    const sameDay = mockState.pending.filter((p) => p.identifier.startsWith('tefillin__' + dateKey(sat)));
-    expect(sameDay.length).toBe(0);
+    setupEnabled(['tefillin', 'shacharit']);
+    const saturday = nextWeekdayAt(6, 0); // upcoming Saturday 00:00, so all of Shabbat morning is ahead
+    const saturdayKey = dateKey(saturday);
+
+    await NotificationScheduler.scheduleAll(saturday);
+
+    expect(idsFor('tefillin', saturdayKey)).toHaveLength(0);
+    // Proves the run reached Saturday at all: shacharit has no skipOn and is still scheduled.
+    expect(idsFor('shacharit', saturdayKey).length).toBeGreaterThan(0);
   });
 
   // Replaces the old "when pending > PENDING_LIMIT only schedule today" test. That guard could
