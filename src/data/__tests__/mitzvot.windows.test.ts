@@ -1,7 +1,8 @@
 import { HDate } from '@hebcal/core';
 import { findMitzvah, omerDayFor } from '../mitzvot';
 import { CITIES } from '../cities';
-import { zmanimFor } from '@/testing/zmanim';
+import { at, zmanimFor } from '@/testing/zmanim';
+import { locationNoon } from '@/utils/locationDay';
 import { UserSettings } from '@/types/mitzvah';
 
 const JERUSALEM = CITIES[0];
@@ -77,10 +78,10 @@ describe('mitzvot windows extra', () => {
   });
 
   it('3.7b sefirat haomer: tzeit → the next day\'s alot hashachar', () => {
-    const omerNight = new Date(2026, 3, 12, 12); // evening of 25 Nisan, omer night 11
+    const omerNight = at(JERUSALEM, '2026-04-12T12:00'); // evening of 25 Nisan, omer night 11
     const c = ctx(omerNight);
     const w = findMitzvah('sefirat_haomer')!.computeWindow(c)!;
-    const nextDay = new Date(2026, 3, 13, 12);
+    const nextDay = at(JERUSALEM, '2026-04-13T12:00');
 
     expect(w.start.getTime()).toBe(c.zmanim.tzeitHakochavim.getTime());
     expect(w.end.getTime()).toBe(zmanimFor(nextDay, JERUSALEM).alotHaShachar.getTime());
@@ -109,10 +110,10 @@ describe('mitzvot windows extra', () => {
   // Candles are lit before Yom Tov too, not only on Friday. Pesach 5786 starts on a Wednesday
   // evening, which used to produce no reminder at all.
   it('3.9b candle lighting also fires on erev Yom Tov midweek', () => {
-    const erevPesach = new Date(2026, 3, 1, 12); // 14 Nisan, a Wednesday
-    expect(erevPesach.getDay()).not.toBe(5);
+    const erevPesach = at(JERUSALEM, '2026-04-01T12:00'); // 14 Nisan
+    expect(new Date(2026, 3, 1).getDay()).toBe(3); // a Wednesday, so Friday cannot explain a window
     expect(findMitzvah('candle_lighting')!.computeWindow(ctx(erevPesach))).not.toBeNull();
-    const cholHamoed = new Date(2026, 3, 5, 12);
+    const cholHamoed = at(JERUSALEM, '2026-04-05T12:00');
     expect(findMitzvah('candle_lighting')!.computeWindow(ctx(cholHamoed))).toBeNull();
   });
 
@@ -134,15 +135,17 @@ describe('mitzvot windows extra', () => {
     expect(wWed).toBeNull();
   });
 
+  // Without a zone, omerDayFor reads the device's calendar date.
   it('3.12 the evening of 25 Nisan opens omer night 11', () => {
-    expect(omerDayFor(new Date('2026-04-12T12:00:00Z'))).toBe(11);
+    expect(omerDayFor(new Date(2026, 3, 12, 12))).toBe(11);
   });
 
   // The two ends of the count. Getting these wrong is silent: night 1 is the one most commonly
   // forgotten, and a window on the night of Shavuot carries a bracha with nothing to count.
   it('3.12b omer runs from the evening of 15 Nisan to the evening of 4 Sivan, and no further', () => {
     const year = new HDate(new Date(2026, 3, 10)).getFullYear();
-    const eveningOf = (day: number, month: string) => omerDayFor(new HDate(day, month, year).greg(), JERUSALEM.tz);
+    const eveningOf = (day: number, month: string) =>
+      omerDayFor(locationNoon(new HDate(day, month, year).greg(), JERUSALEM), JERUSALEM.tz);
 
     expect(eveningOf(14, 'Nisan')).toBeNull();
     expect(eveningOf(15, 'Nisan')).toBe(1);
@@ -151,7 +154,7 @@ describe('mitzvot windows extra', () => {
   });
 
   it('3.13 omer before 16 Nisan = null', () => {
-    expect(omerDayFor(new Date('2026-04-01T12:00:00Z'))).toBeNull();
+    expect(omerDayFor(new Date(2026, 3, 1, 12))).toBeNull();
   });
 
   it('3.14 omer after Shavuot = null', () => {
@@ -168,5 +171,26 @@ describe('mitzvot windows extra', () => {
   it('3.15 tefillin on Saturday — skipOn shabbat (registry has skipOn)', () => {
     const m = findMitzvah('tefillin')!;
     expect(m.skipOn).toContain('shabbat');
+  });
+
+  // Callers pass anything from local midnight to "now", and the scheduler's "tomorrow" keeps the
+  // rebuild's clock time. An evening ctx.date already sits in the next Hebrew day, which erased
+  // erev-Yom-Tov candle lighting from any rebuild that ran after tzeit; a device-local "next day"
+  // ended the omer night before it began whenever the device's zone was not the location's.
+  it('3.16 a window depends only on the day, not on the clock time ctx.date carries', () => {
+    const windowAt = (id: string, wallClock: string) =>
+      findMitzvah(id)!.computeWindow(ctx(at(JERUSALEM, wallClock)));
+    const cases = [
+      ['candle_lighting', '2026-04-01'], // erev Pesach, a Wednesday
+      ['sefirat_haomer', '2026-04-12'],
+      ['havdalah', '2026-04-25'],
+    ];
+
+    for (const [id, day] of cases) {
+      const atNoon = windowAt(id, `${day}T12:00`);
+      expect(atNoon).not.toBeNull();
+      expect(windowAt(id, `${day}T00:30`)).toEqual(atNoon);
+      expect(windowAt(id, `${day}T23:30`)).toEqual(atNoon);
+    }
   });
 });

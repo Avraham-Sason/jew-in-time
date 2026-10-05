@@ -12,13 +12,8 @@ function fixtureMitzvah(id: string, skipOn: Mitzvah['skipOn'] = []): Mitzvah {
     skipOn,
     nuschaotSupported: ['ashkenaz'],
     defaultReminders: [],
-    computeWindow: ({ date }) => {
-      const start = new Date(date);
-      start.setHours(8, 0, 0, 0);
-      const end = new Date(date);
-      end.setHours(9, 0, 0, 0);
-      return { start, end };
-    },
+    // A morning window on the day the zmanim belong to: the location's, whatever the device zone.
+    computeWindow: ({ zmanim }) => ({ start: zmanim.netzHaChama, end: zmanim.sofZmanShmaGra }),
   };
 }
 

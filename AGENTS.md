@@ -22,6 +22,7 @@ pnpm ios                           # expo run:ios
 pnpm web                           # frees port 8081, then expo start --web
 pnpm test                          # jest
 pnpm test:tz                       # full suite across UTC, Jerusalem, LA and Kiritimati
+pnpm test:tz -- path/file.test.ts  # one file across the same four zones
 pnpm test -- path/to/file.test.ts  # single Jest file
 pnpm test -- -t "name fragment"    # Jest test-name filter
 pnpm typecheck                     # tsc --noEmit
@@ -149,7 +150,12 @@ Custom mitzvot live in `useCustomMitzvotStore` and are adapted through [customMi
 - Candle lighting uses the same sea-level sunset basis, via `candleLightingMinutes(location)`: 40 minutes in Jerusalem (local minhag), 18 elsewhere in Israel, 20 outside Israel, or `location.candleLightingMinutes` when set. It fires before Shabbat and before Yom Tov.
 - `HebcalService` wraps `@hebcal/core` for Hebrew dates, parasha, holidays, yom tov, Daf Yomi, Omer, and Shabbat.
 - Always pass `Location` to `HebcalService.isShabbat(date, location)` for halachic boundary behavior. Without a location it falls back to Gregorian Saturday only.
-- Avoid UTC date shortcuts for mitzvah logic. `dateKey()` uses the JS local date; custom mitzvah windows and Omer handling explicitly use the selected location timezone through Luxon.
+- Avoid UTC date shortcuts for mitzvah logic.
+- Two calendars meet here, and they disagree whenever the device's zone is not the location's. A day the app shows or keys (`dateKey()`, schedule cells, history rows) is the device's calendar date. Zmanim, Shabbat, Yom Tov and the Hebrew date belong to the location's. Never answer a location question through device-local getters:
+  - `ZmanimService` and `HebcalService.isShabbat` / `isYomTov` / `getHebrewDateAt` resolve an instant's civil day in the location's zone.
+  - Static `computeWindow`s take their weekday, next day and Omer count from the day `ctx.zmanim` belong to, at its midday — never from `ctx.date`, whose clock time depends on the caller. See [src/data/AGENTS.md](src/data/AGENTS.md).
+  - Day-level surfaces turn a device calendar day into the same date at the location with `locationNoon()` from [src/utils/locationDay.ts](src/utils/locationDay.ts). Device-local midnight is the previous day at a location west of the device.
+  - Custom mitzvah windows put the device's calendar date of `ctx.date` on the location's clock through Luxon.
 
 ## Notification Engine
 
@@ -225,7 +231,8 @@ Test rules that exist because the suite once passed while the app was broken:
 - A test must import the shipped implementation. Re-declaring the logic under test asserts only that the test agrees with itself.
 - Assert values, not types. `expect(typeof x).toBe('boolean')` passes for both answers.
 - A test must be able to fail for the reason it claims. `scheduleOne` compares triggers against the real clock, so fixtures in the past pass vacuously; derive dates from `Date.now()` instead.
-- Date fixtures are read through device-local getters. Run [pnpm test:tz](scripts/test-timezones.js) after touching date or timezone logic.
+- A fixture must mean the same moment in every zone. `new Date(2026, 3, 24, 20)` is 20:00 on the device's clock, so build an instant for an instant API with `at(location, '2026-04-24T20:00')` from [src/testing/zmanim.ts](src/testing/zmanim.ts). Calendar-day APIs (`dateKey`, `getHebrewDate`, `getHolidays`, and `isShabbat` / `omerDayFor` without a location) read device-local dates, so they take local-component dates.
+- Run [pnpm test:tz](scripts/test-timezones.js) after touching date or timezone logic. It runs every suite in four real zones, and a setup guard fails any run whose zone did not take effect.
 
 When adding ESM or native-adjacent dependencies, check `transformIgnorePatterns` in [package.json](package.json); Jest may need the dependency allowlisted.
 

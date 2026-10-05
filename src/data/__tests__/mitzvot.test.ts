@@ -53,11 +53,12 @@ describe('mitzvot windows', () => {
   // omerDayFor answers "which count is due on the night that OPENS at tzeit of this day", and that
   // night already belongs to the next Hebrew day — so the evening of 25 Nisan opens night 11.
   it('the evening of 25 Nisan opens omer night 11', () => {
-    const may2026 = new Date('2026-04-12T12:00:00Z');
-    const hd = new HDate(may2026);
+    // Without a zone both HDate and omerDayFor read the device's calendar date.
+    const april12 = new Date(2026, 3, 12, 12);
+    const hd = new HDate(april12);
     expect(hd.getMonthName()).toBe('Nisan');
     expect(hd.getDate()).toBe(25);
-    expect(omerDayFor(may2026)).toBe(11);
+    expect(omerDayFor(april12)).toBe(11);
   });
 
   it('candle lighting returns null on non-Friday', () => {

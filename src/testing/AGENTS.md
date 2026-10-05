@@ -7,6 +7,7 @@
 ## Ownership
 
 - [zmanim.ts](zmanim.ts) resolves zmanim for a fixture and throws when they are unavailable, so a bad fixture fails loudly instead of returning `null` into an assertion.
+- [zmanim.ts](zmanim.ts) also owns `at(location, wallClock)`, the instant a clock at the location shows, so a fixture means the same moment under every device zone. It throws on an unparseable wall clock.
 
 ## Local Contracts
 

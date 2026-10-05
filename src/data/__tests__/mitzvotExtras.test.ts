@@ -6,7 +6,7 @@ jest.mock('react-native-mmkv', () => {
 import { MITZVOT } from '../mitzvot';
 import { CITIES } from '../cities';
 import { HebcalService } from '@/services/HebcalService';
-import { zmanimFor } from '@/testing/zmanim';
+import { at, zmanimFor } from '@/testing/zmanim';
 
 describe('Mitzvot extras', () => {
   it('7.2 nusach options match supported set', () => {
@@ -69,7 +69,7 @@ describe('Mitzvot extras', () => {
 
 describe('shouldSkip via HebcalService (16.1, 16.2 extra)', () => {
   it('16.1 — Saturday gregorian flagged as shabbat (current behavior, BUG-001)', () => {
-    const sat = new Date('2026-04-25T10:00:00Z');
+    const sat = new Date(2026, 3, 25, 12); // no location: the device's Gregorian Saturday
     expect(HebcalService.isShabbat(sat)).toBe(true);
   });
 
@@ -89,11 +89,11 @@ describe('shouldSkip via HebcalService (16.1, 16.2 extra)', () => {
   // HebcalService.test.ts (2.5b/2.5c); this one guards the `il` flag, which decides whether the
   // second day of a chag is Yom Tov at all.
   it('16.2 16 Nisan is chol hamoed in Israel and second-day Yom Tov in chu"l', () => {
-    const sixteenNisan = new Date(2026, 3, 3, 12);
+    const sixteenNisan = '2026-04-03T12:00';
     const newYork = CITIES.find((c) => c.nameEn === 'New York')!;
 
-    expect(HebcalService.isYomTov(sixteenNisan, CITIES[0])).toBe(false);
-    expect(HebcalService.isYomTov(sixteenNisan, newYork)).toBe(true);
+    expect(HebcalService.isYomTov(at(CITIES[0], sixteenNisan), CITIES[0])).toBe(false);
+    expect(HebcalService.isYomTov(at(newYork, sixteenNisan), newYork)).toBe(true);
   });
 });
 

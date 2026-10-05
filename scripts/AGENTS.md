@@ -8,8 +8,8 @@
 
 - [withExactAlarmPermissions.js](withExactAlarmPermissions.js) caps `SCHEDULE_EXACT_ALARM` at `maxSdkVersion=32` so exact alarms work on every Android version without triggering Google's exact-alarm declaration form.
 - [free-port.js](free-port.js) frees a local TCP port before `pnpm web`, cross-platform.
-- [jest-timezone-setup.js](jest-timezone-setup.js) applies `JEST_TZ` inside the Jest process; a `TZ=` command prefix is ignored by Node on Windows.
-- [test-timezones.js](test-timezones.js) runs the whole suite across four zones.
+- [test-timezones.js](test-timezones.js) runs the suite once per zone (UTC, Asia/Jerusalem, America/Los_Angeles, Pacific/Kiritimati). It puts `TZ` and `JEST_TZ` in the environment of the Jest process it spawns, so Node resolves the zone at startup and every worker inherits it. Extra arguments are forwarded to Jest.
+- [jest-timezone-setup.js](jest-timezone-setup.js) is a Jest `setupFiles` guard. When `JEST_TZ` is set, it fails the run unless the test process really runs in that zone.
 - [withMitzvahNotificationAction.js](withMitzvahNotificationAction.js) is an Expo config plugin that injects Android notification action handling.
 - [check-dox.js](check-dox.js) enforces the mechanical half of the DOX contract: dead links, plain-text file references, section order, and Child DOX Index accuracy.
 - [jest-asset-stub.js](jest-asset-stub.js) stands in for siddur asset modules under Jest, where Metro asset resolution does not exist.
@@ -21,6 +21,7 @@
 - Scripts must be non-interactive: they run from `pnpm` scripts and in CI, where nothing can answer a prompt.
 - The notification config plugin must stay aligned with scheduler constants in [../src/services/AGENTS.md](../src/services/AGENTS.md), especially `MARK_DONE`.
 - Generated native folders are not owned here; the plugin source is the durable artifact.
+- Set a test zone through the `env` of a spawned Jest process. Assigning `process.env.TZ` inside Jest does nothing, because `setupFiles` get a copy of `process.env`, so the clock never moves. A `TZ=` prefix in Git Bash is dropped for native programs as well; PowerShell `$env:TZ` and cmd `set TZ` do work.
 
 ## Work Guidance
 
@@ -31,6 +32,7 @@
 
 - Run `pnpm web` or `node scripts/free-port.js <port>` after changing [free-port.js](free-port.js).
 - Run `pnpm test:tz` after changing date or timezone handling.
+- After changing [test-timezones.js](test-timezones.js) or [jest-timezone-setup.js](jest-timezone-setup.js), check that the guard still fails a run whose zone did not apply, e.g. `JEST_TZ=Pacific/Kiritimati npx jest src/theme` from Git Bash.
 - Run `pnpm doctor` after changing Expo config plugin behavior.
 - Run `pnpm check:dox` after changing [check-dox.js](check-dox.js) itself, and confirm it still fails on a deliberately broken link before trusting a pass.
 - Use a dev client or native build to verify Android notification-action behavior.

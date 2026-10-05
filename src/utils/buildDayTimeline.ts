@@ -2,6 +2,7 @@ import { Mitzvah, UserSettings } from '@/types/mitzvah';
 import { Location, Zmanim } from '@/types/zmanim';
 import { ZmanimService } from '@/services/ZmanimService';
 import { isSkippedAt } from '@/utils/skipRules';
+import { locationNoon } from '@/utils/locationDay';
 import { Completions, dateKey } from '@/stores/useCompletionsStore';
 
 export type TimelineItem = {
@@ -54,7 +55,7 @@ export function buildDayTimeline(
   settings: UserSettings,
   language: 'he' | 'en',
   t: Translate,
-  zmanim: Zmanim | null = ZmanimService.getZmanim(date, location),
+  zmanim: Zmanim | null = ZmanimService.getZmanim(locationNoon(date, location), location),
 ): TimelineItem[] {
   if (!zmanim) return [];
   const timeline: TimelineItem[] = ZMAN_KEYS.map((key) => ({
