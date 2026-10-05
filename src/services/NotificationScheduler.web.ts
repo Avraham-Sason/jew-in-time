@@ -3,10 +3,13 @@ import { useUserStore } from '@/stores/useUserStore';
 const DAILY_REBUILD_TASK = 'jew-in-time-daily-rebuild';
 const NOTIFICATION_ACTION_TASK = 'jew-in-time-notification-actions';
 const MITZVAH_REMINDER_CATEGORY = 'mitzvah_reminder';
+const MITZVAH_TEXT_CATEGORY = 'mitzvah_reminder_text';
 const MARK_DONE_ACTION = 'MARK_DONE';
+const OPEN_TEXT_ACTION = 'OPEN_TEXT';
 const PENDING_LIMIT = 60;
 const IOS_MAX = 64;
 const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
+const SCHEDULE_FORMAT_KEY = 'notifications:schedule-format';
 
 export type PendingNotificationMeta = {
   mitzvahId?: string;
@@ -66,6 +69,13 @@ export function pickBodyForReminder(reminder: { label: string }): string {
   return reminder.label;
 }
 
+export function notificationTargetFromData(
+  _data?: unknown,
+  _notificationId?: string,
+): { mitzvahId: string; date: Date; key: string } | null {
+  return null;
+}
+
 export function shouldSuppressForCompletion(): boolean {
   return false;
 }
@@ -81,6 +91,9 @@ export {
   DAILY_REBUILD_TASK,
   NOTIFICATION_ACTION_TASK,
   LAST_REBUILD_KEY,
+  SCHEDULE_FORMAT_KEY,
   MITZVAH_REMINDER_CATEGORY,
+  MITZVAH_TEXT_CATEGORY,
   MARK_DONE_ACTION,
+  OPEN_TEXT_ACTION,
 };

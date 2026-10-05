@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const SKIP_DIRS = new Set(['node_modules', 'android', 'ios', '.git', 'dist', '.expo']);
+const SKIP_DIRS = new Set(['node_modules', 'android', 'ios', '.git', 'dist', '.expo', '.claude']);
 const SECTION_ORDER = ['Purpose', 'Ownership', 'Local Contracts', 'Work Guidance', 'Verification', 'Child DOX Index'];
 // The root doc is the DOX rail: it carries project-wide instructions instead of the child shape.
 const ROOT_REQUIRED = ['Child DOX Index'];

@@ -8,6 +8,7 @@
 
 - [icon.png](icon.png), [adaptive-icon.png](adaptive-icon.png), [splash.png](splash.png), [favicon.png](favicon.png), and [notification-icon.png](notification-icon.png) are release-facing assets.
 - [README.md](README.md) records expected asset names and dimensions.
+- [siddur/](siddur) holds the generated nusach texts, one JSON file per nusach and text. The build in [../scripts/siddur/AGENTS.md](../scripts/siddur/AGENTS.md) owns them; never edit them here.
 
 ## Local Contracts
 

@@ -13,7 +13,7 @@
 ## Local Contracts
 
 - Update both light and dark theme surfaces when adding tokens.
-- Keep typography compatible with the Heebo font loading in [../app/_layout.tsx](../app/_layout.tsx).
+- Keep typography compatible with the Heebo and Noto Serif Hebrew font loading in [../app/_layout.tsx](../app/_layout.tsx). Noto Serif Hebrew is the prayer-text family because it covers every nikud and cantillation mark; Heebo does not.
 - New UI should use theme tokens and `useTheme()` instead of one-off styling.
 
 ## Work Guidance

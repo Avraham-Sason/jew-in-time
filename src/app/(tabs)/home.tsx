@@ -20,6 +20,7 @@ import { CompletedRow } from '@/components/CompletedRow';
 import { HebrewDate } from '@/components/HebrewDate';
 import { getLocationName } from '@/data/cities';
 import { MITZVOT } from '@/data/mitzvot';
+import { hasSiddurText, siddurPlace } from '@/data/siddur';
 import { customToMitzvah } from '@/data/customMitzvotAdapter';
 import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { HebcalService } from '@/services/HebcalService';
@@ -49,6 +50,7 @@ type LiveItem = {
   timeLeft: string;
   urgent: boolean;
   name: string;
+  hasText: boolean;
 };
 
 const EMPTY_DAY_STATE = Object.freeze({}) as Record<string, number>;
@@ -82,6 +84,7 @@ export default function HomeScreen() {
     })),
   );
   const nusach = useUserStore((s) => s.nusach);
+  const inIsrael = useUserStore((s) => s.inIsrael);
   const activeMap = useMitzvotStore((s) => s.activeMitzvot);
   const customMap = useCustomMitzvotStore((s) => s.items);
   const todayKey = CompletionService.getDateKey();
@@ -105,6 +108,7 @@ export default function HomeScreen() {
       .map(customToMitzvah);
     const allMitzvot = [...MITZVOT, ...customs].filter((m) => m.nuschaotSupported.includes(nusach));
     const enabled = allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled);
+    const place = siddurPlace(user.location, inIsrael);
     const currentItems: LiveItem[] = [];
     const upcomingItems: LiveItem[] = [];
     const missedItems: LiveItem[] = [];
@@ -141,6 +145,7 @@ export default function HomeScreen() {
         timeLeft: formatRemaining(remainingMs, language),
         urgent: remainingMs <= 45 * 60 * 1000,
         name,
+        hasText: hasSiddurText(mitzvah, nusach, now, place),
       };
       // The card being stamped stays put until its animation ends, even though the completion is
       // already persisted.
@@ -171,7 +176,7 @@ export default function HomeScreen() {
       subtitle: subtitleText,
       zmanimUnavailable: !ctx,
     };
-  }, [activeMap, customMap, doneMap, skippedMap, language, user.location, tick, stampingId, nusach]);
+  }, [activeMap, customMap, doneMap, skippedMap, language, user.location, tick, stampingId, nusach, inIsrael]);
 
   // Persist first — the stamp is decoration. Deferring the write behind the 1.3s animation meant
   // leaving the screen mid-animation silently discarded the completion, and the `stampingId` gate
@@ -197,6 +202,9 @@ export default function HomeScreen() {
     Haptics.selectionAsync().catch(() => {});
     await CompletionService.unmark(id).catch(() => {});
   };
+
+  const openText = (item: LiveItem) =>
+    item.hasText ? () => router.push({ pathname: '/siddur/[id]', params: { id: item.mitzvah.id, date: todayKey } }) : undefined;
 
   const openDetail = (id: string) => {
     if (id.startsWith('custom_')) {
@@ -323,6 +331,7 @@ export default function HomeScreen() {
                   urgent={item.urgent}
                   stamping={stampingId === item.mitzvah.id}
                   onComplete={() => complete(item.mitzvah.id)}
+                  onOpenText={openText(item)}
                   onPress={() => openDetail(item.mitzvah.id)}
                   onLongPress={() => setSelectedId(item.mitzvah.id)}
                 />
@@ -350,6 +359,7 @@ export default function HomeScreen() {
                   urgent
                   stamping={stampingId === item.mitzvah.id}
                   onComplete={() => complete(item.mitzvah.id)}
+                  onOpenText={openText(item)}
                   onPress={() => openDetail(item.mitzvah.id)}
                   onLongPress={() => setSelectedId(item.mitzvah.id)}
                 />

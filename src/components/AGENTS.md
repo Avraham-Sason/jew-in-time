@@ -14,6 +14,8 @@
 - Use [../theme/AGENTS.md](../theme/AGENTS.md) tokens and `useTheme()` instead of hard-coded colors unless there is a narrow reason.
 - Keep components reusable and prop-driven; business rules belong in [../services/AGENTS.md](../services/AGENTS.md), [../stores/AGENTS.md](../stores/AGENTS.md), [../data/AGENTS.md](../data/AGENTS.md), or [../utils/AGENTS.md](../utils/AGENTS.md).
 - Preserve RTL and Hebrew-first layout behavior. Position with direction-relative `start`/`end`; never combine a `language`-driven rotation with physical `left`/`right`, which RN swaps by `I18nManager.isRTL` instead — two sources of truth that disagree on first launch.
+- The same swap applies to `textAlign`: native RN flips `left`/`right` under `I18nManager.isRTL`, while react-native-web keeps them literal, so a web preview cannot catch it. Leave `textAlign` at its start default, or derive the physical edge from `I18nManager.isRTL`, as the siddur reader does.
+- [MitzvahCard.tsx](MitzvahCard.tsx) renders the open-text button beside the check button only when the caller passes `onOpenText`; the caller decides availability through `hasSiddurText()`.
 - Logic worth testing must be exported and imported by the test, never re-declared inside it.
 
 ## Work Guidance

@@ -26,6 +26,7 @@ pnpm test -- path/to/file.test.ts  # single Jest file
 pnpm test -- -t "name fragment"    # Jest test-name filter
 pnpm typecheck                     # tsc --noEmit
 pnpm check:dox                     # AGENTS.md links, section order and Child DOX Index
+pnpm siddur:build                  # rebuild the bundled nusach texts from pinned Sefaria and Wikisource sources
 pnpm doctor                        # expo-doctor
 pnpm build:android:development     # EAS development APK
 pnpm build:android:preview         # EAS internal preview APK
@@ -40,12 +41,15 @@ pnpm update:production             # EAS update to production — reaches instal
 
 `pnpm web` calls [scripts/free-port.js](scripts/free-port.js) (cross-platform) and may kill a listener on port 8081. Use a dev client/native build when verifying `react-native-mmkv`, background tasks, or notifications.
 
+Jest ([package.json](package.json)), Metro ([metro.config.js](metro.config.js)) and `check:dox` all ignore [.claude/](.claude), where agent sessions keep full worktree copies of the repo. Without that, a worktree's tests run twice against the wrong module paths, its AGENTS.md files fail the DOX check, and a `pnpm install` inside it crashes Metro's file watcher.
+
 ## Release and Updates
 
 Two different mechanisms ship this app, and the choice is not stylistic: one reaches everybody within a minute, the other reaches nobody until users install a new binary.
 
-- **Anything Metro bundles** — TypeScript, JSX, i18n strings, and bundled assets — ships as an over-the-air update: `pnpm update:preview`, or `pnpm update:production` for real users.
+- **Anything Metro bundles** — TypeScript, JSX, i18n strings, and bundled assets (fonts and the siddur texts included) — ships as an over-the-air update: `pnpm update:preview`, or `pnpm update:production` for real users.
 - **Anything native** — a dependency with native code, an Android permission, a config plugin under [scripts/](scripts), or an identity field in [app.json](app.json) — needs a build: `pnpm build:android:production`. EAS builds it on its own servers and runs prebuild there, which is why the native folders stay gitignored and are safe to delete locally.
+- A native module that `expo` already links transitively (`expo-file-system`, `expo-keep-awake`) may be added as a direct dependency over OTA only at the exact version the shipped binary carries. Check the committed lockfile before raising one.
 
 An update carries no native code, so shipping a native change as an update produces a bundle that calls into something the installed binary does not have. Prefer an update; reach for a build only when the change is actually native.
 
@@ -76,6 +80,7 @@ Store copy lives in [release/](release).
 - [src/app/(tabs)/](<src/app/(tabs)>) - Main tabs: home, schedule, history, library, settings; the hidden `index` redirects to home.
 - [src/app/onboarding/](src/app/onboarding) - Onboarding flow: welcome, nusach, location/notifications, ready.
 - [src/app/mitzvah/[id].tsx](<src/app/mitzvah/[id].tsx>) - Static and custom mitzvah details, reminders, content blocks.
+- [src/app/siddur/[id].tsx](<src/app/siddur/[id].tsx>) - Nusach reader: the mitzvah's text in the user's nusach and language, resolved for the day.
 - [src/app/day/[date].tsx](<src/app/day/[date].tsx>) - Read-only per-day route for schedule/history drilldown.
 - [src/app/custom-mitzvah.tsx](src/app/custom-mitzvah.tsx) - Create/edit custom mitzvot.
 - [src/data/](src/data) - Static registries: mitzvot, cities, nuschaot, and custom-to-static adapter.
@@ -87,6 +92,7 @@ Store copy lives in [release/](release).
 - [src/i18n/](src/i18n) - Flat [he.json](src/i18n/he.json) and [en.json](src/i18n/en.json) dictionaries plus a tiny translation wrapper.
 - [src/testing/](src/testing) - Test-only fixture helpers. Never imported by shipped code.
 - [scripts/](scripts) - Local workflow scripts and Expo config plugins.
+- [scripts/siddur/](scripts/siddur) - Build from pinned Sefaria and Wikisource sources to [assets/siddur/](assets/siddur), the generated nusach texts.
 - [design/jew-in-time/](design/jew-in-time) - Claude Design handoff. Use it only for UI/design work; read its README and Hi-Fi prototype before porting visuals.
 - [docs/](docs) - Public site published through GitHub Pages: support page and the privacy policy both stores link to.
 - [release/](release) - Store listing and privacy policy drafts.
@@ -151,8 +157,8 @@ Custom mitzvot live in `useCustomMitzvotStore` and are adapted through [customMi
 
 Important constants and contracts:
 
-- Category: `mitzvah_reminder`
-- Mark-done action: `MARK_DONE`
+- Categories: `mitzvah_reminder` (mark-done only) and `mitzvah_reminder_text` (open text + mark done), chosen per reminder by `hasSiddurText()`
+- Actions: `MARK_DONE` (background) and `OPEN_TEXT` (opens the app to `/siddur/[id]?date=`)
 - Scheduled identifier format: `${mitzvahId}__${YYYY-MM-DD}__${reminderIndex}`
 - Pending guard: `PENDING_LIMIT = 60`, `IOS_MAX = 64`
 - Normal horizon: today + tomorrow. Candidates are ordered by trigger time and capped at `IOS_MAX - 4` on iOS / `PENDING_LIMIT` elsewhere, so an overflow drops the furthest-out reminders rather than all of tomorrow.
@@ -165,10 +171,12 @@ Behavior to preserve:
 - `scheduleAll()` and `rebuild()` go through `withLock()`, which coalesces on the trailing edge: a request arriving mid-run queues exactly one re-run so the newest state is always applied.
 - `rebuild()` cancels all scheduled notifications and schedules enabled mitzvot again. Only `rebuildForNewDay()` records the last rebuild date, so a settings-driven rebuild cannot suppress the nightly recovery run.
 - `scheduleOne()` skips disabled/no-permission cases, Shabbat/Yom Tov skips, `null` windows, skipped or completed mitzvot for that date, and past triggers.
-- `cancelForMitzvah(id, date)` cancels all pending reminders for that mitzvah/date so marking a mitzvah done prevents later same-day notifications.
+- `cancelForMitzvah(id, date)` cancels all pending reminders for that mitzvah/date and dismisses the presented ones, so marking a mitzvah done anywhere clears it from the tray and prevents later same-day notifications.
+- A language change rebuilds the schedule, because notification text and button titles are translated at scheduling time.
+- `SCHEDULE_FORMAT` is raised whenever a scheduled notification changes shape, so the first foreground after an update rebuilds once.
 - `useCompletionsStore.markDone`, `markSkipped`, and `unmark` also trigger notification cancellation/rebuild through a queued `require()` to avoid import cycles.
 - `initNotificationHandlers()` is called from [_layout.tsx](src/app/_layout.tsx) after fonts load and returns a teardown the layout runs on unmount. It also calls `refreshSchedulingOnForeground()`, which home repeats on `AppState 'active'` so the horizon cannot silently expire. It sets the foreground handler, registers category/action tasks, syncs permission, dismisses already-completed presented notifications, subscribes to store changes, and registers the daily rebuild task.
-- Tapping the notification body routes to `/mitzvah/[id]`; tapping `MARK_DONE` marks completion without foregrounding the app.
+- Tapping the notification body routes to `/mitzvah/[id]`; tapping `OPEN_TEXT` routes to `/siddur/[id]` with the notification's `dateKey`, buffered like the body tap on a cold start; tapping `MARK_DONE` marks completion without foregrounding the app.
 - [withMitzvahNotificationAction.js](scripts/withMitzvahNotificationAction.js) is an Expo config plugin that writes an Android Kotlin service to dismiss a notification after the mark-done action. Keep this in mind when changing notification action IDs.
 - Both `TaskManager.defineTask` calls live at [NotificationScheduler.ts](src/services/NotificationScheduler.ts) module scope, and the bundle entry is the root [index.js](index.js) (the `main` field in [package.json](package.json)), which imports that module. A killed-state `MARK_DONE` tap and background fetch arrive as headless launches that never load route modules — a `defineTask` reachable only through the router tree never runs and the OS-invoked event is silently dropped. Pinned by [backgroundTaskEntry.test.ts](src/services/__tests__/backgroundTaskEntry.test.ts).
 
@@ -203,10 +211,10 @@ Jest uses the `jest-expo` preset configured in [package.json](package.json).
 
 Coverage areas:
 
-- [src/data/__tests__/](src/data/__tests__) - registry integrity, windows, city data, skip metadata, nusach filtering.
+- [src/data/__tests__/](src/data/__tests__) - registry integrity, windows, city data, skip metadata, nusach filtering, and siddur content per nusach on dated days.
 - [src/services/__tests__/](src/services/__tests__) - zmanim, Hebcal, location, storage, scheduler, notification responses, settings logic, web-shim parity, exact-alarm config.
 - [src/stores/__tests__/](src/stores/__tests__) - store behavior and completion/skipped edge cases.
-- [src/utils/__tests__/](src/utils/__tests__) - day timeline, history stats, and cross-surface `skipOn` agreement.
+- [src/utils/__tests__/](src/utils/__tests__) - day timeline, history stats, cross-surface `skipOn` agreement, and liturgical day flags.
 - [src/i18n/__tests__/](src/i18n/__tests__) - translation parity and brand regression checks.
 - [src/theme/__tests__/](src/theme/__tests__) - token/key sanity.
 - [src/app/__tests__/routes.test.ts](src/app/__tests__/routes.test.ts) - Expo Router route discovery/regression tests.
@@ -250,6 +258,7 @@ pnpm typecheck
 - New background task (`TaskManager.defineTask`): define it in a module imported from the root [index.js](index.js), never only behind a route module — headless launches do not load the router tree.
 - New persisted store field: add a default, reset behavior, and a `version`/`migrate` step in [persistOptions.ts](src/stores/persistOptions.ts) if old persisted data may exist.
 - New decision about whether a mitzvah applies to a day: extend [skipRules.ts](src/utils/skipRules.ts). Never add a second copy of that predicate.
+- New nusach text or day-dependent insert: follow [scripts/siddur/AGENTS.md](scripts/siddur/AGENTS.md) — registry in [siddur.ts](src/data/siddur.ts), day flags in [siddur.ts](src/utils/siddur.ts), manifest, `pnpm siddur:build`, dated content tests.
 - New Android permission or config plugin: re-run [pnpm prebuild:clean](package.json) and check the generated manifest, then [pnpm check:dox](scripts/check-dox.js).
 - New or moved AGENTS.md: run [pnpm check:dox](scripts/check-dox.js) — it verifies links, section order, and every Child DOX Index.
 - Version bump: raise `version` in [app.json](app.json) and [package.json](package.json) in the same edit, and only in a change that also produces a native build. See [Release and Updates](#release-and-updates) for why a bump on its own strands every installed user.

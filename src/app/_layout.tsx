@@ -18,6 +18,7 @@ import {
   Heebo_800ExtraBold,
   Heebo_900Black,
 } from '@expo-google-fonts/heebo';
+import { NotoSerifHebrew_400Regular, NotoSerifHebrew_700Bold } from '@expo-google-fonts/noto-serif-hebrew';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 import { useUserStore } from '@/stores/useUserStore';
 import { initNotificationHandlers } from '@/services/NotificationScheduler';
@@ -122,6 +123,7 @@ function RootInner() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="mitzvah/[id]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="siddur/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="day/[date]" options={{ presentation: 'card' }} />
         <Stack.Screen name="custom-mitzvah" options={{ presentation: 'card' }} />
       </Stack>
@@ -170,6 +172,8 @@ export default function RootLayout() {
     Heebo_700Bold,
     Heebo_800ExtraBold,
     Heebo_900Black,
+    NotoSerifHebrew_400Regular,
+    NotoSerifHebrew_700Bold,
   });
   const ready = loaded || Boolean(fontError);
 

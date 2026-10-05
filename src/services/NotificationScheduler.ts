@@ -5,6 +5,7 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import { ComputeContext, ContentBlock, Mitzvah, Reminder, UserSettings } from '@/types/mitzvah';
 import { Location } from '@/types/zmanim';
 import { getAllMitzvot } from '@/data/customMitzvotAdapter';
+import { hasSiddurText, siddurPlace } from '@/data/siddur';
 import { ZmanimService } from '@/services/ZmanimService';
 import { StorageService } from '@/services/StorageService';
 import { isSkippedAt } from '@/utils/skipRules';
@@ -17,12 +18,16 @@ import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
 const DAILY_REBUILD_TASK = 'jew-in-time-daily-rebuild';
 const NOTIFICATION_ACTION_TASK = 'jew-in-time-notification-actions';
 const MITZVAH_REMINDER_CATEGORY = 'mitzvah_reminder';
+const MITZVAH_TEXT_CATEGORY = 'mitzvah_reminder_text';
 const MARK_DONE_ACTION = 'MARK_DONE';
+const OPEN_TEXT_ACTION = 'OPEN_TEXT';
 const ANDROID_CHANNEL_ID = 'default';
 const PENDING_LIMIT = 60;
 const IOS_MAX = 64;
 const IOS_HEADROOM = 4;
 const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
+const SCHEDULE_FORMAT_KEY = 'notifications:schedule-format';
+const SCHEDULE_FORMAT = 2;
 const REBUILD_HOUR = 0;
 const REBUILD_MINUTE = 15;
 const BACKGROUND_NOTIFICATION_RESULT = {
@@ -127,12 +132,19 @@ async function ensureNotificationCategory(): Promise<void> {
   if (typeof Notifications.setNotificationCategoryAsync !== 'function') return;
   try {
     await ensureAndroidChannel();
-    await Notifications.setNotificationCategoryAsync(MITZVAH_REMINDER_CATEGORY, [
+    const markDone = {
+      identifier: MARK_DONE_ACTION,
+      buttonTitle: t('notifications.markDone'),
+      options: { opensAppToForeground: false },
+    };
+    await Notifications.setNotificationCategoryAsync(MITZVAH_REMINDER_CATEGORY, [markDone]);
+    await Notifications.setNotificationCategoryAsync(MITZVAH_TEXT_CATEGORY, [
       {
-        identifier: MARK_DONE_ACTION,
-        buttonTitle: t('notifications.markDone'),
-        options: { opensAppToForeground: false },
+        identifier: OPEN_TEXT_ACTION,
+        buttonTitle: t('siddur.open'),
+        options: { opensAppToForeground: true },
       },
+      markDone,
     ]);
   } catch (err) {
     if (__DEV__) {
@@ -198,6 +210,9 @@ function candidatesFor(
 
   const now = Date.now();
   const reminders = remindersFor(mitzvah);
+  const category = hasSiddurText(mitzvah, settings.nusach, date, siddurPlace(location, settings.inIsrael))
+    ? MITZVAH_TEXT_CATEGORY
+    : MITZVAH_REMINDER_CATEGORY;
   const candidates: ScheduleCandidate[] = [];
 
   for (let i = 0; i < reminders.length; i++) {
@@ -223,7 +238,7 @@ function candidatesFor(
             skipIfDone: r.skipIfDone === true,
             fullContent: mitzvah.contentBlocks ?? null,
           },
-          categoryIdentifier: MITZVAH_REMINDER_CATEGORY,
+          categoryIdentifier: category,
           autoDismiss: true,
           sticky: false,
           sound: 'default',
@@ -242,7 +257,7 @@ function candidatesFor(
   return candidates;
 }
 
-function notificationTargetFromData(
+export function notificationTargetFromData(
   data: PendingNotificationMeta,
   notificationId?: string,
 ): { mitzvahId: string; date: Date; key: string } | null {
@@ -449,11 +464,13 @@ export const NotificationScheduler = {
       if (parsedDate !== key) continue;
       await Notifications.cancelScheduledNotificationAsync(p.identifier);
     }
+    await dismissPresentedNotificationsForMitzvah(mitzvahId, key);
   },
 
   async rebuild(): Promise<void> {
     if (schedulingSuspended) return;
     return this.withLock(async () => {
+      StorageService.delete(SCHEDULE_FORMAT_KEY);
       await this.cancelAll();
       await scheduleAllImpl(
         new Date(),
@@ -461,6 +478,7 @@ export const NotificationScheduler = {
         useUserStore.getState().location,
         (({ nusach, halachicOpinions, inIsrael }) => ({ nusach, halachicOpinions, inIsrael }))(useUserStore.getState()),
       );
+      StorageService.set(SCHEDULE_FORMAT_KEY, SCHEDULE_FORMAT);
     });
   },
 
@@ -495,7 +513,8 @@ export async function refreshSchedulingOnForeground(): Promise<void> {
     return;
   }
   const pending = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
-  if (!pending.length) await NotificationScheduler.rebuild();
+  const staleFormat = StorageService.get<number>(SCHEDULE_FORMAT_KEY) !== SCHEDULE_FORMAT;
+  if (!pending.length || staleFormat) await NotificationScheduler.rebuild();
 }
 
 export async function requestNotificationPermissions(): Promise<boolean> {
@@ -601,6 +620,7 @@ export function initNotificationHandlers(): () => void {
       return;
     }
     if (
+      state.language !== prev.language ||
       state.location !== prev.location ||
       state.nusach !== prev.nusach ||
       state.halachicOpinions !== prev.halachicOpinions ||
@@ -660,7 +680,10 @@ export {
   DAILY_REBUILD_TASK,
   NOTIFICATION_ACTION_TASK,
   LAST_REBUILD_KEY,
+  SCHEDULE_FORMAT_KEY,
   MITZVAH_REMINDER_CATEGORY,
+  MITZVAH_TEXT_CATEGORY,
   MARK_DONE_ACTION,
+  OPEN_TEXT_ACTION,
   shouldSuppressForCompletion,
 };

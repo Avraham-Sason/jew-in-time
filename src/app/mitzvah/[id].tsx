@@ -15,39 +15,16 @@ import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { DateTime } from 'luxon';
 import { ReminderEditor } from '@/components/ReminderEditor';
 import { findAnyMitzvah } from '@/data/customMitzvotAdapter';
+import { hasSiddurText, siddurPlace } from '@/data/siddur';
+import { dateKey } from '@/stores/useCompletionsStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { typography } from '@/theme/typography';
 import { ContentBlock, Reminder } from '@/types/mitzvah';
-import { ZmanimService } from '@/services/ZmanimService';
+import { currentOrNextWindow } from '@/utils/buildDayTimeline';
 import { useI18n } from '@/i18n';
-
-function nextWindowFor(
-  id: string,
-  location: ReturnType<typeof useUserStore.getState>['location'],
-  nusach: ReturnType<typeof useUserStore.getState>['nusach'],
-  ksSofZman: ReturnType<typeof useUserStore.getState>['halachicOpinions']['ksSofZman'],
-  inIsrael: boolean,
-) {
-  const mitzvah = findAnyMitzvah(id);
-  if (!mitzvah) return null;
-  const dates = [new Date(), new Date(Date.now() + 24 * 60 * 60 * 1000)];
-  for (const date of dates) {
-    const zmanim = ZmanimService.getZmanim(date, location);
-    if (!zmanim) continue;
-    const ctx = {
-      date,
-      location,
-      settings: { nusach, halachicOpinions: { ksSofZman }, inIsrael },
-      zmanim,
-    };
-    const window = mitzvah.computeWindow(ctx);
-    if (window && window.end.getTime() > Date.now()) return window;
-  }
-  return null;
-}
 
 export default function MitzvahDetailScreen() {
   const { colors } = useTheme();
@@ -70,9 +47,10 @@ export default function MitzvahDetailScreen() {
   const reminders = active.customReminders ?? mitzvah?.defaultReminders ?? [];
   const includeContentInNotification = reminders.some((reminder) => reminder.includeContentInBody);
   const window = useMemo(
-    () => (params.id ? nextWindowFor(params.id, location, nusach, ksSofZman, inIsrael) : null),
-    [params.id, location, nusach, ksSofZman, inIsrael],
+    () => (mitzvah ? currentOrNextWindow(mitzvah, location, { nusach, halachicOpinions: { ksSofZman }, inIsrael }) : null),
+    [mitzvah, location, nusach, ksSofZman, inIsrael],
   );
+  const showText = Boolean(mitzvah && window && hasSiddurText(mitzvah, nusach, window.date, siddurPlace(location, inIsrael)));
   const nextTrigger = useMemo(() => {
     if (!window) return null;
     const candidates = reminders
@@ -172,6 +150,15 @@ export default function MitzvahDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {showText && window ? (
+          <Pressable
+            onPress={() => router.push({ pathname: '/siddur/[id]', params: { id: mitzvah.id, date: dateKey(window.date) } })}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.openTextBtn, { backgroundColor: colors.gold, opacity: pressed ? 0.85 : 1 }]}
+          >
+            <Text style={[typography.heading, { color: colors.onGold }]}>{t('siddur.open')}</Text>
+          </Pressable>
+        ) : null}
         <View style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}>
           <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 10 }]}>{t('detail.timeWindow')}</Text>
           <View style={styles.windowRow}>
@@ -484,6 +471,13 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  openTextBtn: {
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
+    marginBottom: 10,
   },
   resetBtn: {
     borderRadius: 12,

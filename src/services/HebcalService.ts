@@ -74,7 +74,7 @@ export const HebcalService = {
     return parasha?.render('he');
   },
 
-  getHolidays(date: Date, loc: Location): string[] {
+  getHolidays(date: Date, loc: Location, locale: 'he' | 'en' = 'he'): string[] {
     const events = HebrewCalendar.calendar({
       start: date,
       end: date,
@@ -93,7 +93,7 @@ export const HebcalService = {
           f & flags.MODERN_HOLIDAY
         );
       })
-      .map((e) => e.render('he'));
+      .map((e) => e.render(locale));
   },
 
   isShabbat(date: Date, loc?: Location): boolean {

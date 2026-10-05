@@ -265,5 +265,17 @@
   "reminder.errors.outsideWindow": "בהיסט הזה התזכורת תיפול מחוץ לחלון הזמן ולא תישלח",
   "settings.batteryTitle": "אמינות התראות",
   "settings.batteryHint": "חלק מהמכשירים משהים התראות כדי לחסוך בסוללה, וזה עלול לאחר תזכורת עד אחרי סוף הזמן. פטור מאופטימיזציית סוללה פותר את זה — פעולה חד־פעמית.",
-  "settings.batteryAction": "פתח הגדרות סוללה"
+  "settings.batteryAction": "פתח הגדרות סוללה",
+  "siddur.open": "פתח נוסח",
+  "siddur.loading": "טוען את הנוסח…",
+  "siddur.error": "לא הצלחנו לטעון את הנוסח.",
+  "siddur.unavailable": "אין נוסח לתאריך הזה.",
+  "siddur.done": "סיימתי",
+  "siddur.doneAlready": "סומן כבוצע ✓",
+  "siddur.addedToday": "נוסף היום",
+  "siddur.sources": "מקורות",
+  "siddur.adapted": "הנוסח עובד לתצוגה ומותאם ליום מתוך המקורות הבאים:",
+  "siddur.smaller": "הקטן טקסט",
+  "siddur.larger": "הגדל טקסט",
+  "siddur.pickSection": "בחר חלק"
 }

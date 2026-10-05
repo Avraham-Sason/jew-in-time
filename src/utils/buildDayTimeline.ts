@@ -29,6 +29,23 @@ export const ZMAN_KEYS = [
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
+export function currentOrNextWindow(
+  mitzvah: Mitzvah,
+  location: Location,
+  settings: UserSettings,
+  now: Date = new Date(),
+): { start: Date; end: Date; date: Date } | null {
+  for (const offset of [-1, 0, 1]) {
+    const date = new Date(now);
+    date.setDate(date.getDate() + offset);
+    const zmanim = ZmanimService.getZmanim(date, location);
+    if (!zmanim) continue;
+    const window = mitzvah.computeWindow({ date, location, settings, zmanim });
+    if (window && window.end.getTime() > now.getTime()) return { ...window, date };
+  }
+  return null;
+}
+
 export function buildDayTimeline(
   date: Date,
   mitzvot: Mitzvah[],

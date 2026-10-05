@@ -1,0 +1,679 @@
+#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+const { HDate, OmerEvent } = require('@hebcal/core');
+const { SOURCES, TEXTS, CONDITIONAL_INSTRUCTION, ALWAYS_SAID, RULES } = require('./manifest');
+
+const ROOT = path.resolve(__dirname, '..', '..');
+const CACHE_DIR = path.join(__dirname, '.cache');
+const OUT_DIR = path.join(ROOT, 'assets', 'siddur');
+const ASSET_MAP = path.join(ROOT, 'src', 'data', 'siddurAssets.generated.ts');
+const NUSCHAOT = ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'];
+
+function sourceUrl(source) {
+  if (source.wikisource) {
+    return `https://he.wikisource.org/w/api.php?action=query&prop=revisions&revids=${source.revision}&rvprop=ids|content&rvslots=main&format=json`;
+  }
+  const name = `${source.title} - ${source.lang} - ${source.version}`;
+  return `https://www.sefaria.org/download/version/${encodeURIComponent(name)}.json`;
+}
+
+function wikitextOf(data, source, key) {
+  const page = Object.values(data.query?.pages ?? {})[0];
+  const revision = page?.revisions?.[0];
+  if (page?.title !== source.wikisource || revision?.revid !== source.revision) {
+    throw new Error(`${key}: revision ${source.revision} is not of "${source.wikisource}"`);
+  }
+  return revision.slots.main['*'];
+}
+
+async function loadSource(key) {
+  const source = SOURCES[key];
+  if (!source) throw new Error(`unknown source ${key}`);
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+  const cached = path.join(CACHE_DIR, `${key}.json`);
+  if (!fs.existsSync(cached)) {
+    const response = await fetch(sourceUrl(source));
+    if (!response.ok) throw new Error(`download failed for ${key}: HTTP ${response.status}`);
+    fs.writeFileSync(cached, await response.text());
+  }
+  const data = JSON.parse(fs.readFileSync(cached, 'utf8'));
+  return source.wikisource ? wikitextOf(data, source, key) : data.text;
+}
+
+function segmentsAt(tree, nodePath, sourceKey) {
+  let node = tree;
+  for (const key of nodePath.split(' > ')) {
+    node = node?.[key];
+    if (node === undefined) throw new Error(`${sourceKey}: no node "${nodePath}"`);
+  }
+  if (!Array.isArray(node)) throw new Error(`${sourceKey}: "${nodePath}" is not a leaf`);
+  return node.flat(Infinity).map((segment) => (typeof segment === 'string' ? segment : ''));
+}
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function labelMarker(kind, label) {
+  return new RegExp(`<קטע ${kind}=["']?${escapeRegExp(label)}["']?\\s*/>`);
+}
+
+function labeledText(wikitext, label, key) {
+  const parts = [];
+  let rest = wikitext;
+  for (let start = labelMarker('התחלה', label).exec(rest); start; start = labelMarker('התחלה', label).exec(rest)) {
+    rest = rest.slice(start.index + start[0].length);
+    const end = labelMarker('סוף', label).exec(rest);
+    if (!end) throw new Error(`${key}: label "${label}" never ends`);
+    parts.push(rest.slice(0, end.index));
+    rest = rest.slice(end.index + end[0].length);
+  }
+  if (!parts.length) throw new Error(`${key}: no label "${label}"`);
+  return parts.join('');
+}
+
+function textBetween(wikitext, after, before, key) {
+  const end = labelMarker('סוף', after).exec(wikitext);
+  if (!end) throw new Error(`${key}: no label "${after}"`);
+  const rest = wikitext.slice(end.index + end[0].length);
+  const start = labelMarker('התחלה', before).exec(rest);
+  if (!start) throw new Error(`${key}: no label "${before}" after "${after}"`);
+  return rest.slice(0, start.index);
+}
+
+const WIKI_TEMPLATES = {
+  ש: () => '<br>',
+  הור: ([note]) => `<small>${note}</small>`,
+  הור2: ([note]) => `<small>${note}</small>`,
+  הור1: ([condition, text]) => `<small>${condition}</small><opt>${text}</opt>`,
+  נוא: ([text], named) => `(<small>${named['הוראה']}</small> ${text})`,
+  צ: ([text]) => text,
+  ממס: () => '',
+  'רקע אפור': () => '',
+  סוף: () => '',
+};
+
+function expandTemplate(body, key) {
+  const [name, ...args] = body.split('|');
+  const expand = WIKI_TEMPLATES[name.trim()];
+  if (!expand) throw new Error(`${key}: unsupported template {{${name.trim()}}}`);
+  const named = Object.fromEntries(args.filter((arg) => /^[^=]+=/.test(arg)).map((arg) => arg.split(/=(.*)/s).slice(0, 2)));
+  return expand(args.filter((arg) => !/^[^=]+=/.test(arg)), named);
+}
+
+async function wikiToHtml(wikitext, key) {
+  let html = wikitext
+    .replace(/<noinclude>[\s\S]*?<\/noinclude>/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<קטע (?:התחלה|סוף)=[^>]*\/>/g, '');
+  for (let found = /\{\{#קטע:([^|{}]+)\|([^|{}]+)\}\}/.exec(html); found; found = /\{\{#קטע:([^|{}]+)\|([^|{}]+)\}\}/.exec(html)) {
+    const [page, label] = [found[1].trim(), found[2].trim()];
+    const sourceKey = Object.keys(SOURCES).find((candidate) => SOURCES[candidate].wikisource === page);
+    if (!sourceKey) throw new Error(`${key}: transcludes "${page}", which is not a pinned source`);
+    const included = await wikiToHtml(labeledText(await loadSource(sourceKey), label, sourceKey), sourceKey);
+    html = html.slice(0, found.index) + included + html.slice(found.index + found[0].length);
+  }
+  for (let previous = ''; previous !== html; ) {
+    previous = html;
+    html = html.replace(/\{\{([^{}]*)\}\}/g, (_, body) => expandTemplate(body, key));
+  }
+  html = html
+    .replace(/'''(.+?)'''/g, '<b>$1</b>')
+    .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')
+    .replace(/^:+/gm, '');
+  if (/\{\{|\}\}|\{\||\[\[|''/.test(html)) throw new Error(`${key}: unconverted wiki markup in "${html.slice(0, 80)}"`);
+  return html;
+}
+
+async function wikisourceSegments(key, nodePath) {
+  const wikitext = (await loadSource(key)).replace(/<noinclude>[\s\S]*?<\/noinclude>/g, '');
+  const segments = [];
+  for (const part of nodePath.split(' | ')) {
+    const [after, before] = part.split(' .. ');
+    const raw = before === undefined ? labeledText(wikitext, part, key) : textBetween(wikitext, after, before, key);
+    const html = await wikiToHtml(raw, key);
+    segments.push(...html.split(/\n[ \t]*\n/).map((paragraph) => paragraph.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean));
+  }
+  return segments;
+}
+
+async function segmentsOf(sourceKey, nodePath) {
+  const source = SOURCES[sourceKey];
+  if (!source) throw new Error(`unknown source ${sourceKey}`);
+  if (source.wikisource) return wikisourceSegments(sourceKey, nodePath);
+  return segmentsAt(await loadSource(sourceKey), nodePath, sourceKey);
+}
+
+function decodeEntities(text) {
+  return text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+function withoutFootnotes(html) {
+  return html
+    .replace(/<sup class="footnote-marker">[\s\S]*?<\/sup>/g, '')
+    .replace(/<i class="footnote">[\s\S]*?<\/i>/g, '');
+}
+
+function parseCondition(tag) {
+  const attribute = (name) => new RegExp(`${name}="([^"]*)"`).exec(tag)?.[1]?.split(',').filter(Boolean);
+  const condition = {};
+  for (const key of ['all', 'any', 'none']) {
+    const flags = attribute(key);
+    if (flags?.length) condition[key] = flags;
+  }
+  return condition;
+}
+
+const POINTED_LETTER = /[א-ת][֑-֯]*[ְ-ׇּׁׂ]/g;
+
+function isVocalized(text) {
+  const letters = (text.match(/[א-ת]/g) ?? []).length;
+  return letters >= 3 && (text.match(POINTED_LETTER) ?? []).length / letters >= 0.5;
+}
+
+function textOf(html) {
+  return decodeEntities(html.replace(/<[^>]+>/g, ''));
+}
+
+const INSTRUCTION_LEAD = /^((?:\s|<\/?b>|[^<֑-ׇ:])*?[א-ת](?:\s|<\/?b>|[^<֑-ׇ:]){0,60}:)([\s\S]*)$/;
+
+function balancedSmallTags(line) {
+  const tokens = line.split(/(<\/?small\b[^>]*>)/i);
+  const keep = tokens.map(() => true);
+  const open = [];
+  tokens.forEach((token, index) => {
+    if (/^<small\b/i.test(token)) open.push(index);
+    else if (/^<\/small/i.test(token)) {
+      if (open.length) open.pop();
+      else keep[index] = false;
+    }
+  });
+  for (const index of open) keep[index] = false;
+  return tokens.filter((_, index) => keep[index]).join('');
+}
+
+function saidPart(line) {
+  return textOf(line.replace(/<small\b[^>]*>[\s\S]*?<\/small>/gi, ''));
+}
+
+function unwrapSaidText(inner) {
+  const lines = inner.split(/(<br\s*\/?>)/i).map((line) => (/^<br/i.test(line) ? line : balancedSmallTags(line)));
+  const isLine = (line) => !/^<br/i.test(line) && textOf(line).trim();
+  if (!isVocalized(textOf(inner)) && !lines.some((line) => isLine(line) && isVocalized(saidPart(line)))) {
+    return { html: `<small>${inner}</small>`, promoted: false };
+  }
+  let promoted = false;
+  const html = lines
+    .map((line) => {
+      if (!isLine(line)) return line;
+      if (!isVocalized(saidPart(line))) return `<small>${line.replace(/<\/?small\b[^>]*>/gi, '')}</small>`;
+      promoted = true;
+      const lead = INSTRUCTION_LEAD.exec(line);
+      return lead && isVocalized(textOf(lead[2])) ? `<small>${lead[1]}</small>${lead[2]}` : line;
+    })
+    .join('');
+  return { html, promoted };
+}
+
+function flattenSmall(html) {
+  let depth = 0;
+  return html
+    .split(/(<[^>]+>)/)
+    .map((token) => {
+      if (/^<small\b/i.test(token)) {
+        depth++;
+        return '';
+      }
+      if (/^<\/small/i.test(token)) {
+        depth = Math.max(0, depth - 1);
+        return '';
+      }
+      if (depth === 0 || token.startsWith('<') || !textOf(token).trim() || isVocalized(textOf(token))) return token;
+      return `<small>${token}</small>`;
+    })
+    .join('');
+}
+
+function classifySmall(html) {
+  let out = '';
+  let depth = 0;
+  let buffer = [];
+  let promoted = false;
+  for (const token of html.split(/(<[^>]+>)/)) {
+    const opens = /^<small\b/i.test(token);
+    const closes = /^<\/small\s*>/i.test(token);
+    if (opens) {
+      depth++;
+      if (depth === 1) {
+        buffer = [];
+        continue;
+      }
+    } else if (closes && depth > 0) {
+      depth--;
+      if (depth === 0) {
+        const said = unwrapSaidText(buffer.join(''));
+        out += said.html;
+        promoted ||= said.promoted;
+        continue;
+      }
+    } else if (depth === 0) {
+      out += token;
+      continue;
+    }
+    buffer.push(token);
+  }
+  if (depth > 0) out += `<small>${buffer.join('')}`;
+  return { html: out, promoted };
+}
+
+function sameRunStyle(a, b) {
+  return a.s === b.s && sameCondition(a.when, b.when);
+}
+
+function parseHebrew(html) {
+  const paragraphs = [[]];
+  const conditions = [];
+  let small = 0;
+  let bold = 0;
+  const push = (text) => {
+    const clean = decodeEntities(text).replace(/\s+/g, ' ');
+    if (!clean) return;
+    const run = { t: clean };
+    if (small) run.s = 'n';
+    else if (bold) run.s = 'b';
+    if (conditions.length) run.when = conditions[conditions.length - 1];
+    const runs = paragraphs[paragraphs.length - 1];
+    const last = runs[runs.length - 1];
+    if (last && sameRunStyle(last, run)) last.t += clean;
+    else runs.push(run);
+  };
+  const tokens = withoutFootnotes(html).split(/(<[^>]+>)/);
+  for (const token of tokens) {
+    const tag = /^<\s*(\/)?\s*([a-z]+)/i.exec(token);
+    if (!tag) {
+      push(token);
+      continue;
+    }
+    const closing = Boolean(tag[1]);
+    const name = tag[2].toLowerCase();
+    if (name === 'br') paragraphs.push([]);
+    else if (name === 'small') small += closing ? -1 : 1;
+    else if (name === 'b' || name === 'strong' || name === 'big') bold += closing ? -1 : 1;
+    else if (name === 'if') {
+      if (closing) conditions.pop();
+      else conditions.push(parseCondition(token));
+    }
+  }
+  return paragraphs.map(tidyRuns).filter((runs) => runs.length > 0);
+}
+
+function parseEnglish(html) {
+  const text = decodeEntities(withoutFootnotes(html).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ''))
+    .replace(/\s+/g, ' ')
+    .trim();
+  return /[A-Za-z]{2,}/.test(text) ? text : '';
+}
+
+function tidyRuns(runs) {
+  const merged = [];
+  for (const run of runs) {
+    const last = merged[merged.length - 1];
+    if (last && sameRunStyle(last, run)) last.t += run.t;
+    else if (last && !run.t.trim() && !run.when && !last.when) last.t += run.t;
+    else merged.push({ ...run });
+  }
+  const tidy = merged.map((run) => ({ ...run, t: run.t.replace(/\s+/g, ' ') }));
+  if (tidy.length) {
+    tidy[0].t = tidy[0].t.trimStart();
+    tidy[tidy.length - 1].t = tidy[tidy.length - 1].t.trimEnd();
+  }
+  return tidy.filter((run) => run.t.length > 0);
+}
+
+function linearPunctuation(runs) {
+  const tidy = tidyRuns(runs);
+  return tidy.map((run, index) => ({
+    ...run,
+    t: run.t.replace(/\.(?=\s)/g, ',').replace(/\.\s*$/, index === tidy.length - 1 ? ':' : ','),
+  }));
+}
+
+function isAlwaysSaid(segment) {
+  const said = normalizeHebrew(segment.he.flat().filter((run) => run.s !== 'n').map((run) => run.t).join(' '));
+  return ALWAYS_SAID.some((pattern) => pattern.test(said));
+}
+
+function plain(runs) {
+  return runs.flat().map((run) => run.t).join(' ');
+}
+
+function normalizeHebrew(text) {
+  return text
+    .replace(/־/g, ' ')
+    .replace(/[֑-ׇ]/g, '')
+    .replace(/יהוה|יי|ה'/g, 'ה')
+    .replace(/[.,:;!?״׳"'()[\]|׃<>]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function mergeConditions(...conditions) {
+  const present = conditions.filter(Boolean);
+  if (!present.length) return undefined;
+  const merged = {};
+  const all = [...new Set(present.flatMap((c) => c.all ?? []))];
+  const none = [...new Set(present.flatMap((c) => c.none ?? []))];
+  const anys = [...new Set(present.filter((c) => c.any).map((c) => JSON.stringify([...c.any].sort())))];
+  if (anys.length > 1) throw new Error(`cannot combine two "any" conditions: ${anys.join(' and ')}`);
+  if (anys.length) merged.any = JSON.parse(anys[0]);
+  const omerDays = [...new Set(present.map((c) => c.omerDay).filter((d) => d !== undefined))];
+  if (omerDays.length > 1) throw new Error(`conflicting omer days ${omerDays}`);
+  if (all.length) merged.all = all;
+  if (none.length) merged.none = none;
+  if (omerDays.length) merged.omerDay = omerDays[0];
+  return merged;
+}
+
+function sameCondition(a, b) {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
+function applyEdits(html, edits, label) {
+  let out = html.normalize('NFC');
+  for (const edit of edits) {
+    const from = edit.from.normalize('NFC');
+    const count = out.split(from).length - 1;
+    const expected = edit.count ?? 1;
+    if (count !== expected) throw new Error(`${label}: edit "${edit.from}" matched ${count}x, expected ${expected}`);
+    out = out.split(from).join(edit.to.normalize('NFC'));
+  }
+  return out;
+}
+
+function tagOmerDays(spec, label) {
+  const { first, stride } = spec.omer;
+  const days = {};
+  for (let day = 1; day <= 49; day++) {
+    for (let offset = 0; offset < stride; offset++) days[first + (day - 1) * stride + offset] = day;
+  }
+  return (index) => (days[index] === undefined ? undefined : { omerDay: days[index] });
+}
+
+const HEBREW_UNITS = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
+const HEBREW_TENS = ['', 'י', 'כ', 'ל'];
+function gematriya(n) {
+  if (n === 15) return 'טו';
+  if (n === 16) return 'טז';
+  return HEBREW_TENS[Math.floor(n / 10)] + HEBREW_UNITS[n % 10];
+}
+function omerDateLabel(day) {
+  const nisan = 15 + day;
+  if (nisan <= 30) return `${gematriya(nisan)} ניסן`;
+  const iyar = nisan - 30;
+  if (iyar <= 29) return `${gematriya(iyar)} אייר`;
+  return `${gematriya(iyar - 29)} סיון`;
+}
+function normalizeLabel(text) {
+  return normalizeHebrew(text.replace(/[״"׳']/g, '')).replace(/סיוון/g, 'סיון');
+}
+
+function verifyOmer(segments, label) {
+  const byDay = new Map();
+  for (const segment of segments) {
+    const day = segment.when?.omerDay;
+    if (day === undefined) continue;
+    byDay.set(day, `${byDay.get(day) ?? ''} ${plain(segment.he)}`);
+  }
+  if (byDay.size !== 49) throw new Error(`${label}: expected 49 omer days, found ${byDay.size}`);
+  for (const [day, text] of byDay) {
+    const expected = normalizeLabel(omerDateLabel(day));
+    if (!normalizeLabel(text).includes(expected)) {
+      throw new Error(`${label}: omer day ${day} does not carry the date "${omerDateLabel(day)}": ${text.slice(0, 80)}`);
+    }
+  }
+}
+
+function bySegment(edits) {
+  const map = new Map();
+  for (const edit of edits ?? []) map.set(edit.seg, [...(map.get(edit.seg) ?? []), edit]);
+  return map;
+}
+
+function mergeSameTitledSections(sections) {
+  const merged = [];
+  for (const section of sections) {
+    const previous = merged[merged.length - 1];
+    if (previous && previous.title.he === section.title.he) previous.segments.push(...section.segments);
+    else merged.push({ ...section, segments: [...section.segments] });
+  }
+  return merged.filter((section) => section.segments.length > 0);
+}
+
+async function buildSection(spec, ctx) {
+  const label = `${ctx.nusach}/${ctx.textId}/${spec.title.he}`;
+  const heAll = await segmentsOf(spec.he, spec.path);
+  const enAll = spec.en ? await segmentsOf(spec.en, spec.enPath ?? spec.path) : [];
+  const from = spec.from ?? 0;
+  const to = spec.to ?? heAll.length - 1;
+  if (to >= heAll.length) throw new Error(`${label}: range ends at ${to} but source has ${heAll.length} segments`);
+  ctx.credits.add(spec.he);
+  const omerOf = spec.omer ? tagOmerDays(spec, label) : () => undefined;
+  const editsBySeg = bySegment(spec.edits);
+  const enEditsBySeg = bySegment(spec.enEdits);
+  const selected = (i) => i >= from && i <= to && !spec.drop?.includes(i);
+  const targets = [
+    ...editsBySeg.keys(),
+    ...enEditsBySeg.keys(),
+    ...Object.keys(spec.at ?? {}).map(Number),
+    ...(spec.groups ?? []).flat(),
+    ...(spec.reviewed ?? []),
+  ];
+  const stray = targets.filter((i) => !selected(i));
+  if (stray.length) throw new Error(`${label}: edits, conditions or groups target unselected segments ${stray}`);
+  const groups = spec.groups ?? [];
+  const groupOf = new Map();
+  groups.forEach(([start, end], gi) => {
+    for (let i = start; i <= end; i++) groupOf.set(i, gi);
+  });
+
+  const drafts = [];
+  for (let i = from; i <= to; i++) {
+    if (spec.drop?.includes(i)) continue;
+    for (const insert of (spec.insert ?? []).filter((item) => item.at === i)) {
+      drafts.push({ index: i - 0.5, he: parseHebrew(insert.he), en: insert.en ?? '', when: mergeConditions(spec.when, insert.when), authored: true });
+    }
+    let html = heAll[i].normalize('NFC');
+    if (editsBySeg.has(i)) html = applyEdits(html, editsBySeg.get(i), `${label} #${i}`);
+    if (spec.flattenSmall) html = flattenSmall(html);
+    if (spec.transform) html = spec.transform(html, i);
+    const classified = classifySmall(html);
+    const he = parseHebrew(classified.html);
+    if (!he.length) continue;
+    let enHtml = enAll[i] ?? '';
+    if (enEditsBySeg.has(i)) enHtml = applyEdits(enHtml, enEditsBySeg.get(i), `${label} #${i} (en)`);
+    const en = spec.en ? parseEnglish(enHtml) : '';
+    if (en) ctx.credits.add(spec.en);
+    const when = mergeConditions(spec.when, spec.at?.[i], omerOf(i));
+    drafts.push({ index: i, he, en, when, group: groupOf.get(i), promoted: classified.promoted });
+  }
+  for (const insert of (spec.insert ?? []).filter((item) => item.at > to)) {
+    drafts.push({ index: insert.at - 0.5, he: parseHebrew(insert.he), en: insert.en ?? '', when: mergeConditions(spec.when, insert.when), authored: true });
+  }
+
+  const segments = [];
+  for (const draft of drafts) {
+    const previous = segments[segments.length - 1];
+    if (draft.group !== undefined && previous && previous.group === draft.group) {
+      if (!sameCondition(previous.when, draft.when)) throw new Error(`${label}: group mixes conditions at #${draft.index}`);
+      const merged = previous.he[previous.he.length - 1];
+      merged.push({ t: ' ' }, ...draft.he.flat());
+      previous.en = [previous.en, draft.en].filter(Boolean).join(' ');
+      continue;
+    }
+    segments.push({ ...draft, he: draft.he.map((runs) => runs.map((run) => ({ ...run }))) });
+  }
+
+  for (const segment of segments) {
+    segment.he = segment.he.map((runs) => tidyRuns(spec.linear ? linearPunctuation(runs) : runs));
+  }
+
+  if (spec.omer) {
+    verifyOmer(segments, label);
+    if (spec.omer.stride === 1) {
+      for (const segment of segments) {
+        const day = segment.when?.omerDay;
+        if (day !== undefined && !segment.en) segment.en = new OmerEvent(new HDate(), day).getTodayIs('en');
+      }
+    }
+  }
+
+  const namesADay = (runs) => {
+    const notes = runs.filter((run) => run.s === 'n' && !run.when).map((run) => run.t).join(' ');
+    return CONDITIONAL_INSTRUCTION.some((pattern) => pattern.test(normalizeHebrew(notes))) ? notes : null;
+  };
+  for (const segment of segments) {
+    if (segment.authored || spec.reviewed?.includes(segment.index)) continue;
+    const midText = segment.he.flatMap((runs) => runs.filter((run, i) => runs.slice(0, i).some((prev) => prev.s !== 'n' && prev.t.trim())));
+    const inline = namesADay(midText);
+    if (inline) ctx.unreviewed.push(`${label} #${segment.index}: inline instruction "${inline.slice(0, 90)}"`);
+    if (inline || segment.when) continue;
+    const notes = namesADay(segment.he.flat());
+    if (notes) ctx.unreviewed.push(`${label} #${segment.index}: instruction "${notes.slice(0, 90)}"`);
+    else if (segment.promoted && !isAlwaysSaid(segment)) ctx.unreviewed.push(`${label} #${segment.index}: small vocalized text "${plain(segment.he).slice(0, 90)}"`);
+  }
+
+  return {
+    title: spec.title,
+    segments: segments.map(({ he, en, when }) => ({ he, ...(en ? { en } : {}), ...(when ? { when } : {}) })),
+  };
+}
+
+async function buildTranslationMemory() {
+  const memory = new Map();
+  for (const [heKey, enKey] of Object.entries(SOURCES).filter(([, s]) => s.translationMemory).map(([k, s]) => [k, s.translationMemory])) {
+    const heTree = await loadSource(heKey);
+    const enTree = await loadSource(enKey);
+    const walk = (heNode, enNode) => {
+      if (Array.isArray(heNode)) {
+        const heFlat = heNode.flat(Infinity);
+        const enFlat = Array.isArray(enNode) ? enNode.flat(Infinity) : [];
+        heFlat.forEach((he, i) => {
+          const en = typeof enFlat[i] === 'string' ? parseEnglish(enFlat[i]) : '';
+          const key = typeof he === 'string' ? normalizeHebrew(plain(parseHebrew(he))) : '';
+          if (key && en && !memory.has(key)) memory.set(key, { en, source: enKey });
+        });
+        return;
+      }
+      if (heNode && typeof heNode === 'object') {
+        for (const key of Object.keys(heNode)) walk(heNode[key], enNode?.[key]);
+      }
+    };
+    walk(heTree, enTree);
+  }
+  return memory;
+}
+
+function fillTranslations(sections, memory, credits) {
+  let filled = 0;
+  for (const section of sections) {
+    for (const segment of section.segments) {
+      if (segment.en) continue;
+      const hit = memory.get(normalizeHebrew(plain(segment.he)));
+      if (!hit) continue;
+      segment.en = hit.en;
+      credits.add(hit.source);
+      filled++;
+    }
+  }
+  return filled;
+}
+
+function assetMapSource(built) {
+  const lines = ['export const SIDDUR_ASSETS = {'];
+  for (const nusach of NUSCHAOT) {
+    lines.push(`  ${nusach}: {`);
+    for (const id of built[nusach] ?? []) {
+      lines.push(`    ${id}: require('../../assets/siddur/${nusach}/${id}.siddur'),`);
+    }
+    lines.push('  },');
+  }
+  lines.push('} as const;', '');
+  return lines.join('\n');
+}
+
+async function main() {
+  const memory = await buildTranslationMemory();
+  const unreviewed = [];
+  const built = {};
+  const report = [];
+  const outputs = new Map();
+  for (const nusach of NUSCHAOT) {
+    built[nusach] = [];
+    for (const [textId, byNusach] of Object.entries(TEXTS)) {
+      const specs = byNusach[nusach];
+      if (!specs) continue;
+      const credits = new Set();
+      const ctx = { nusach, textId, credits, unreviewed };
+      const parts = [];
+      for (const spec of specs) parts.push(await buildSection(spec, ctx));
+      const sections = mergeSameTitledSections(parts);
+      const filled = fillTranslations(sections, memory, credits);
+      const segments = sections.flatMap((s) => s.segments);
+      const translated = segments.filter((s) => s.en).length;
+      report.push(`${nusach}/${textId}: ${segments.length} segments, ${translated} translated (${filled} via exact match)`);
+      const text = {
+        nusach,
+        id: textId,
+        sections,
+        credits: [...new Map([...credits].map((key) => [SOURCES[key].credit.title, SOURCES[key].credit])).values()],
+      };
+      outputs.set(path.join(OUT_DIR, nusach, `${textId}.siddur`), JSON.stringify(text));
+      built[nusach].push(textId);
+    }
+  }
+  if (unreviewed.length) {
+    throw new Error(`conditional instructions without a condition or review:\n${unreviewed.join('\n')}`);
+  }
+  const unused = RULES.filter((entry) => !entry.hits).map((entry) => entry.name);
+  if (unused.length) throw new Error(`manifest rules that never matched:\n${unused.join('\n')}`);
+  outputs.set(ASSET_MAP, assetMapSource(built));
+  writeOutputs(outputs);
+  console.log(report.join('\n'));
+}
+
+function writeOutputs(outputs) {
+  const existing = fs.existsSync(OUT_DIR)
+    ? fs.readdirSync(OUT_DIR, { recursive: true }).map((file) => path.join(OUT_DIR, String(file))).filter((file) => file.endsWith('.siddur'))
+    : [];
+  for (const stale of existing.filter((file) => !outputs.has(file))) fs.rmSync(stale);
+  for (const [file, content] of outputs) {
+    if (fs.existsSync(file) && fs.readFileSync(file, 'utf8') === content) continue;
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, content);
+  }
+}
+
+async function inspect(sourceKey, nodePath) {
+  const segments = await segmentsOf(sourceKey, nodePath);
+  segments.forEach((html, index) => {
+    const classified = classifySmall(html.normalize('NFC'));
+    const he = parseHebrew(classified.html);
+    if (!he.length) return;
+    const text = he.map((runs) => runs.map((run) => (run.s === 'n' ? `[${run.t}]` : run.t)).join('')).join(' / ');
+    const said = he.flat().some((run) => run.s !== 'n');
+    console.log(`${String(index).padStart(3)} ${classified.promoted ? 'P' : ' '}${said ? ' ' : 'N'} ${text.slice(0, Number(process.env.WIDTH ?? 160))}`);
+  });
+}
+
+const [mode, ...args] = process.argv.slice(2);
+(mode === '--inspect' ? inspect(...args) : main()).catch((error) => {
+  console.error(error.message);
+  process.exit(1);
+});

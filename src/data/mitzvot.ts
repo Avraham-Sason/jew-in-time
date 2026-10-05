@@ -26,9 +26,13 @@ function isFriday(d: Date): boolean {
 // there is simply the wrong time.
 const JERUSALEM_CANDLE_MINUTES = 40;
 
+export function isJerusalem(location: Location): boolean {
+  return location.nameEn === 'Jerusalem';
+}
+
 export function candleLightingMinutes(location: Location): number {
   if (location.candleLightingMinutes) return location.candleLightingMinutes;
-  if (location.inIsrael) return location.nameEn === 'Jerusalem' ? JERUSALEM_CANDLE_MINUTES : 18;
+  if (location.inIsrael) return isJerusalem(location) ? JERUSALEM_CANDLE_MINUTES : 18;
   return 20;
 }
 

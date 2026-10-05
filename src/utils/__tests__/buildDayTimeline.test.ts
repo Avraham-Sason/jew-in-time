@@ -1,6 +1,8 @@
-import { buildDayTimeline, ZMAN_KEYS } from '../buildDayTimeline';
-import { Mitzvah } from '@/types/mitzvah';
+import { DateTime } from 'luxon';
+import { buildDayTimeline, currentOrNextWindow, ZMAN_KEYS } from '../buildDayTimeline';
+import { Mitzvah, UserSettings } from '@/types/mitzvah';
 import { CITIES } from '@/data/cities';
+import { findMitzvah, omerDayFor } from '@/data/mitzvot';
 
 const date = new Date('2026-05-06T08:00:00Z');
 const zmanim = Object.fromEntries(
@@ -42,5 +44,27 @@ describe('buildDayTimeline', () => {
       done: true,
     });
     expect([...items].sort((a, b) => a.time.getTime() - b.time.getTime())).toEqual(items);
+  });
+});
+
+describe('currentOrNextWindow', () => {
+  const jerusalem = CITIES[0];
+  const settings: UserSettings = { nusach: 'ashkenaz', halachicOpinions: { ksSofZman: 'GRA' }, inIsrael: true };
+  const omer = findMitzvah('sefirat_haomer')!;
+  const at = (iso: string) => DateTime.fromISO(iso, { zone: jerusalem.tz }).toJSDate();
+
+  it('keeps last night’s omer window after midnight, while it is still open', () => {
+    const now = at('2026-04-20T00:30');
+    const window = currentOrNextWindow(omer, jerusalem, settings, now)!;
+    expect(window.start.getTime()).toBeLessThan(now.getTime());
+    expect(window.end.getTime()).toBeGreaterThan(now.getTime());
+    expect(omerDayFor(window.date, jerusalem.tz)).toBe(18);
+  });
+
+  it('moves to tonight’s window once last night’s has closed', () => {
+    const now = at('2026-04-20T12:00');
+    const window = currentOrNextWindow(omer, jerusalem, settings, now)!;
+    expect(window.start.getTime()).toBeGreaterThan(now.getTime());
+    expect(omerDayFor(window.date, jerusalem.tz)).toBe(19);
   });
 });

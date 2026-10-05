@@ -11,6 +11,9 @@ importers:
       '@expo-google-fonts/heebo':
         specifier: ^0.2.3
         version: 0.2.3
+      '@expo-google-fonts/noto-serif-hebrew':
+        specifier: ^0.4.2
+        version: 0.4.2
       '@hebcal/core':
         specifier: ^5.4.0
         version: 5.10.1
@@ -32,12 +35,18 @@ importers:
       expo-dev-client:
         specifier: ~6.0.20
         version: 6.0.21(expo@54.0.34)
+      expo-file-system:
+        specifier: ~19.0.22
+        version: 19.0.22(expo@54.0.34)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))
       expo-font:
         specifier: ~14.0.11
         version: 14.0.11(expo@54.0.34)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-haptics:
         specifier: ~15.0.8
         version: 15.0.8(expo@54.0.34)
+      expo-keep-awake:
+        specifier: ~15.0.8
+        version: 15.0.8(expo@54.0.34)(react@19.1.0)
       expo-linking:
         specifier: ~8.0.11
         version: 8.0.12(expo@54.0.34)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -661,6 +670,9 @@ packages:
 
   '@expo-google-fonts/heebo@0.2.3':
     resolution: {integrity: sha512-OcHS880/2o6m66Fw+w7PptjQEA938aiV2YjzKdJ6KZnG9XpSViqomztY+9Oi7vjy4ecmxlv+syMFyc9uM9hsOg==}
+
+  '@expo-google-fonts/noto-serif-hebrew@0.4.2':
+    resolution: {integrity: sha512-rgsdLstcIV5j5kAfou7RjaUU4bwl+dXpaavQezbcKCb6gmOO5ipfBb4AeUQOxQkV3UWbPZlCora2wpZRW544qw==}
 
   '@expo/cli@54.0.24':
     resolution: {integrity: sha512-5xse1bEgnVUBhOrtttc6xTNJVvjyTRavpzuF0/0nuj+312vfSbk7EiRbG+xJ2pW/iZxnhLPJkFCrPYG0nmheAQ==}
@@ -4851,6 +4863,8 @@ snapshots:
       '@types/hammerjs': 2.0.46
 
   '@expo-google-fonts/heebo@0.2.3': {}
+
+  '@expo-google-fonts/noto-serif-hebrew@0.4.2': {}
 
   '@expo/cli@54.0.24(expo-router@6.0.23)(expo@54.0.34)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(typescript@5.9.3)':
     dependencies:

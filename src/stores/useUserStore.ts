@@ -11,6 +11,9 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export type Language = 'he' | 'en';
 export type NotificationPermissionStatus = 'unknown' | 'granted' | 'denied';
 
+export const SIDDUR_FONT_SIZES = [18, 20, 22, 25, 28, 32] as const;
+const DEFAULT_SIDDUR_FONT_SIZE = 22;
+
 type UserState = {
   nusach: Nusach;
   location: Location;
@@ -25,6 +28,7 @@ type UserState = {
   halachicOpinions: { ksSofZman: HalachicOpinion };
   inIsrael: boolean;
   isOnboarded: boolean;
+  siddurFontSize: number;
   setNusach: (n: Nusach) => void;
   setLocation: (l: Location) => void;
   setLocationState: (l: Location, status: LocationStatus, source: LocationSource) => void;
@@ -38,6 +42,7 @@ type UserState = {
   setKsOpinion: (o: HalachicOpinion) => void;
   setInIsrael: (v: boolean) => void;
   setOnboarded: (v: boolean) => void;
+  setSiddurFontSize: (size: number) => void;
   reset: () => void;
 };
 
@@ -59,6 +64,7 @@ export const useUserStore = create<UserState>()(
       halachicOpinions: { ksSofZman: 'GRA' },
       inIsrael: true,
       isOnboarded: false,
+      siddurFontSize: DEFAULT_SIDDUR_FONT_SIZE,
       setNusach: (n) => set({ nusach: n }),
       setLocation: (l) => set({ location: l, inIsrael: l.inIsrael }),
       setLocationState: (l, status, source) =>
@@ -74,6 +80,7 @@ export const useUserStore = create<UserState>()(
       setKsOpinion: (o) => set((s) => ({ halachicOpinions: { ...s.halachicOpinions, ksSofZman: o } })),
       setInIsrael: (v) => set({ inIsrael: v }),
       setOnboarded: (v) => set({ isOnboarded: v }),
+      setSiddurFontSize: (size) => set({ siddurFontSize: size }),
       reset: () =>
         set({
           nusach: 'ashkenaz',
@@ -89,6 +96,7 @@ export const useUserStore = create<UserState>()(
           halachicOpinions: { ksSofZman: 'GRA' },
           inIsrael: true,
           isOnboarded: false,
+          siddurFontSize: DEFAULT_SIDDUR_FONT_SIZE,
         }),
     }),
     {

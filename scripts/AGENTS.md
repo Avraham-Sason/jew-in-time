@@ -12,6 +12,8 @@
 - [test-timezones.js](test-timezones.js) runs the whole suite across four zones.
 - [withMitzvahNotificationAction.js](withMitzvahNotificationAction.js) is an Expo config plugin that injects Android notification action handling.
 - [check-dox.js](check-dox.js) enforces the mechanical half of the DOX contract: dead links, plain-text file references, section order, and Child DOX Index accuracy.
+- [jest-asset-stub.js](jest-asset-stub.js) stands in for siddur asset modules under Jest, where Metro asset resolution does not exist.
+- [siddur/AGENTS.md](siddur/AGENTS.md) owns the siddur content build.
 
 ## Local Contracts
 
@@ -35,4 +37,4 @@
 
 ## Child DOX Index
 
-- No child AGENTS.md files.
+- [siddur/AGENTS.md](siddur/AGENTS.md) - Build from pinned Sefaria and Wikisource sources to the bundled, day-conditioned nusach texts.

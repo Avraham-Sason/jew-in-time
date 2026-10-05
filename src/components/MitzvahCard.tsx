@@ -29,7 +29,22 @@ type Props = {
   onComplete?: () => void;
   onLongPress?: () => void;
   onPress?: () => void;
+  onOpenText?: () => void;
 };
+
+function OpenBook({ color }: { color: string }) {
+  return (
+    <Svg width={15} height={15} viewBox="0 0 13 13" fill="none">
+      <Path
+        d="M6.5 3.4C5.3 2.6 3.7 2.2 1.6 2.2v7.7c2.1 0 3.7.4 4.9 1.2 1.2-.8 2.8-1.2 4.9-1.2V2.2c-2.1 0-3.7.4-4.9 1.2zM6.5 3.4v7.7"
+        stroke={color}
+        strokeWidth={1.3}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 function Checkmark({ color = '#fff', size = 13, width = 1.8 }: { color?: string; size?: number; width?: number }) {
   return (
@@ -53,6 +68,7 @@ export function MitzvahCard({
   onComplete,
   onLongPress,
   onPress,
+  onOpenText,
 }: Props) {
   const { colors } = useTheme();
   const { t } = useI18n();
@@ -140,6 +156,17 @@ export function MitzvahCard({
             <Text style={[typography.micro, { color: colors.textMuted, fontWeight: '600', marginTop: 2 }]}>{t('state.readOnly')}</Text>
           )}
         </View>
+        {onOpenText ? (
+          <Pressable
+            onPress={onOpenText}
+            accessibilityRole="button"
+            accessibilityLabel={t('siddur.open')}
+            hitSlop={8}
+            style={[styles.checkBtn, { borderColor: urgent ? colors.urgent : colors.border }]}
+          >
+            <OpenBook color={urgent ? colors.urgent : colors.textMuted} />
+          </Pressable>
+        ) : null}
         {canComplete ? (
           <Pressable
             onPress={onComplete}

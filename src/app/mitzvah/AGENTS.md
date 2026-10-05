@@ -6,13 +6,14 @@
 
 ## Ownership
 
-- [[id].tsx](%5Bid%5D.tsx) renders mitzvah details, reminders, content blocks, and detail-level actions.
+- [[id].tsx](%5Bid%5D.tsx) renders mitzvah details, reminders, content blocks, and detail-level actions, including the "פתח נוסח" button into [../siddur/AGENTS.md](../siddur/AGENTS.md).
 
 ## Local Contracts
 
 - Use [../../data/customMitzvotAdapter.ts](../../data/customMitzvotAdapter.ts), `getAllMitzvot()`, or `findAnyMitzvah()` when a detail route must include both static and custom mitzvot.
 - Reminder edits must stay compatible with [../../services/AGENTS.md](../../services/AGENTS.md) scheduler contracts.
 - Content block rendering must support text, blessing, and link blocks without breaking Hebrew-first layout.
+- The window shown and the "פתח נוסח" button come from `currentOrNextWindow()`, so a night window still open after midnight wins over tonight's; the button shows only when `hasSiddurText()` is true for it and passes its civil date as `date`.
 
 ## Work Guidance
 

@@ -67,6 +67,8 @@ jest.mock('expo-background-fetch', () => ({
 import {
   MARK_DONE_ACTION,
   MITZVAH_REMINDER_CATEGORY,
+  MITZVAH_TEXT_CATEGORY,
+  OPEN_TEXT_ACTION,
   NotificationScheduler,
   NOTIFICATION_ACTION_TASK,
   PENDING_LIMIT,
@@ -74,7 +76,11 @@ import {
   shouldSuppressForCompletion,
   initNotificationHandlers,
   syncNotificationPermissionStatus,
+  refreshSchedulingOnForeground,
+  LAST_REBUILD_KEY,
+  SCHEDULE_FORMAT_KEY,
 } from '../NotificationScheduler';
+import { StorageService } from '@/services/StorageService';
 import { useUserStore } from '@/stores/useUserStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
@@ -152,6 +158,47 @@ describe('NotificationScheduler', () => {
     expect(mockCancelOne).toHaveBeenCalledWith(`shacharit__${key}__2`);
   });
 
+  it('6.2b cancelForMitzvah also clears that mitzvah and date from the notification tray', async () => {
+    const date = new Date(2026, 4, 6);
+    mockState.presented = [
+      { request: { identifier: 'tefillin__2026-05-06__0', content: { data: { mitzvahId: 'tefillin', dateKey: '2026-05-06' } } } },
+      { request: { identifier: 'tefillin__2026-05-07__0', content: { data: { mitzvahId: 'tefillin', dateKey: '2026-05-07' } } } },
+      { request: { identifier: 'shacharit__2026-05-06__0', content: { data: { mitzvahId: 'shacharit', dateKey: '2026-05-06' } } } },
+    ];
+
+    await NotificationScheduler.cancelForMitzvah('tefillin', date);
+
+    expect(mockDismiss.mock.calls.map(([id]) => id)).toEqual(['tefillin__2026-05-06__0']);
+  });
+
+  it('6.2c a schedule written by an older build is rebuilt once when the app comes to the foreground', async () => {
+    useUserStore.getState().setOnboarded(true);
+    setupEnabled(['tefillin']);
+    StorageService.set(LAST_REBUILD_KEY, dateKey(new Date()));
+    StorageService.delete(SCHEDULE_FORMAT_KEY);
+    mockState.pending = [
+      {
+        identifier: 'tefillin__2026-05-06__0',
+        content: { data: { mitzvahId: 'tefillin', dateKey: '2026-05-06' }, categoryIdentifier: MITZVAH_REMINDER_CATEGORY },
+      },
+    ];
+
+    await refreshSchedulingOnForeground();
+    expect(mockCancelAll).toHaveBeenCalledTimes(1);
+    expect(mockState.pending.every((p) => p.content.categoryIdentifier === MITZVAH_TEXT_CATEGORY)).toBe(true);
+
+    await refreshSchedulingOnForeground();
+    expect(mockCancelAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('6.2d a rebuild clears the format stamp before touching the schedule, so an interrupted one is redone', async () => {
+    StorageService.set(SCHEDULE_FORMAT_KEY, 2);
+    const running = NotificationScheduler.rebuild();
+    expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBeUndefined();
+    await running;
+    expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBe(2);
+  });
+
   it('6.3 cancelAll empties pending', async () => {
     setupEnabled(['tefillin']);
     await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000));
@@ -175,6 +222,9 @@ describe('NotificationScheduler', () => {
 
     useMitzvotStore.getState().setEnabled('tefillin', true);
     expect(rebuild).toHaveBeenCalledTimes(3);
+
+    useUserStore.getState().setLanguage('en');
+    expect(rebuild).toHaveBeenCalledTimes(4);
 
     useUserStore.getState().setNotificationsEnabled(false);
     expect(cancelAll).toHaveBeenCalled();
@@ -252,23 +302,51 @@ describe('NotificationScheduler', () => {
     expect(set.size).toBe(realIds.length);
   });
 
-  it('6.8b scheduled mitzvah reminders use the mark-done action category', async () => {
+  it('6.8b a reminder with a nusach text carries the open-text category; both categories are registered', async () => {
     setupEnabled(['tefillin']);
     await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000));
     const tefillin = mockState.pending.find((p) => p.identifier.startsWith('tefillin__'));
-    expect(tefillin?.content.categoryIdentifier).toBe(MITZVAH_REMINDER_CATEGORY);
+    expect(tefillin?.content.categoryIdentifier).toBe(MITZVAH_TEXT_CATEGORY);
     expect(tefillin?.content.autoDismiss).toBe(true);
     expect(tefillin?.content.sticky).toBe(false);
-    expect(mockSetCategory).toHaveBeenCalledWith(
-      MITZVAH_REMINDER_CATEGORY,
-      [
-        {
-          identifier: MARK_DONE_ACTION,
-          buttonTitle: 'עשיתי',
-          options: { opensAppToForeground: false },
-        },
-      ],
-    );
+    const markDone = { identifier: MARK_DONE_ACTION, buttonTitle: 'עשיתי', options: { opensAppToForeground: false } };
+    expect(mockSetCategory).toHaveBeenCalledWith(MITZVAH_REMINDER_CATEGORY, [markDone]);
+    expect(mockSetCategory).toHaveBeenCalledWith(MITZVAH_TEXT_CATEGORY, [
+      { identifier: OPEN_TEXT_ACTION, buttonTitle: 'פתח נוסח', options: { opensAppToForeground: true } },
+      markDone,
+    ]);
+  });
+
+  it('6.8c a reminder with no text keeps the mark-done-only category', async () => {
+    const window = { start: new Date(Date.now() + 30 * 60_000), end: new Date(Date.now() + 90 * 60_000) };
+    const plain = bulkMitzvah('no_text', [{ anchor: 'start', offsetMin: 1, label: 'x' }], window);
+    const withText = {
+      ...bulkMitzvah('custom_text', [{ anchor: 'start', offsetMin: 1, label: 'x' }], window),
+      isCustom: true,
+      contentBlocks: [{ type: 'blessing' as const, he: 'ברוך' }],
+    };
+    const withLinkOnly = {
+      ...bulkMitzvah('custom_link', [{ anchor: 'start', offsetMin: 1, label: 'x' }], window),
+      isCustom: true,
+      contentBlocks: [{ type: 'link' as const, he: 'קישור', url: 'https://example.org' }],
+    };
+
+    await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000), [plain, withText, withLinkOnly]);
+
+    const categoryOf = (id: string) => mockState.pending.find((p) => p.identifier.startsWith(`${id}__`))?.content.categoryIdentifier;
+    expect(categoryOf('no_text')).toBe(MITZVAH_REMINDER_CATEGORY);
+    expect(categoryOf('custom_text')).toBe(MITZVAH_TEXT_CATEGORY);
+    expect(categoryOf('custom_link')).toBe(MITZVAH_REMINDER_CATEGORY);
+  });
+
+  it('6.8d the open-text button label follows the app language', async () => {
+    useUserStore.getState().setLanguage('en');
+    setupEnabled(['tefillin']);
+    await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000));
+    expect(mockSetCategory).toHaveBeenCalledWith(MITZVAH_TEXT_CATEGORY, [
+      { identifier: OPEN_TEXT_ACTION, buttonTitle: 'Open text', options: { opensAppToForeground: true } },
+      { identifier: MARK_DONE_ACTION, buttonTitle: 'Done', options: { opensAppToForeground: false } },
+    ]);
   });
 
   it('6.9 daily-rebuild task is registered (defineTask called)', () => {

@@ -6,7 +6,7 @@
 
 ## Ownership
 
-- [useUserStore.ts](useUserStore.ts) owns user profile, location, language, theme, permission, settings, and onboarding state.
+- [useUserStore.ts](useUserStore.ts) owns user profile, location, language, theme, permission, settings, onboarding state, and the reader text size.
 - [useMitzvotStore.ts](useMitzvotStore.ts) owns enabled mitzvot and custom reminders.
 - [useCompletionsStore.ts](useCompletionsStore.ts) owns completions and skipped maps.
 - [useCustomMitzvotStore.ts](useCustomMitzvotStore.ts) owns user-created mitzvah definitions.

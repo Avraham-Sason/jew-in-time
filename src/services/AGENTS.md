@@ -13,6 +13,7 @@
 - [NotificationScheduler.ts](NotificationScheduler.ts) owns native notification scheduling, rebuilds, categories, and background tasks.
 - [NotificationScheduler.web.ts](NotificationScheduler.web.ts) owns web shim parity for scheduler exports.
 - [notificationResponseHandler.ts](notificationResponseHandler.ts) owns notification tap/action responses.
+- [SiddurService.ts](SiddurService.ts) owns loading a nusach text asset from disk (fetch on web), cached per nusach and text.
 - [CompletionService.ts](CompletionService.ts) and [AppResetService.ts](AppResetService.ts) own completion/reset service behavior.
 - [deviceSettings.ts](deviceSettings.ts) owns OS-settings deep links (battery optimisation exemption).
 - Service tests live in [__tests__/](__tests__/).
@@ -22,7 +23,10 @@
 - Keep [NotificationScheduler.ts](NotificationScheduler.ts) and [NotificationScheduler.web.ts](NotificationScheduler.web.ts) API-compatible.
 - Preserve notification identifiers as `${mitzvahId}__${YYYY-MM-DD}__${reminderIndex}` unless all scheduler, response, and tests are updated together.
 - `MARK_DONE` must stay aligned with [../../scripts/withMitzvahNotificationAction.js](../../scripts/withMitzvahNotificationAction.js).
-- `cancelForMitzvah(id, date)` must cancel all pending reminders for that mitzvah/date.
+- A reminder gets the `mitzvah_reminder_text` category (`OPEN_TEXT` + `MARK_DONE`) exactly when `hasSiddurText()` is true for its window date; otherwise `mitzvah_reminder`. `OPEN_TEXT` opens the app to the reader and needs no native handling; the Android plugin only dismisses on `MARK_DONE`.
+- Category button titles are translated, so a language change rebuilds; it is part of the user-store subscription.
+- Raise `SCHEDULE_FORMAT` whenever the shape of a scheduled notification changes (category, actions, payload). A rebuild deletes the stamp before it touches the schedule and writes it back when done, and a foreground with a missing or stale stamp rebuilds once — so an update, or a rebuild cut short by a reload (a language switch reloads the app for RTL), is redone; otherwise reminders already scheduled by the previous bundle keep the old shape until the next day.
+- `cancelForMitzvah(id, date)` must cancel all pending reminders for that mitzvah/date and dismiss the ones already in the tray; every done and skip path relies on it.
 - Always pass `Location` to `HebcalService.isShabbat(date, location)` when halachic boundary behavior matters.
 - `isShabbat` and `isYomTov` both derive from one internal `hebrewDaysAt(instant, loc)` primitive: a Hebrew day turns over at shkia, and between shkia and tzeit both candidate days are returned so an observance counts if either carries it. Do not reintroduce a Gregorian-day check for either.
 - Use `getHebrewDateAt(instant, loc)` for "today" displays (it advances at shkia) and `getHebrewDate(date)` only for calendar grids, where each cell is a civil day.
@@ -39,6 +43,7 @@
 - `ZmanimService.getZmanim()` must never throw. It returns `Zmanim | null`, where `null` means the sun neither rises nor sets that day; every caller must handle `null` instead of assuming a value. Depression-angle zmanim that have no solution fall back to their fixed-minute shita (alot 72 min, misheyakir 52 min before sunrise), and misheyakir is always kept inside `(alot, netz)`.
 - `scheduleAllImpl()` must isolate each `scheduleOne()` in try/catch so one failing mitzvah cannot empty the whole schedule.
 - `skipOn` decisions come from `isSkippedAt()` in [../utils/skipRules.ts](../utils/skipRules.ts), evaluated at the computed window's `start`. Do not add a local copy of that predicate here, and do not judge the skip from `fromDate` — that instant carries the rebuild's clock time.
+- `expo-file-system` (read by `SiddurService`) and `expo-keep-awake` (used by the reader) are pinned to the versions already linked into the shipped binary. Raising either is a native change and needs a build.
 - `TaskManager.defineTask` calls stay at [NotificationScheduler.ts](NotificationScheduler.ts) module scope, and that module stays imported from the root [../../index.js](../../index.js) entry so both background tasks are defined during headless launches (killed-state `MARK_DONE` taps, background fetch). Route-only imports do not reach headless mode. Pinned by [backgroundTaskEntry.test.ts](__tests__/backgroundTaskEntry.test.ts).
 
 ## Work Guidance

@@ -34,9 +34,11 @@ jest.mock('@/services/NotificationScheduler', () => {
 });
 
 import {
+  consumePendingNotificationRoute,
   DEFAULT_NOTIFICATION_ACTION,
   initNotificationResponseHandler,
   MARK_DONE_ACTION,
+  OPEN_TEXT_ACTION,
 } from '../notificationResponseHandler';
 
 function response(actionIdentifier: string, data: Record<string, unknown>, identifier = 'notif-id', dataString?: string) {
@@ -92,5 +94,61 @@ describe('notificationResponseHandler', () => {
       pathname: '/mitzvah/[id]',
       params: { id: 'sefirat_haomer', highlightContent: '1' },
     });
+  });
+
+  it('opens the nusach text for the notification date from the open-text action, without marking done', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+    listener(response(OPEN_TEXT_ACTION, {}, 'tefillin__2026-05-06__0', JSON.stringify({ mitzvahId: 'tefillin', dateKey: '2026-05-06' })));
+
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/siddur/[id]',
+      params: { id: 'tefillin', date: '2026-05-06' },
+    });
+    expect(mockMarkDoneFromNotificationData).not.toHaveBeenCalled();
+  });
+
+  it('takes the date from the notification identifier when the payload lacks it', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+    listener(response(OPEN_TEXT_ACTION, { mitzvahId: 'havdalah' }, 'havdalah__2026-10-10__0'));
+
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/siddur/[id]',
+      params: { id: 'havdalah', date: '2026-10-10' },
+    });
+  });
+
+  it('falls back to the mitzvah screen when no date can be recovered', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+    listener(response(OPEN_TEXT_ACTION, { mitzvahId: 'havdalah' }, 'not-a-mitzvah-id'));
+
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/mitzvah/[id]',
+      params: { id: 'havdalah', highlightContent: '0' },
+    });
+  });
+
+  it('replays an open-text tap that arrived before the router was mounted', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+    mockRouterPush.mockImplementationOnce(() => {
+      throw new Error('navigator not mounted');
+    });
+
+    listener(response(OPEN_TEXT_ACTION, { mitzvahId: 'sefirat_haomer', dateKey: '2026-04-20' }));
+    consumePendingNotificationRoute();
+
+    expect(mockRouterPush).toHaveBeenCalledTimes(2);
+    expect(mockRouterPush).toHaveBeenLastCalledWith({
+      pathname: '/siddur/[id]',
+      params: { id: 'sefirat_haomer', date: '2026-04-20' },
+    });
+    consumePendingNotificationRoute();
+    expect(mockRouterPush).toHaveBeenCalledTimes(2);
   });
 });

@@ -265,5 +265,17 @@
   "reminder.errors.outsideWindow": "With this offset the reminder falls outside the time window and will never fire",
   "settings.batteryTitle": "Reminder reliability",
   "settings.batteryHint": "Some devices delay notifications to save battery, which can push a reminder past the end of its window. Exempting the app from battery optimisation fixes that — a one-time step.",
-  "settings.batteryAction": "Open battery settings"
+  "settings.batteryAction": "Open battery settings",
+  "siddur.open": "Open text",
+  "siddur.loading": "Loading the text…",
+  "siddur.error": "We couldn't load the text.",
+  "siddur.unavailable": "There is no text for this date.",
+  "siddur.done": "Done",
+  "siddur.doneAlready": "Marked as done ✓",
+  "siddur.addedToday": "Added today",
+  "siddur.sources": "Sources",
+  "siddur.adapted": "Adapted for display and for the day from these sources:",
+  "siddur.smaller": "Smaller text",
+  "siddur.larger": "Larger text",
+  "siddur.pickSection": "Jump to section"
 }

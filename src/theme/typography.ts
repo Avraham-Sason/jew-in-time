@@ -10,6 +10,10 @@ export const fontFamilies = {
     extrabold: 'Heebo_800ExtraBold',
     black: 'Heebo_900Black',
   },
+  siddur: {
+    regular: 'NotoSerifHebrew_400Regular',
+    bold: 'NotoSerifHebrew_700Bold',
+  },
 } as const;
 
 type Variant =

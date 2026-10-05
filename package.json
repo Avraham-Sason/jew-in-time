@@ -26,10 +26,12 @@
     "update:preview": "npx eas-cli update --channel preview",
     "update:production": "npx eas-cli update --channel production",
     "test:tz": "node scripts/test-timezones.js",
-    "check:dox": "node scripts/check-dox.js"
+    "check:dox": "node scripts/check-dox.js",
+    "siddur:build": "node scripts/siddur/build.js"
   },
   "dependencies": {
     "@expo-google-fonts/heebo": "^0.2.3",
+    "@expo-google-fonts/noto-serif-hebrew": "^0.4.2",
     "@hebcal/core": "^5.4.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "expo": "~54.0.0",
@@ -37,8 +39,10 @@
     "expo-background-fetch": "~14.0.9",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.20",
+    "expo-file-system": "~19.0.22",
     "expo-font": "~14.0.11",
     "expo-haptics": "~15.0.8",
+    "expo-keep-awake": "~15.0.8",
     "expo-linking": "~8.0.11",
     "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.16",
@@ -77,12 +81,22 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/.claude/"
+    ],
+    "modulePathIgnorePatterns": [
+      "<rootDir>/.claude/"
+    ],
     "transformIgnorePatterns": [
       "node_modules/(?!(?:.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?[/+].*|@expo-google-fonts[/+].*|react-navigation|@react-navigation[/+].*|@unimodules[/+].*|unimodules|sentry-expo|native-base|react-native-svg|kosher-zmanim|@hebcal[/+].*|luxon))"
     ],
     "setupFiles": [
       "<rootDir>/scripts/jest-timezone-setup.js"
-    ]
+    ],
+    "moduleNameMapper": {
+      "\\.siddur$": "<rootDir>/scripts/jest-asset-stub.js"
+    }
   },
   "private": true
 }

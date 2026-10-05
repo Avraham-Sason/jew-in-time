@@ -12,6 +12,7 @@
 - [onboarding/AGENTS.md](onboarding/AGENTS.md) owns onboarding flow screens.
 - [day/AGENTS.md](day/AGENTS.md) owns day drilldown routes.
 - [mitzvah/AGENTS.md](mitzvah/AGENTS.md) owns mitzvah detail routes.
+- [siddur/AGENTS.md](siddur/AGENTS.md) owns the nusach reader route.
 - [custom-mitzvah.tsx](custom-mitzvah.tsx) owns custom mitzvah create/edit UI.
 
 ## Local Contracts
@@ -38,4 +39,5 @@
 - [(tabs)/AGENTS.md](<(tabs)/AGENTS.md>) - Main tab navigation and tab screens.
 - [day/AGENTS.md](day/AGENTS.md) - Read-only per-day schedule/history drilldown.
 - [mitzvah/AGENTS.md](mitzvah/AGENTS.md) - Static and custom mitzvah detail screens.
+- [siddur/AGENTS.md](siddur/AGENTS.md) - Nusach reader opened from notifications and the mitzvah screen.
 - [onboarding/AGENTS.md](onboarding/AGENTS.md) - Welcome, nusach, location/notification, and ready flow.
