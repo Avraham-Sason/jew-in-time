@@ -15,6 +15,7 @@
 - Tab labels and normal UI copy must stay in [../../i18n/AGENTS.md](../../i18n/AGENTS.md).
 - Schedule and history views should reuse pure helpers from [../../utils/AGENTS.md](../../utils/AGENTS.md) instead of duplicating day computation.
 - Day navigation should route to [../day/AGENTS.md](../day/AGENTS.md) for drilldown behavior.
+- Home shows a banner into `/checkin` while a check-in is open, and keeps the mitzvot waiting in it out of "missed". The schedule's day view labels them waiting.
 - Home's current and missed cards offer the open-text button only when `hasSiddurText()` holds for today, and open `/siddur/[id]` with today's `dateKey`, the key the cards and notifications already use.
 
 ## Work Guidance

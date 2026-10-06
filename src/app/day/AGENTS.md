@@ -11,7 +11,7 @@
 ## Local Contracts
 
 - Validate route dates before computing day content.
-- Past-day views are read-only and must not write completion state.
+- Past-day views are read-only and must not write completion state. A mitzvah waiting in an open check-in shows as waiting, not missed, with a banner into `/checkin`, where past days are marked.
 - Day content should be built through [../../utils/buildDayTimeline.ts](../../utils/buildDayTimeline.ts), not duplicated in the route.
 
 ## Work Guidance

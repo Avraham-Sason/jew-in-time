@@ -8,7 +8,7 @@ import { MITZVOT } from '@/data/mitzvot';
 import { customToMitzvah } from '@/data/customMitzvotAdapter';
 import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { useCompletionsStore } from '@/stores/useCompletionsStore';
-import { useMitzvotStore } from '@/stores/useMitzvotStore';
+import { enabledSinceOf, useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
@@ -17,7 +17,7 @@ import { useI18n } from '@/i18n';
 
 const EMPTY_STATS = {
   streak: 0,
-  daily: [] as Array<{ date: string; doneCount: number; totalCount: number }>,
+  daily: [] as Array<{ date: string; doneCount: number; totalCount: number; pendingCount: number }>,
   perMitzvah: {} as Record<string, { done: number; eligible: number; percent: number }>,
   missedYesterday: [] as string[],
 };
@@ -36,6 +36,9 @@ export default function HistoryScreen() {
   const activeMap = useMitzvotStore((s) => s.activeMitzvot);
   const customMap = useCustomMitzvotStore((s) => s.items);
   const completions = useCompletionsStore((s) => s.completions);
+  const checkIns = useCompletionsStore((s) => s.checkIns);
+  const archivedDays = useCompletionsStore((s) => s.archivedDays);
+  const skipped = useCompletionsStore((s) => s.skipped);
   const location = useUserStore((s) => s.location);
   const nusach = useUserStore((s) => s.nusach);
   const halachicOpinions = useUserStore((s) => s.halachicOpinions);
@@ -56,7 +59,12 @@ export default function HistoryScreen() {
     let cancelled = false;
     setStatsReady(false);
     const task = InteractionManager.runAfterInteractions(() => {
-      const next = computeStats(enabled, completions, location, settings, 30);
+      const next = computeStats(enabled, completions, location, settings, 30, new Date(), {
+        checkIns,
+        archivedDays,
+        skipped,
+        enabledSince: enabledSinceOf(activeMap),
+      });
       if (!cancelled) {
         setStats(next);
         setStatsReady(true);
@@ -66,7 +74,7 @@ export default function HistoryScreen() {
       cancelled = true;
       task.cancel?.();
     };
-  }, [enabled, completions, location, settings]);
+  }, [enabled, completions, checkIns, archivedDays, skipped, activeMap, location, settings]);
 
   const byMitzvah = useMemo(
     () =>
@@ -97,7 +105,8 @@ export default function HistoryScreen() {
         <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>{t('history.gridTitle')}</Text>
         <View style={styles.grid}>
           {statsReady ? stats.daily.map((day) => {
-            const percent = day.totalCount > 0 ? Math.round((day.doneCount / day.totalCount) * 100) : 0;
+            const decided = day.totalCount - day.pendingCount;
+            const percent = decided > 0 ? Math.round((day.doneCount / decided) * 100) : 0;
             const date = DateTime.fromISO(day.date);
             return (
               <Pressable
@@ -106,7 +115,7 @@ export default function HistoryScreen() {
                 style={[
                   styles.gridCell,
                   {
-                    backgroundColor: day.totalCount ? `${colors.gold}${alphaFor(percent)}` : colors.surface2,
+                    backgroundColor: decided ? `${colors.gold}${alphaFor(percent)}` : colors.surface2,
                     borderColor: colors.border,
                   },
                 ]}

@@ -171,6 +171,16 @@ describe('notificationResponseHandler', () => {
     expect(mockMarkDoneFromNotificationData).not.toHaveBeenCalled();
   });
 
+  it('opens the check-in from a check-in reminder', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+    listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'checkin', blockId: '2026-11-14' }, 'checkin:2026-11-14:0'));
+
+    expect(mockRouterNavigate).toHaveBeenCalledWith('/checkin');
+    expect(mockRouterPush).not.toHaveBeenCalled();
+  });
+
   describe('inside a Shabbat block', () => {
     const jerusalem = CITIES[0];
     beforeAll(() => {

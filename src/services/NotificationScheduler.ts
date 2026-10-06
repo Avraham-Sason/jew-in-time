@@ -11,10 +11,11 @@ import { hasSiddurText, siddurPlace } from '@/data/siddur';
 import { HebcalService } from '@/services/HebcalService';
 import { ZmanimService } from '@/services/ZmanimService';
 import { StorageService } from '@/services/StorageService';
-import { holyBlockLabelKeys, isSkippedAt, opensQuietBlock, reminderFires } from '@/utils/skipRules';
+import { holyBlockLabelKeys, isQuietAt, isSkippedAt, opensQuietBlock, reminderFires } from '@/utils/skipRules';
+import { CheckInInput, blockForDay, blockOfCheckIn, checkInFor, checkInPhraseKey } from '@/utils/checkIn';
 import { locationNoon } from '@/utils/locationDay';
 import { t } from '@/i18n';
-import { useMitzvotStore } from '@/stores/useMitzvotStore';
+import { enabledSinceOf, useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
@@ -31,9 +32,13 @@ const IOS_MAX = 64;
 const IOS_HEADROOM = 4;
 const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
 const SCHEDULE_FORMAT_KEY = 'notifications:schedule-format';
-const SCHEDULE_FORMAT = 3;
+const SCHEDULE_FORMAT = 4;
 const BLOCK_NOTICE_KIND = 'blockNotice';
 const BLOCK_NOTICE_LEAD_MIN = 60;
+const CHECK_IN_KIND = 'checkin';
+const CHECK_IN_SECOND_NUDGE_MIN = 120;
+const CHECK_IN_LAST_CALL_HOUR = 20;
+const CHECK_IN_LAST_CALL_LEAD_MIN = 30;
 const REBUILD_HOUR = 0;
 const REBUILD_MINUTE = 15;
 const BACKGROUND_NOTIFICATION_RESULT = {
@@ -53,7 +58,8 @@ function parseId(id: string): { mitzvahId: string; date: string; idx: number } |
 }
 
 export type PendingNotificationMeta = {
-  kind?: typeof BLOCK_NOTICE_KIND;
+  kind?: typeof BLOCK_NOTICE_KIND | typeof CHECK_IN_KIND;
+  blockId?: string;
   mitzvahId?: string;
   dateKey?: string;
   reminderIndex?: number;
@@ -325,7 +331,33 @@ async function dismissPresentedNotificationsForMitzvah(
   await dismissNotificationIds(ids);
 }
 
+function checkInInputFor(mitzvot: Mitzvah[], location: Location, settings: UserSettings): CheckInInput {
+  const { completions, skipped, checkIns } = useCompletionsStore.getState();
+  const enabledSince = enabledSinceOf(useMitzvotStore.getState().activeMitzvot);
+  return { mitzvot, completions, skipped, checkIns, location, settings, enabledSince };
+}
+
+function currentSettings(): UserSettings {
+  const { nusach, halachicOpinions, inIsrael } = useUserStore.getState();
+  return { nusach, halachicOpinions, inIsrael };
+}
+
+// A check-in is over once the user finished it or nothing in it is left to mark.
+function checkInSettled(blockId: string): boolean {
+  if (useCompletionsStore.getState().checkIns[blockId]) return true;
+  const location = useUserStore.getState().location;
+  const block = blockOfCheckIn(blockId, location);
+  if (!block) return true;
+  const checkIn = checkInFor(block, checkInInputFor(enabledMitzvot(), location, currentSettings()), new Date());
+  return !checkIn || checkIn.finished;
+}
+
+function isFinishedCheckIn(data: PendingNotificationMeta): boolean {
+  return data.kind === CHECK_IN_KIND && Boolean(data.blockId) && checkInSettled(data.blockId!);
+}
+
 function shouldSuppressForCompletion(data: PendingNotificationMeta, notificationId?: string): boolean {
+  if (isFinishedCheckIn(data)) return true;
   if (!data.skipIfDone) return false;
   const target = notificationTargetFromData(data, notificationId);
   if (!target) return false;
@@ -346,6 +378,7 @@ export async function dismissCompletedPresentedNotifications(): Promise<void> {
     if (target && (completions.isDone(target.mitzvahId, target.date) || completions.isSkipped(target.mitzvahId, target.date))) {
       ids.push(id);
     }
+    if (isFinishedCheckIn(data)) ids.push(id);
   }
   await dismissNotificationIds(ids);
 }
@@ -459,6 +492,55 @@ function blockNoticeCandidate(block: HolyBlock, location: Location, countsOmer: 
   };
 }
 
+function checkInNotificationId(blockId: string, index: number): string {
+  return `${CHECK_IN_KIND}:${blockId}:${index}`;
+}
+
+// 20:00 the day after the block — unless that evening already opens the next block (erev Yom Kippur
+// right after Shabbat), when the last call comes half an hour before its candle lighting instead.
+function lastCallFor(block: HolyBlock, location: Location): Date {
+  const nextDay = DateTime.fromISO(block.days[block.days.length - 1]).plus({ days: 1 });
+  const lastCall = new Date(nextDay.year, nextDay.month - 1, nextDay.day, CHECK_IN_LAST_CALL_HOUR);
+  const next = HebcalService.holyBlockAt(lastCall, location);
+  return next ? new Date(next.start.getTime() - CHECK_IN_LAST_CALL_LEAD_MIN * 60_000) : lastCall;
+}
+
+// The nudges to mark what was done inside a block: at its tzeit, again two hours later, and a last
+// call the next evening before the check-in closes at midnight. None once the check-in is
+// finished, or when every mitzvah of the block is already marked or skipped.
+function checkInCandidates(block: HolyBlock, input: CheckInInput, now: Date): ScheduleCandidate[] {
+  const checkIn = checkInFor(block, input, now);
+  if (!checkIn || checkIn.finished) return [];
+  const secondNudge = new Date(block.end.getTime() + CHECK_IN_SECOND_NUDGE_MIN * 60_000);
+  const lastCall = lastCallFor(block, input.location);
+  const triggers = [block.end, secondNudge, lastCall.getTime() > secondNudge.getTime() ? lastCall : null];
+  const title = t('checkin.title', { in: t(checkInPhraseKey(block)) });
+  return triggers.flatMap((trigger, index) => {
+    if (!trigger || trigger.getTime() <= now.getTime() || trigger.getTime() >= checkIn.deadline.getTime()) return [];
+    if (isQuietAt(trigger, input.location)) return [];
+    const identifier = checkInNotificationId(checkIn.id, index);
+    return [{
+      trigger,
+      input: {
+        identifier,
+        content: {
+          title,
+          body: t(`checkin.notify.${index}`),
+          data: { kind: CHECK_IN_KIND, blockId: checkIn.id },
+          autoDismiss: true,
+          sticky: false,
+          sound: 'default',
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: trigger,
+          channelId: ANDROID_CHANNEL_ID,
+        },
+      },
+    }];
+  });
+}
+
 async function scheduleAllImpl(
   fromDate: Date,
   activeMitzvot: Mitzvah[],
@@ -468,6 +550,10 @@ async function scheduleAllImpl(
   if (!hasNotificationPermission()) return;
   await ensureNotificationCategory();
   const days = horizonDays(fromDate, location);
+  const now = new Date();
+  const checkInInput = checkInInputFor(activeMitzvot, location, settings);
+  // A block that ended a day or two ago may still owe its last check-in nudge.
+  const recentDays = [3, 2, 1].map((back) => new Date(days[0].getFullYear(), days[0].getMonth(), days[0].getDate() - back));
 
   const candidates: ScheduleCandidate[] = [];
   const countsOmer = activeMitzvot.some((m) => m.id === 'sefirat_haomer');
@@ -477,6 +563,13 @@ async function scheduleAllImpl(
       if (notice) candidates.push(notice);
     } catch (err) {
       if (__DEV__) console.warn('[notifications] block notice failed', block.days[0], err);
+    }
+  }
+  for (const block of holyBlocksWithin([...recentDays, ...days], location)) {
+    try {
+      candidates.push(...checkInCandidates(block, checkInInput, now));
+    } catch (err) {
+      if (__DEV__) console.warn('[notifications] check-in reminders failed', block.days[0], err);
     }
   }
   for (const d of days) {
@@ -569,6 +662,27 @@ export const NotificationScheduler = {
       await Notifications.cancelScheduledNotificationAsync(p.identifier);
     }
     await dismissPresentedNotificationsForMitzvah(mitzvahId, key);
+  },
+
+  // A finished check-in clears its nudges from the tray and withdraws the rest through a rebuild:
+  // one that is already running read the old state and would schedule them again, and the lock
+  // re-runs it once with the new one.
+  async cancelCheckIn(blockId: string): Promise<void> {
+    const prefix = `${CHECK_IN_KIND}:${blockId}:`;
+    const presented = await getPresentedNotificationsSafe();
+    await dismissNotificationIds(
+      presented.map((notification) => notification.request.identifier).filter((id) => id.startsWith(prefix)),
+    );
+    await this.rebuild();
+  },
+
+  // After a mark: if it settled the check-in of the block this day belongs to, its nudges go too.
+  async settleCheckIn(date: Date): Promise<void> {
+    const block = blockForDay(date, useUserStore.getState().location);
+    if (!block || !checkInSettled(block.days[0])) return;
+    const prefix = `${CHECK_IN_KIND}:${block.days[0]}:`;
+    const pending = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
+    if (pending.some((p) => p.identifier.startsWith(prefix))) await this.cancelCheckIn(block.days[0]);
   },
 
   async rebuild(): Promise<void> {

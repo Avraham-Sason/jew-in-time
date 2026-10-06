@@ -25,6 +25,7 @@ describe('expo-router routes', () => {
     expect(routes).toContain('mitzvah/[id]');
     expect(routes).toContain('day/[date]');
     expect(routes).toContain('siddur/[id]');
+    expect(routes).toContain('checkin');
   });
 
   it('discovers tabs', () => {

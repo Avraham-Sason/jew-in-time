@@ -552,6 +552,8 @@ Every existing test seeds a completion for today, so the suite never exercises t
 
 Fix: carry the per-day `isShabbat`/`isYomTov` the loop already computes into `daily` and treat those days as streak-preserving; start the walk at yesterday when today has no completions yet. Also exclude today from `perMitzvah.eligible` until the day is over.
 
+> Superseded 2026-10-06 by the post-block check-in. Shabbat and Yom Tov are no longer neutral: they are marked after the block, and an unmarked one breaks the streak once its check-in closes. Every item counts toward a percentage only once it can no longer be marked, which also removed the morning dip the first fix left in `perMitzvah`. The streak is no longer capped by the 30-day window, and an archive of kept days carries it past the 400-day retention.
+
 ### 5.10 Month view does heavy synchronous work in render — ✅ FIXED
 `src/app/(tabs)/schedule.tsx:85`
 

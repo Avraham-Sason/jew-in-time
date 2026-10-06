@@ -196,9 +196,10 @@ describe('skipRules', () => {
     expect(timelineIds).not.toContain('tefillin');
     expect(stats.perMitzvah.tefillin.eligible).toBe(0);
     expect(stats.missedYesterday).not.toContain('tefillin');
-    // shacharit has no skipOn, so it stays eligible and visible on both surfaces.
+    // shacharit has no skipOn, so it stays visible on both surfaces — on Shabbat itself it waits for
+    // the check-in rather than counting yet.
     expect(timelineIds).toContain('shacharit');
-    expect(stats.perMitzvah.shacharit.eligible).toBe(1);
+    expect(stats.daily[0]).toMatchObject({ totalCount: 1, pendingCount: 1 });
   });
 
   it('every surface agrees about tefillin on chol hamoed in Israel', () => {
@@ -206,8 +207,11 @@ describe('skipRules', () => {
     const timelineIds = buildDayTimeline(cholHamoed, [tefillin, shacharit], {}, JERUSALEM, SETTINGS, 'he', identity)
       .filter((item) => item.type === 'mitzvah')
       .map((item) => item.mitzvahId);
-    const stats = computeStats([tefillin, shacharit], {}, JERUSALEM, SETTINGS, 1, cholHamoed);
+    // Judged the day after, so the day is decided: shacharit counts, tefillin is not asked for.
+    const stats = computeStats([tefillin, shacharit], {}, JERUSALEM, SETTINGS, 2, new Date(2027, 9, 19, 12));
     expect(timelineIds).toEqual(['shacharit']);
+    expect(stats.daily.find((day) => day.date === '2027-10-18')).toMatchObject({ totalCount: 1, pendingCount: 0 });
     expect(stats.perMitzvah.tefillin.eligible).toBe(0);
+    expect(stats.perMitzvah.shacharit.eligible).toBeGreaterThanOrEqual(1);
   });
 });

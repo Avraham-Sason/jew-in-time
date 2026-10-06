@@ -108,7 +108,9 @@ export function MitzvahCard({
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
-      disabled={!onPress && !onLongPress}
+      // Disabled only when nothing on the card responds: react-native-web turns a disabled
+      // Pressable into pointer-events none, which also swallows the check and text buttons inside.
+      disabled={!onPress && !onLongPress && !canComplete && !onOpenText}
       accessible
       accessibilityRole="button"
       accessibilityLabel={[name, statusText, done ? t('state.completed') : timeLeft].filter(Boolean).join(', ')}

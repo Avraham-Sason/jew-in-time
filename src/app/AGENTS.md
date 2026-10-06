@@ -16,6 +16,7 @@
 - [mitzvah/AGENTS.md](mitzvah/AGENTS.md) owns mitzvah detail routes.
 - [siddur/AGENTS.md](siddur/AGENTS.md) owns the nusach reader route.
 - [custom-mitzvah.tsx](custom-mitzvah.tsx) owns custom mitzvah create/edit UI.
+- [checkin.tsx](checkin.tsx) owns the post-block check-in: the route that lists a block's past days for marking, because they could not be marked while they happened (the reader's "סיימתי" still marks its own window date). It keeps the block it opened with on screen after the last mark, refuses marks once the deadline has passed, and marks from a tap anywhere on a card, so a screen reader can mark too. Leaving with everything marked finishes the check-in. The root layout opens it by itself once per block, the first time the app is open after the block ends and onboarding is done; only the screen records `CHECK_IN_PROMPTED_KEY`, so a push that never landed is retried.
 
 ## Local Contracts
 

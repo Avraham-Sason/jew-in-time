@@ -8,7 +8,22 @@ import { Reminder } from '@/types/mitzvah';
 export type ActiveMitzvahState = {
   enabled: boolean;
   customReminders?: Reminder[];
+  // When it was last switched on. Missing means since before this was recorded, so a history that
+  // predates it is judged as before; a later switch-on never turns earlier days into misses.
+  enabledAt?: number;
 };
+
+function switchedTo(current: ActiveMitzvahState | undefined, enabled: boolean): ActiveMitzvahState {
+  const turnedOn = enabled && !current?.enabled;
+  return { ...(current ?? {}), enabled, ...(turnedOn ? { enabledAt: Date.now() } : {}) };
+}
+
+// The switch-on time of every mitzvah that has one, for the history and the check-in.
+export function enabledSinceOf(active: Record<string, ActiveMitzvahState>): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(active).flatMap(([id, state]) => (state.enabledAt ? [[id, state.enabledAt]] : [])),
+  );
+}
 
 type MitzvotState = {
   activeMitzvot: Record<string, ActiveMitzvahState>;
@@ -38,14 +53,14 @@ export const useMitzvotStore = create<MitzvotState>()(
         set((s) => ({
           activeMitzvot: {
             ...s.activeMitzvot,
-            [id]: { ...(s.activeMitzvot[id] ?? {}), enabled },
+            [id]: switchedTo(s.activeMitzvot[id], enabled),
           },
         })),
       toggleEnabled: (id) =>
         set((s) => {
-          const cur = s.activeMitzvot[id] ?? { enabled: false };
+          const cur = s.activeMitzvot[id];
           return {
-            activeMitzvot: { ...s.activeMitzvot, [id]: { ...cur, enabled: !cur.enabled } },
+            activeMitzvot: { ...s.activeMitzvot, [id]: switchedTo(cur, !cur?.enabled) },
           };
         }),
       setReminders: (id, reminders) =>
@@ -58,7 +73,7 @@ export const useMitzvotStore = create<MitzvotState>()(
       resetToDefault: (id) =>
         set((s) => {
           const next = { ...s.activeMitzvot };
-          next[id] = { enabled: next[id]?.enabled ?? false };
+          next[id] = { enabled: next[id]?.enabled ?? false, enabledAt: next[id]?.enabledAt };
           return { activeMitzvot: next };
         }),
       getEnabledIds: () =>

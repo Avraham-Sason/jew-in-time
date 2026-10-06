@@ -12,7 +12,8 @@ const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
 const SCHEDULE_FORMAT_KEY = 'notifications:schedule-format';
 
 export type PendingNotificationMeta = {
-  kind?: 'blockNotice';
+  kind?: 'blockNotice' | 'checkin';
+  blockId?: string;
   mitzvahId?: string;
   dateKey?: string;
   reminderIndex?: number;
@@ -32,6 +33,8 @@ export const NotificationScheduler = {
   async scheduleAll(): Promise<void> {},
   async cancelAll(): Promise<void> {},
   async cancelForMitzvah(): Promise<void> {},
+  async cancelCheckIn(_blockId?: string): Promise<void> {},
+  async settleCheckIn(_date?: Date): Promise<void> {},
   async rebuild(): Promise<void> {},
   async rebuildForNewDay(): Promise<void> {},
 };

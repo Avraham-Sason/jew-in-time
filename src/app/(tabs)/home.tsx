@@ -26,7 +26,7 @@ import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { HebcalService } from '@/services/HebcalService';
 import { CompletionService } from '@/services/CompletionService';
 import { useCompletionsStore } from '@/stores/useCompletionsStore';
-import { useMitzvotStore } from '@/stores/useMitzvotStore';
+import { enabledSinceOf, useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -35,6 +35,7 @@ import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { typography } from '@/theme/typography';
 import { durations } from '@/theme/tokens';
 import { isSkippedAt } from '@/utils/skipRules';
+import { checkInLastDay, checkInPhraseKey, latestCheckIn, overlapsBlock } from '@/utils/checkIn';
 import { ComputeContext, Mitzvah, MitzvahWindow } from '@/types/mitzvah';
 import { ZmanimService } from '@/services/ZmanimService';
 import {
@@ -92,12 +93,15 @@ export default function HomeScreen() {
   const todayKey = CompletionService.getDateKey();
   const doneMap = useCompletionsStore((s) => s.completions[todayKey] ?? EMPTY_DAY_STATE);
   const skippedMap = useCompletionsStore((s) => s.skipped[todayKey] ?? EMPTY_DAY_STATE);
+  const completions = useCompletionsStore((s) => s.completions);
+  const checkIns = useCompletionsStore((s) => s.checkIns);
+  const skipped = useCompletionsStore((s) => s.skipped);
   const [tick, setTick] = useState(0);
   const [stampingId, setStampingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { current, missed, completed, nextUp, totalActive, doneCount, hebrewTitle, subtitle, zmanimUnavailable } = useMemo(() => {
+  const { current, missed, completed, nextUp, totalActive, doneCount, hebrewTitle, subtitle, zmanimUnavailable, checkIn } = useMemo(() => {
     const now = new Date();
     const ctx = buildContext(now);
     const hebrew = HebcalService.getHebrewDateAt(now, user.location);
@@ -111,6 +115,20 @@ export default function HomeScreen() {
     const allMitzvot = [...MITZVOT, ...customs].filter((m) => m.nuschaotSupported.includes(nusach));
     const enabled = allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled);
     const place = siddurPlace(user.location, inIsrael);
+    const { halachicOpinions } = useUserStore.getState();
+    const found = latestCheckIn(
+      {
+        mitzvot: enabled,
+        completions,
+        skipped,
+        checkIns,
+        enabledSince: enabledSinceOf(activeMap),
+        location: user.location,
+        settings: { nusach, halachicOpinions, inIsrael },
+      },
+      now,
+    );
+    const openCheckIn = found?.open ? found : null;
     const currentItems: LiveItem[] = [];
     const upcomingItems: LiveItem[] = [];
     const missedItems: LiveItem[] = [];
@@ -155,7 +173,10 @@ export default function HomeScreen() {
         continue;
       }
       if (now > window.end) {
-        missedItems.push(item);
+        // Waiting in the check-in of the block that just ended, not missed.
+        // Judged by the window itself, not by a date key, which differs once the device's zone is not
+        // the location's.
+        if (!openCheckIn || !overlapsBlock(window, openCheckIn.block)) missedItems.push(item);
       } else if (now >= window.start && now <= window.end) {
         currentItems.push(item);
       } else if (now < window.start) {
@@ -177,8 +198,9 @@ export default function HomeScreen() {
       hebrewTitle: hebrew.hebrewDateStr,
       subtitle: subtitleText,
       zmanimUnavailable: !ctx,
+      checkIn: openCheckIn,
     };
-  }, [activeMap, customMap, doneMap, skippedMap, language, user.location, tick, stampingId, nusach, inIsrael]);
+  }, [activeMap, customMap, doneMap, skippedMap, completions, skipped, checkIns, language, user.location, tick, stampingId, nusach, inIsrael]);
 
   // Persist first — the stamp is decoration. Deferring the write behind the 1.3s animation meant
   // leaving the screen mid-animation silently discarded the completion, and the `stampingId` gate
@@ -289,6 +311,19 @@ export default function HomeScreen() {
         ) : null}
         {user.locationStatus === 'timeout' ? (
           <Banner text={t('home.gpsTimeout')} color={colors.warning} background={`${colors.warning}18`} />
+        ) : null}
+        {checkIn ? (
+          <Banner
+            text={t('checkin.banner', {
+              in: t(checkInPhraseKey(checkIn.block)),
+              deadline: t('checkin.deadline', {
+                day: DateTime.fromJSDate(checkInLastDay(checkIn.block)).setLocale(language).toFormat('cccc'),
+              }),
+            })}
+            color={colors.gold}
+            background={colors.goldLight}
+            onPress={() => router.push('/checkin')}
+          />
         ) : null}
         {user.notificationPermission !== 'granted' ? (
           <Banner

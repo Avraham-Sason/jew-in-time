@@ -8,11 +8,12 @@ import { MITZVOT } from '@/data/mitzvot';
 import { customToMitzvah } from '@/data/customMitzvotAdapter';
 import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { Completions, useCompletionsStore } from '@/stores/useCompletionsStore';
-import { useMitzvotStore } from '@/stores/useMitzvotStore';
+import { enabledSinceOf, useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
 import { buildDayTimeline } from '@/utils/buildDayTimeline';
+import { latestCheckIn, pendingCheckInIds } from '@/utils/checkIn';
 import { useI18n, t as translate } from '@/i18n';
 
 const EMPTY_COMPLETIONS = Object.freeze({}) as Completions;
@@ -69,6 +70,16 @@ export default function DayRoute() {
     [valid, date, enabled, displayCompletions, location, settings, language, t],
   );
 
+  const checkIns = useCompletionsStore((s) => s.checkIns);
+  const skipped = useCompletionsStore((s) => s.skipped);
+  // A Shabbat / Yom Tov day is marked in its check-in, never here: past days stay read-only.
+  const pending = useMemo(() => {
+    if (!valid) return new Set<string>();
+    const enabledSince = enabledSinceOf(activeMap);
+    const checkIn = latestCheckIn({ mitzvot: enabled, completions, skipped, checkIns, enabledSince, location, settings });
+    return pendingCheckInIds(checkIn, dateParam);
+  }, [valid, enabled, completions, skipped, checkIns, activeMap, location, settings, dateParam]);
+
   const title = valid ? parsed.setLocale(language).toFormat(language === 'he' ? 'cccc d LLLL yyyy' : 'cccc, LLL d yyyy') : t('day.title');
   const bannerText = isPast ? t('day.readOnlyBanner') : isFuture ? t('day.futureReadOnlyBanner') : null;
 
@@ -86,7 +97,15 @@ export default function DayRoute() {
         <Text style={[typography.body, { color: colors.urgent, padding: 18, textAlign: 'center' }]}>{t('day.invalid')}</Text>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
-          {bannerText ? (
+          {pending.size ? (
+            <Pressable
+              onPress={() => router.push('/checkin')}
+              accessibilityRole="button"
+              style={[styles.banner, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}
+            >
+              <Text style={[typography.captionBold, { color: colors.gold }]}>{t('day.pendingBanner')}</Text>
+            </Pressable>
+          ) : bannerText ? (
             <View style={[styles.banner, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
               <Text style={[typography.captionBold, { color: colors.textSub }]}>{bannerText}</Text>
             </View>
@@ -99,8 +118,9 @@ export default function DayRoute() {
               start: DateTime.fromJSDate(item.time).toFormat('HH:mm'),
               end: DateTime.fromJSDate(item.windowEnd ?? item.time).toFormat('HH:mm'),
             });
-            const missed = isPast && !item.done;
-            const statusText = missed ? t('day.missed') : isFuture ? timeRange : undefined;
+            const waiting = !item.done && Boolean(item.mitzvahId && pending.has(item.mitzvahId));
+            const missed = isPast && !item.done && !waiting;
+            const statusText = waiting ? t('checkin.pending') : missed ? t('day.missed') : isFuture ? timeRange : undefined;
             return (
               <MitzvahCard
                 key={item.id}

@@ -17,12 +17,13 @@ import { customToMitzvah } from '@/data/customMitzvotAdapter';
 import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { HebcalService } from '@/services/HebcalService';
 import { Completions, useCompletionsStore } from '@/stores/useCompletionsStore';
-import { useMitzvotStore } from '@/stores/useMitzvotStore';
+import { enabledSinceOf, useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
 import { Mitzvah } from '@/types/mitzvah';
 import { buildDayTimeline } from '@/utils/buildDayTimeline';
+import { latestCheckIn, pendingCheckInIds } from '@/utils/checkIn';
 import { useI18n } from '@/i18n';
 
 type ViewMode = 'day' | 'week' | 'month';
@@ -69,6 +70,15 @@ export default function ScheduleScreen() {
     const date = cursor.startOf('day').toJSDate();
     return buildDayTimeline(date, enabledMitzvot, dayCompletions, location, settings, language, t);
   }, [view, enabledMitzvot, dayCompletions, cursor, location, settings, language, t]);
+
+  const checkIns = useCompletionsStore((s) => s.checkIns);
+  const skipped = useCompletionsStore((s) => s.skipped);
+  const pendingIds = useMemo(() => {
+    if (view !== 'day') return new Set<string>();
+    const enabledSince = enabledSinceOf(activeMap);
+    const checkIn = latestCheckIn({ mitzvot: enabledMitzvot, completions, skipped, checkIns, enabledSince, location, settings });
+    return pendingCheckInIds(checkIn, cursor.toISODate() ?? '');
+  }, [view, enabledMitzvot, completions, skipped, checkIns, activeMap, location, settings, cursor]);
 
   const weekDays = useMemo(() => {
     if (view !== 'week') return [];
@@ -171,10 +181,13 @@ export default function ScheduleScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {dayItems.map((item, index) => {
             const highlight = index === highlightIndex;
-            const missed = isSelectedPast && item.type === 'mitzvah' && !item.done;
+            const waiting = item.type === 'mitzvah' && !item.done && Boolean(item.mitzvahId && pendingIds.has(item.mitzvahId));
+            const missed = isSelectedPast && item.type === 'mitzvah' && !item.done && !waiting;
             const rowUrgent = missed || (isSelectedToday && item.urgent);
             const statusText = item.type === 'mitzvah'
-              ? missed
+              ? waiting
+                ? t('checkin.pending')
+                : missed
                 ? t('day.missed')
                 : isSelectedPast && item.done
                   ? t('state.completed')

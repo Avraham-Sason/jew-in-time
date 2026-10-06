@@ -4,13 +4,21 @@ import { createZustandStorage } from '@/services/StorageService';
 import { STORE_VERSION, onRehydrateStorage } from './persistOptions';
 
 export type Completions = Record<string, Record<string, number>>;
+// A finished check-in per Shabbat / Yom Tov block, keyed by the block's first holy day.
+export type CheckIns = Record<string, number>;
+// Runs of consecutive days, [first, last] date keys, that had a completion when retention pruned
+// them. The detail is gone, but the streak still knows those days were kept.
+export type ArchivedDays = Array<[string, string]>;
 
 type CompletionsState = {
   completions: Completions;
   skipped: Completions;
+  checkIns: CheckIns;
+  archivedDays: ArchivedDays;
   markDone: (id: string, date?: Date) => void;
   markSkipped: (id: string, date?: Date) => void;
   unmark: (id: string, date?: Date) => void;
+  finishCheckIn: (blockId: string) => void;
   isDone: (id: string, date?: Date) => boolean;
   isSkipped: (id: string, date?: Date) => boolean;
   countForDate: (date?: Date) => number;
@@ -48,14 +56,53 @@ function setDay(
   return { ...map, [key]: value };
 }
 
-// The maps are rewritten to MMKV on every single tap, so they cannot grow without bound. The UI
-// never reads further back than the history window.
-export function pruneCompletions(map: Completions, today: Date = new Date()): Completions {
+function retentionCutoffKey(today: Date): string {
   const cutoff = new Date(today);
   cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
-  const cutoffKey = dateKey(cutoff);
+  return dateKey(cutoff);
+}
+
+// The maps are rewritten to MMKV on every single tap, so they cannot grow without bound. The UI
+// never reads further back than the history window, except the streak, which reads the archive.
+export function pruneCompletions(map: Completions, today: Date = new Date()): Completions {
+  const cutoffKey = retentionCutoffKey(today);
   const entries = Object.entries(map).filter(([key, value]) => key >= cutoffKey && Object.keys(value).length);
   return entries.length === Object.keys(map).length ? map : Object.fromEntries(entries);
+}
+
+export function pruneCheckIns(checkIns: CheckIns, today: Date = new Date()): CheckIns {
+  const cutoffKey = retentionCutoffKey(today);
+  const entries = Object.entries(checkIns).filter(([key]) => key >= cutoffKey);
+  return entries.length === Object.keys(checkIns).length ? checkIns : Object.fromEntries(entries);
+}
+
+function nextDayKey(key: string): string {
+  const [year, month, day] = key.split('-').map(Number);
+  return dateKey(new Date(year, month - 1, day + 1));
+}
+
+// Folds the days retention is about to drop into the archive's runs, merging touching runs.
+export function archiveMarkedDays(archive: ArchivedDays, completions: Completions, today: Date = new Date()): ArchivedDays {
+  const cutoffKey = retentionCutoffKey(today);
+  const dropped = Object.entries(completions)
+    .filter(([key, value]) => key < cutoffKey && Object.keys(value).length)
+    .map(([key]) => key);
+  if (!dropped.length) return archive;
+  const runs = [...archive, ...dropped.map((key): [string, string] => [key, key])].sort((a, b) => a[0].localeCompare(b[0]));
+  const merged: ArchivedDays = [];
+  for (const [first, last] of runs) {
+    const previous = merged[merged.length - 1];
+    if (previous && first <= nextDayKey(previous[1])) {
+      if (last > previous[1]) previous[1] = last;
+    } else {
+      merged.push([first, last]);
+    }
+  }
+  return merged;
+}
+
+export function isArchivedDay(archive: ArchivedDays, key: string): boolean {
+  return archive.some(([first, last]) => key >= first && key <= last);
 }
 
 export function dateKey(d: Date = new Date()): string {
@@ -70,6 +117,8 @@ export const useCompletionsStore = create<CompletionsState>()(
     (set, get) => ({
       completions: {},
       skipped: {},
+      checkIns: {},
+      archivedDays: [],
       markDone: (id, date = new Date()) => {
         const key = dateKey(date);
         set((s) => ({
@@ -80,6 +129,7 @@ export const useCompletionsStore = create<CompletionsState>()(
           try {
             const { NotificationScheduler } = require('@/services/NotificationScheduler');
             NotificationScheduler.cancelForMitzvah(id, date).catch(() => {});
+            NotificationScheduler.settleCheckIn(date).catch(() => {});
           } catch {}
         });
       },
@@ -93,6 +143,7 @@ export const useCompletionsStore = create<CompletionsState>()(
           try {
             const { NotificationScheduler } = require('@/services/NotificationScheduler');
             NotificationScheduler.cancelForMitzvah(id, date).catch(() => {});
+            NotificationScheduler.settleCheckIn(date).catch(() => {});
           } catch {}
         });
       },
@@ -106,6 +157,16 @@ export const useCompletionsStore = create<CompletionsState>()(
           try {
             const { NotificationScheduler } = require('@/services/NotificationScheduler');
             NotificationScheduler.rebuild().catch(() => {});
+          } catch {}
+        });
+      },
+      finishCheckIn: (blockId) => {
+        if (get().checkIns[blockId]) return;
+        set((s) => ({ checkIns: { ...s.checkIns, [blockId]: Date.now() } }));
+        queueMicrotask(() => {
+          try {
+            const { NotificationScheduler } = require('@/services/NotificationScheduler');
+            NotificationScheduler.cancelCheckIn(blockId).catch(() => {});
           } catch {}
         });
       },
@@ -129,7 +190,7 @@ export const useCompletionsStore = create<CompletionsState>()(
         const key = dateKey(date);
         return get().skipped[key] ?? {};
       },
-      reset: () => set({ completions: {}, skipped: {} }),
+      reset: () => set({ completions: {}, skipped: {}, checkIns: {}, archivedDays: [] }),
     }),
     {
       name: 'completions-store',
@@ -138,11 +199,14 @@ export const useCompletionsStore = create<CompletionsState>()(
       onRehydrateStorage: onRehydrateStorage('completions-store'),
       merge: (persisted: unknown, current: CompletionsState): CompletionsState => {
         const saved = persisted as Partial<CompletionsState> | undefined;
+        const completions = saved?.completions ?? {};
         return {
           ...current,
           ...saved,
-          completions: pruneCompletions(saved?.completions ?? {}),
+          archivedDays: archiveMarkedDays(saved?.archivedDays ?? [], completions),
+          completions: pruneCompletions(completions),
           skipped: pruneCompletions(saved?.skipped ?? {}),
+          checkIns: pruneCheckIns(saved?.checkIns ?? {}),
         };
       },
     },

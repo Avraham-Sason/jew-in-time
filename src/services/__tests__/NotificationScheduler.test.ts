@@ -119,6 +119,13 @@ beforeAll(() => {
   });
 });
 afterAll(() => jest.useRealTimers());
+afterEach(() => jest.setSystemTime(PINNED_NOW));
+
+// A run on a fixed date, with the clock set to that same moment, as on the device that day.
+async function scheduleAt(instant: Date) {
+  jest.setSystemTime(instant);
+  await NotificationScheduler.scheduleAll(instant);
+}
 
 // Always strictly in the future, so `scheduleOne`'s `trigger <= Date.now()` guard cannot be the
 // reason a notification is absent — otherwise these tests would pass for the wrong reason. Read on
@@ -171,7 +178,7 @@ describe('NotificationScheduler', () => {
     mockDismiss.mockClear();
     mockSetCategory.mockClear();
     mockRegisterNotificationTask.mockClear();
-    useCompletionsStore.setState({ completions: {}, skipped: {} });
+    useCompletionsStore.setState({ completions: {}, skipped: {}, checkIns: {}, archivedDays: [] });
     useUserStore.getState().reset();
     useUserStore.getState().setNotificationPermission('granted');
     useUserStore.getState().setLocation(CITIES[0]);
@@ -245,7 +252,7 @@ describe('NotificationScheduler', () => {
     const running = NotificationScheduler.rebuild();
     expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBeUndefined();
     await running;
-    expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBe(3);
+    expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBe(4);
   });
 
   it('6.3 cancelAll empties pending', async () => {
@@ -596,7 +603,7 @@ describe('NotificationScheduler', () => {
     const block = HebcalService.holyBlockAt(at(jerusalem, '2028-09-22T12:00'), jerusalem)!;
     expect(block.days).toEqual(['2028-09-21', '2028-09-22', '2028-09-23']);
 
-    await NotificationScheduler.scheduleAll(erev);
+    await scheduleAt(erev);
 
     expectNothingInside(block);
     const keysOf = (id: string) => [...new Set(mockState.pending.filter((p) => p.identifier.startsWith(`${id}__`)).map((p) => p.identifier.split('__')[1]))];
@@ -615,7 +622,7 @@ describe('NotificationScheduler', () => {
     setupEnabled(['havdalah', 'maariv']);
     const jerusalem = CITIES[0];
     // Friday 2027-10-01: Shabbat is also Rosh Hashana 5788, and the second day is Sunday.
-    await NotificationScheduler.scheduleAll(at(jerusalem, '2027-10-01T06:00'));
+    await scheduleAt(at(jerusalem, '2027-10-01T06:00'));
     const block = HebcalService.holyBlockAt(at(jerusalem, '2027-10-02T12:00'), jerusalem)!;
 
     expectNothingInside(block);
@@ -638,7 +645,7 @@ describe('NotificationScheduler', () => {
     const losAngeles = CITIES.find((city) => city.nameEn === 'Los Angeles')!;
     useUserStore.getState().setLocation(losAngeles);
     // Thursday morning in Los Angeles: Thursday, Friday, Shabbat and Sunday, each exactly once.
-    await NotificationScheduler.scheduleAll(at(losAngeles, '2026-11-12T05:00'));
+    await scheduleAt(at(losAngeles, '2026-11-12T05:00'));
     const keys = mockState.pending.filter((p) => p.identifier.startsWith('shacharit__')).map((p) => p.identifier.split('__')[1]);
     expect([...new Set(keys)].sort()).toEqual(['2026-11-12', '2026-11-13', '2026-11-15']);
     expect(new Set(mockState.pending.map((p) => p.identifier)).size).toBe(mockState.pending.length);
@@ -680,13 +687,13 @@ describe('NotificationScheduler', () => {
     it('names the Omer counts that fall on the block\'s nights', async () => {
       setupEnabled(['sefirat_haomer']);
       // Friday 2027-04-30 (23 Nisan 5787): Friday night counts day 9.
-      await NotificationScheduler.scheduleAll(at(jerusalem, '2027-04-30T06:00'));
+      await scheduleAt(at(jerusalem, '2027-04-30T06:00'));
       expect(noticesOf()[0].content.body).toContain(t('holyBlock.notice.omerTonight', { count: 9 }));
 
       mockState.pending = [];
       useUserStore.getState().setLocation(CITIES.find((city) => city.nameEn === 'New York')!);
       // Pesach 5787 abroad: Thursday, Friday and Shabbat. Nights 1 and 2 fall inside the block.
-      await NotificationScheduler.scheduleAll(at(useUserStore.getState().location, '2027-04-21T06:00'));
+      await scheduleAt(at(useUserStore.getState().location, '2027-04-21T06:00'));
       const notice = noticesOf()[0];
       expect(notice.content.title).toBe(t('holyBlock.title.shabbatYomTov'));
       const on = (count: number, day: string) => t('holyBlock.notice.omerOn', { count, day });
@@ -701,7 +708,7 @@ describe('NotificationScheduler', () => {
       setupEnabled(['sefirat_haomer']);
       useUserStore.getState().setLocation(CITIES.find((city) => city.nameEn === 'New York')!);
       // Pesach 5788 abroad: Tuesday and Wednesday. Monday night is the first Seder.
-      await NotificationScheduler.scheduleAll(at(useUserStore.getState().location, '2028-04-10T06:00'));
+      await scheduleAt(at(useUserStore.getState().location, '2028-04-10T06:00'));
       const body = noticesOf()[0].content.body ?? '';
       expect(body).not.toContain(t('holyBlock.notice.omerTonight', { count: 1 }));
       expect(body).toContain(t('holyBlock.notice.omerNights', { counts: t('holyBlock.notice.omerOn', { count: 1, day: 'יום שלישי' }) }));
@@ -709,12 +716,12 @@ describe('NotificationScheduler', () => {
 
     it('leaves the Omer out when the user does not count it', async () => {
       setupEnabled([]);
-      await NotificationScheduler.scheduleAll(at(jerusalem, '2027-04-30T06:00'));
+      await scheduleAt(at(jerusalem, '2027-04-30T06:00'));
       expect(noticesOf()[0].content.body).not.toContain(t('holyBlock.notice.omerTonight', { count: 9 }));
     });
 
     it('greets Yom Kippur as Yom Kippur', async () => {
-      await NotificationScheduler.scheduleAll(at(jerusalem, '2027-10-10T06:00'));
+      await scheduleAt(at(jerusalem, '2027-10-10T06:00'));
       const notice = noticesOf()[0];
       expect(notice.content.title).toBe(t('holyBlock.title.yomKippur'));
       expect(notice.content.body).toContain(t('holyBlock.exit.yomKippur'));
@@ -861,4 +868,105 @@ describe('NotificationScheduler', () => {
 
     expect(mockState.pending.some((p) => p.identifier.startsWith('shacharit__'))).toBe(true);
   });
+
+  describe('check-in reminders', () => {
+    const jerusalem = CITIES[0];
+    // Lets the store's queued side effects run, then waits out the rebuild they started.
+    const settled = async () => {
+      await new Promise((resolve) => setImmediate(resolve));
+      while (NotificationScheduler.inFlight) await NotificationScheduler.inFlight;
+      await new Promise((resolve) => setImmediate(resolve));
+    };
+    const friday = at(jerusalem, '2026-11-13T06:00');
+    const shabbat = () => HebcalService.holyBlockAt(at(jerusalem, '2026-11-14T12:00'), jerusalem)!;
+    const checkInsOf = () => mockState.pending.filter((p) => p.content.data.kind === 'checkin');
+
+    it('nudges at tzeit, two hours later, and at 20:00 the next day', async () => {
+      setupEnabled(['shacharit', 'mincha']);
+      await scheduleAt(friday);
+      const block = shabbat();
+      expect(checkInsOf().map((p) => p.identifier)).toEqual(['checkin:2026-11-14:0', 'checkin:2026-11-14:1', 'checkin:2026-11-14:2']);
+      expect(checkInsOf().map(triggerOf)).toEqual([
+        block.end.getTime(),
+        block.end.getTime() + 2 * 3_600_000,
+        new Date(2026, 10, 15, 20).getTime(),
+      ]);
+      const [first, , last] = checkInsOf();
+      expect(first.content.title).toBe(t('checkin.title', { in: t('checkin.in.shabbat') }));
+      expect(last.content.body).toBe(t('checkin.notify.2'));
+      // Not a mitzvah reminder: no category, and nothing parses it as one.
+      expect(first.content.categoryIdentifier).toBeUndefined();
+      expect(notificationTargetFromData(first.content.data, first.identifier)).toBeNull();
+    });
+
+    it('sends nothing for a check-in that is finished or has nothing left to mark', async () => {
+      setupEnabled(['shacharit']);
+      useCompletionsStore.setState({ checkIns: { '2026-11-14': 1 } });
+      await scheduleAt(friday);
+      expect(checkInsOf()).toHaveLength(0);
+
+      mockState.pending = [];
+      useCompletionsStore.setState({ checkIns: {}, completions: { '2026-11-14': { shacharit: 1 } } });
+      await scheduleAt(friday);
+      expect(checkInsOf()).toHaveLength(0);
+    });
+
+    it('marking the last mitzvah withdraws the nudges as finishing does', async () => {
+      setupEnabled(['shacharit']);
+      await scheduleAt(friday);
+      expect(checkInsOf()).toHaveLength(3);
+      jest.setSystemTime(at(jerusalem, '2026-11-14T20:00'));
+      useCompletionsStore.getState().markDone('shacharit', new Date(2026, 10, 14));
+      await settled();
+      expect(checkInsOf()).toHaveLength(0);
+      expect(shouldSuppressForCompletion({ kind: 'checkin', blockId: '2026-11-14' }, 'checkin:2026-11-14:1')).toBe(true);
+    });
+
+    it('a mitzvah skipped on the erev is settled, not waiting', async () => {
+      setupEnabled(['mincha']);
+      // Friday's mincha runs into Shabbat, so it is in the check-in — unless it was skipped.
+      useCompletionsStore.setState({ skipped: { '2026-11-13': { mincha: 1 } }, completions: { '2026-11-14': { mincha: 1 } } });
+      await scheduleAt(friday);
+      expect(checkInsOf()).toHaveLength(0);
+    });
+
+    it('moves the last call ahead of a block that opens the next evening', async () => {
+      setupEnabled(['shacharit']);
+      // Shabbat 2027-10-09 is followed by erev Yom Kippur: Sunday 20:00 is already Yom Kippur.
+      await scheduleAt(at(jerusalem, '2027-10-08T06:00'));
+      const yomKippur = HebcalService.holyBlockAt(at(jerusalem, '2027-10-11T12:00'), jerusalem)!;
+      const last = checkInsOf().find((p) => p.identifier === 'checkin:2027-10-09:2');
+      expect(last).toBeDefined();
+      // 20:00 on the device clock, unless that is already inside Yom Kippur: then half an hour before it.
+      expect(triggerOf(last!)).toBeLessThanOrEqual(yomKippur.start.getTime() - 30 * 60_000);
+      if (HebcalService.holyBlockAt(new Date(2027, 9, 10, 20), jerusalem)) {
+        expect(triggerOf(last!)).toBe(yomKippur.start.getTime() - 30 * 60_000);
+      }
+    });
+
+    it('still sends the last call when the app is rebuilt the morning after', async () => {
+      setupEnabled(['shacharit']);
+      // Sunday morning on the device's clock, the clock the last call and the deadline run on.
+      await scheduleAt(new Date(2026, 10, 15, 10));
+      expect(checkInsOf().map((p) => p.identifier)).toEqual(['checkin:2026-11-14:2']);
+    });
+
+    it('finishing the check-in withdraws its nudges from the schedule and the tray, and silences any in flight', async () => {
+      setupEnabled(['shacharit']);
+      await scheduleAt(friday);
+      mockState.presented = [{ request: { identifier: 'checkin:2026-11-14:0', content: { data: { kind: 'checkin', blockId: '2026-11-14' } } } }];
+      const data = { kind: 'checkin' as const, blockId: '2026-11-14' };
+      expect(shouldSuppressForCompletion(data, 'checkin:2026-11-14:1')).toBe(false);
+
+      // Through the store alone: its queued side effect must reach the scheduler.
+      useCompletionsStore.getState().finishCheckIn('2026-11-14');
+      await settled();
+
+      expect(checkInsOf()).toHaveLength(0);
+      expect(mockDismiss).toHaveBeenCalledWith('checkin:2026-11-14:0');
+      expect(shouldSuppressForCompletion(data, 'checkin:2026-11-14:1')).toBe(true);
+      expect(mockState.pending.some((p) => p.identifier.startsWith('shacharit__'))).toBe(true);
+    });
+  });
 });
+

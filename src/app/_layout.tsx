@@ -31,6 +31,10 @@ import { StorageService } from '@/services/StorageService';
 import { HebcalService } from '@/services/HebcalService';
 import { QuietBlockContext, ShabbatScreen } from '@/components/ShabbatScreen';
 import { nextQuietBoundary, quietBlockAt } from '@/utils/skipRules';
+import { CHECK_IN_PROMPTED_KEY, latestCheckIn } from '@/utils/checkIn';
+import { getAllMitzvot } from '@/data/customMitzvotAdapter';
+import { enabledSinceOf, useMitzvotStore } from '@/stores/useMitzvotStore';
+import { useCompletionsStore } from '@/stores/useCompletionsStore';
 import { HolyBlock, Location } from '@/types/zmanim';
 
 function syncDocumentDirection(language: 'he' | 'en') {
@@ -90,7 +94,7 @@ const QUIET_RECHECK_MS = 60 * 60_000;
 // tzeit passes while the app is open, and on every return to the foreground — JS timers do not run
 // while the app is in the background. Before onboarding the location is only a default guess, so
 // it cannot decide that the user is inside Shabbat.
-function useCurrentQuietBlock(location: Location, enabled: boolean): HolyBlock | null {
+function useCurrentQuietBlock(location: Location, enabled: boolean): { block: HolyBlock | null; now: number } {
   const [now, setNow] = useState(() => Date.now());
   const block = useMemo(() => (enabled ? quietBlockAt(new Date(now), location) : null), [now, location, enabled]);
 
@@ -108,7 +112,7 @@ function useCurrentQuietBlock(location: Location, enabled: boolean): HolyBlock |
     return () => sub.remove();
   }, []);
 
-  return block;
+  return { block, now };
 }
 
 function RootInner() {
@@ -118,8 +122,31 @@ function RootInner() {
   const isOnboarded = useUserStore((s) => s.isOnboarded);
   const language = useUserStore((s) => s.language);
   const location = useUserStore((s) => s.location);
-  const quietBlock = useCurrentQuietBlock(location, isOnboarded);
+  const { block: quietBlock, now } = useCurrentQuietBlock(location, isOnboarded);
   const quiet = quietBlock !== null;
+
+  // The first time the app is open after a block ends, it opens that block's check-in by itself.
+  // Re-checked when the block ends, on every return to the foreground, and once onboarding has
+  // handed over to the tabs — a push before that is replaced by the onboarding guard. Only the
+  // check-in screen records that it was shown, so a push that never landed is retried.
+  const firstSegment = segments[0];
+  useEffect(() => {
+    if (quiet || !isOnboarded || firstSegment === 'checkin' || firstSegment === 'onboarding') return;
+    const user = useUserStore.getState();
+    const active = useMitzvotStore.getState().activeMitzvot;
+    const { completions, skipped, checkIns } = useCompletionsStore.getState();
+    const checkIn = latestCheckIn({
+      mitzvot: getAllMitzvot(user.nusach).filter((mitzvah) => active[mitzvah.id]?.enabled),
+      completions,
+      skipped,
+      checkIns,
+      enabledSince: enabledSinceOf(active),
+      location: user.location,
+      settings: { nusach: user.nusach, halachicOpinions: user.halachicOpinions, inIsrael: user.inIsrael },
+    });
+    if (!checkIn?.open || StorageService.get<string>(CHECK_IN_PROMPTED_KEY) === checkIn.id) return;
+    router.push('/checkin');
+  }, [quiet, isOnboarded, now, router, firstSegment]);
 
   // Unwind everything stacked under the Shabbat screen — when the block starts, and again after any
   // navigation inside it — so nothing stale stays mounted for a day, above all the reader, which
@@ -176,6 +203,7 @@ function RootInner() {
             <Stack.Screen name="siddur/[id]" options={{ presentation: 'card' }} />
             <Stack.Screen name="day/[date]" options={{ presentation: 'card' }} />
             <Stack.Screen name="custom-mitzvah" options={{ presentation: 'card' }} />
+            <Stack.Screen name="checkin" options={{ presentation: 'card' }} />
           </Stack>
         </View>
         <ShabbatScreen

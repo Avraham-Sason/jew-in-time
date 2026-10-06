@@ -16,7 +16,7 @@ jest.mock('expo-notifications', () => ({
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
 jest.mock('expo-background-fetch', () => ({ registerTaskAsync: jest.fn(), BackgroundFetchResult: { NewData: 1, Failed: 2 } }));
 
-import { useCompletionsStore, dateKey } from '../useCompletionsStore';
+import { archiveMarkedDays, isArchivedDay, pruneCheckIns, useCompletionsStore, dateKey } from '../useCompletionsStore';
 
 describe('CompletionsStore extras', () => {
   beforeEach(() => {
@@ -77,5 +77,47 @@ describe('CompletionsStore extras', () => {
     }
     const all = useCompletionsStore.getState().completions;
     expect(Object.keys(all).length).toBe(100);
+  });
+});
+
+describe('check-ins and the archive of kept days', () => {
+  beforeEach(() => {
+    useCompletionsStore.getState().reset();
+  });
+
+  it('records a finished check-in once and resets it with the store', () => {
+    useCompletionsStore.getState().finishCheckIn('2026-11-14');
+    const first = useCompletionsStore.getState().checkIns['2026-11-14'];
+    expect(first).toBeGreaterThan(0);
+    useCompletionsStore.getState().finishCheckIn('2026-11-14');
+    expect(useCompletionsStore.getState().checkIns['2026-11-14']).toBe(first);
+    useCompletionsStore.getState().reset();
+    expect(useCompletionsStore.getState().checkIns).toEqual({});
+    expect(useCompletionsStore.getState().archivedDays).toEqual([]);
+  });
+
+  it('folds the days retention drops into runs, merging touching ones', () => {
+    const today = new Date(2026, 10, 15);
+    const completions = {
+      '2025-01-01': { a: 1 },
+      '2025-01-02': { a: 1 },
+      '2025-01-04': { a: 1 },
+      '2025-01-05': {},
+      '2026-11-15': { a: 1 },
+    };
+    const archive = archiveMarkedDays([['2024-12-20', '2024-12-31']], completions, today);
+    expect(archive).toEqual([['2024-12-20', '2025-01-02'], ['2025-01-04', '2025-01-04']]);
+    expect(isArchivedDay(archive, '2024-12-25')).toBe(true);
+    expect(isArchivedDay(archive, '2025-01-03')).toBe(false);
+    expect(isArchivedDay(archive, '2025-01-05')).toBe(false);
+    // Nothing old enough: the archive is returned untouched.
+    expect(archiveMarkedDays(archive, { '2026-11-15': { a: 1 } }, today)).toBe(archive);
+  });
+
+  it('prunes finished check-ins with the same retention as the completions', () => {
+    const today = new Date(2026, 10, 15);
+    const checkIns = { '2024-01-06': 1, '2026-11-14': 2 };
+    expect(pruneCheckIns(checkIns, today)).toEqual({ '2026-11-14': 2 });
+    expect(pruneCheckIns({ '2026-11-14': 2 }, today)).toEqual({ '2026-11-14': 2 });
   });
 });

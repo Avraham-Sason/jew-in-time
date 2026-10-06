@@ -68,3 +68,79 @@ describe('historyStats', () => {
     expect(stats.perMitzvah.weekday).toMatchObject({ done: 0, eligible: 0, percent: 0 });
   });
 });
+
+describe('historyStats around Shabbat', () => {
+  const mitzvot = [fixtureMitzvah('daily')];
+  const location = CITIES[0];
+  const done = (...keys: string[]) => Object.fromEntries(keys.map((key) => [key, { daily: 1 }]));
+  // Wednesday to Friday marked; Shabbat Noach 5787 is 2026-11-14.
+  const weekdays = done('2026-11-11', '2026-11-12', '2026-11-13');
+  const streakAt = (completions: ReturnType<typeof done>, now: Date, extra = {}) =>
+    computeStats(mitzvot, completions, location, settings, 7, now, extra).streak;
+
+  it('a Shabbat waiting for its check-in neither counts nor breaks', () => {
+    expect(streakAt(weekdays, new Date(2026, 10, 15, 8))).toBe(3);
+  });
+
+  it('a Shabbat marked in the check-in counts like any other day', () => {
+    expect(streakAt({ ...weekdays, ...done('2026-11-14') }, new Date(2026, 10, 15, 8))).toBe(4);
+  });
+
+  it('a Shabbat left unmarked breaks the streak once the check-in closes', () => {
+    expect(streakAt({ ...weekdays, ...done('2026-11-15') }, new Date(2026, 10, 16, 8))).toBe(1);
+  });
+
+  it('finishing the check-in early closes it at once', () => {
+    expect(streakAt(weekdays, new Date(2026, 10, 15, 8), { checkIns: { '2026-11-14': 1 } })).toBe(0);
+  });
+
+  it('counts an item toward its percentage only once it can no longer be marked', () => {
+    const stats = computeStats(mitzvot, weekdays, location, settings, 7, new Date(2026, 10, 15, 8));
+    // Mon and Tue missed, Wed-Fri done; Shabbat waits for its check-in and today is still open.
+    expect(stats.perMitzvah.daily).toMatchObject({ done: 3, eligible: 5, percent: 60 });
+    const shabbat = stats.daily.find((day) => day.date === '2026-11-14')!;
+    expect(shabbat).toMatchObject({ doneCount: 0, totalCount: 1, pendingCount: 1 });
+    // Sunday morning, so "yesterday" is that Shabbat: nothing is missed there yet.
+    expect(stats.missedYesterday).toEqual([]);
+  });
+
+  it('is not capped by the 30-day window', () => {
+    const keys = Array.from({ length: 45 }, (_, back) => {
+      const day = new Date(2026, 10, 15 - back);
+      return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+    });
+    expect(computeStats(mitzvot, done(...keys), location, settings, 30, new Date(2026, 10, 15, 20)).streak).toBe(45);
+  });
+
+  it('a skipped Shabbat mitzvah is settled as not done, not left waiting', () => {
+    const stats = computeStats(mitzvot, weekdays, location, settings, 7, new Date(2026, 10, 15, 8), {
+      skipped: { '2026-11-14': { daily: 1 } },
+    });
+    expect(stats.daily.find((day) => day.date === '2026-11-14')).toMatchObject({ pendingCount: 0, doneCount: 0, totalCount: 1 });
+    expect(stats.streak).toBe(0);
+  });
+
+  it('a mitzvah switched on later is not judged on the days before', () => {
+    const later = fixtureMitzvah('later');
+    const marked = done('2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15');
+    const enabledSince = { later: new Date(2026, 10, 15, 9).getTime() };
+    const stats = computeStats([mitzvot[0], later], marked, location, settings, 7, new Date(2026, 10, 15, 20), { enabledSince });
+    expect(stats.streak).toBe(5);
+    expect(stats.perMitzvah.later.eligible).toBe(0);
+  });
+
+  it('with nothing enabled the walk does not wander across empty days', () => {
+    const sparse = done('2026-11-15', '2026-11-01');
+    expect(computeStats([], sparse, location, settings, 30, new Date(2026, 10, 15, 20)).streak).toBe(1);
+  });
+
+  it('reaches past retention through the archive of kept days', () => {
+    const recent = done('2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15');
+    const now = new Date(2026, 10, 15, 20);
+    const kept = computeStats(mitzvot, recent, location, settings, 30, now, { archivedDays: [['2025-10-01', '2026-11-10']] });
+    const days = Math.round((new Date(2026, 10, 15).getTime() - new Date(2025, 9, 1).getTime()) / 86_400_000) + 1;
+    expect(kept.streak).toBe(days);
+    const gap = computeStats(mitzvot, recent, location, settings, 30, now, { archivedDays: [['2025-10-01', '2026-11-09']] });
+    expect(gap.streak).toBe(5);
+  });
+});
