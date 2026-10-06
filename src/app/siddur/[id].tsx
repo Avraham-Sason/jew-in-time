@@ -23,6 +23,8 @@ const KEEP_AWAKE_TAG = 'siddur-reader';
 const RIGHT_EDGE = I18nManager.isRTL ? ('left' as const) : ('right' as const);
 const LEFT_EDGE = I18nManager.isRTL ? ('right' as const) : ('left' as const);
 const SECTION_VIEWABILITY = { viewAreaCoveragePercentThreshold: 2 };
+const JUMP_RETRY_MS = 50;
+const JUMP_TIMEOUT_MS = 5000;
 
 type LoadState = { status: 'loading' } | { status: 'ready'; text: SiddurText } | { status: 'error' };
 
@@ -67,6 +69,9 @@ export default function SiddurScreen() {
   const pickerRef = useRef<ScrollView>(null);
   const [shownSection, setShownSection] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [renderingAll, setRenderingAll] = useState(false);
+  const jumpMissed = useRef(false);
+  const jumpTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [openedOptional, setOpenedOptional] = useState<ReadonlySet<string>>(() => new Set());
   const toggleOptional = (key: string) =>
     setOpenedOptional((opened) => {
@@ -83,6 +88,7 @@ export default function SiddurScreen() {
     activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
     return () => {
       deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
+      clearTimeout(jumpTimer.current);
     };
   }, []);
 
@@ -165,10 +171,25 @@ export default function SiddurScreen() {
       ];
     });
   const currentSection = sections[Math.min(shownSection, sections.length - 1)];
-  const jumpTo = (index: number) => {
-    setPickerOpen(false);
-    setShownSection(index);
-    listRef.current?.scrollToIndex({ index, animated: true });
+  const cancelJump = () => {
+    clearTimeout(jumpTimer.current);
+    setRenderingAll(false);
+  };
+  const jumpTo = (index: number, deadline = Date.now() + JUMP_TIMEOUT_MS) => {
+    const list = listRef.current;
+    clearTimeout(jumpTimer.current);
+    if (!list) return;
+    jumpMissed.current = false;
+    list.scrollToIndex({ index, animated: false });
+    if (!jumpMissed.current) {
+      setShownSection(index);
+      setRenderingAll(false);
+    } else if (Date.now() < deadline) {
+      setRenderingAll(true);
+      jumpTimer.current = setTimeout(() => jumpTo(index, deadline), JUMP_RETRY_MS);
+    } else {
+      setRenderingAll(false);
+    }
   };
   const sizeIndex = SIDDUR_FONT_SIZES.findIndex((size) => size >= fontSize);
   const currentIndex = sizeIndex === -1 ? SIDDUR_FONT_SIZES.length - 1 : sizeIndex;
@@ -272,13 +293,14 @@ export default function SiddurScreen() {
           extraData={listExtraData}
           keyExtractor={(section) => section.title.he}
           initialNumToRender={4}
+          windowSize={renderingAll ? Number.POSITIVE_INFINITY : undefined}
           viewabilityConfig={SECTION_VIEWABILITY}
           onViewableItemsChanged={onViewableSectionsChanged}
           contentContainerStyle={styles.content}
-          onScrollToIndexFailed={({ index, highestMeasuredFrameIndex }) => {
-            listRef.current?.scrollToIndex({ index: highestMeasuredFrameIndex, animated: false });
-            setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true }), 50);
+          onScrollToIndexFailed={() => {
+            jumpMissed.current = true;
           }}
+          onScrollBeginDrag={cancelJump}
           renderItem={({ item: section }) => {
             const expanded = openedOptional.has(section.title.he);
             return (
@@ -354,7 +376,10 @@ export default function SiddurScreen() {
                 return (
                   <Pressable
                     key={section.title.he}
-                    onPress={() => jumpTo(index)}
+                    onPress={() => {
+                      setPickerOpen(false);
+                      jumpTo(index);
+                    }}
                     onLayout={
                       selected
                         ? (event) => pickerRef.current?.scrollTo({ y: Math.max(0, event.nativeEvent.layout.y - 96), animated: false })
