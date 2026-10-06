@@ -1,5 +1,16 @@
 import { HDate, HebrewCalendar, flags as hebcalFlags, months } from '@hebcal/core';
-import { Condition, DayFeatures, DayFlag, Place, Run, SiddurSection, SiddurSegment, SiddurText } from '@/types/siddur';
+import {
+  Condition,
+  DayFeatures,
+  DayFlag,
+  PassageLabel,
+  Place,
+  Run,
+  SegmentBlock,
+  SiddurSection,
+  SiddurSegment,
+  SiddurText,
+} from '@/types/siddur';
 
 const SHEHECHEYANU_DAYS: ReadonlyArray<readonly [month: number, day: number]> = [
   [months.TISHREI, 1],
@@ -164,21 +175,47 @@ function collapseJoins(runs: Run[]): Run[] {
   return kept;
 }
 
+type Labeled = { optional?: PassageLabel; minyan?: PassageLabel };
+
+function dropLabelsNotDue<T extends Labeled>(item: T, features: DayFeatures): T {
+  const due = { ...item };
+  for (const field of ['optional', 'minyan'] as const) {
+    if (due[field] && !matchesCondition(due[field].when, features)) delete due[field];
+  }
+  return due;
+}
+
 function resolveSegment(segment: SiddurSegment, features: DayFeatures): SiddurSegment | null {
   if (!matchesCondition(segment.when, features)) return null;
   const he = segment.he
     .map((runs) => trimEdges(collapseJoins(runs.filter((run) => matchesCondition(run.when, features)))))
     .filter((runs) => runs.length > 0);
-  return he.length ? { ...segment, he } : null;
+  return he.length ? dropLabelsNotDue({ ...segment, he }, features) : null;
 }
 
 export function resolveSiddurText(text: SiddurText, features: DayFeatures): SiddurSection[] {
   return text.sections
-    .map((section) => ({
-      ...section,
-      segments: section.segments
-        .map((segment) => resolveSegment(segment, features))
-        .filter((segment): segment is SiddurSegment => segment !== null),
-    }))
+    .map((section) =>
+      dropLabelsNotDue(
+        {
+          ...section,
+          segments: section.segments
+            .map((segment) => resolveSegment(segment, features))
+            .filter((segment): segment is SiddurSegment => segment !== null),
+        },
+        features,
+      ),
+    )
     .filter((section) => section.segments.length > 0);
+}
+
+export function segmentBlocks(segments: SiddurSegment[], field: keyof Labeled, offset = 0): SegmentBlock[] {
+  const blocks: SegmentBlock[] = [];
+  segments.forEach((segment, index) => {
+    const label = segment[field];
+    const previous = blocks[blocks.length - 1];
+    if (previous && previous.label?.he === label?.he) previous.segments.push(segment);
+    else blocks.push({ start: offset + index, ...(label ? { label } : {}), segments: [segment] });
+  });
+  return blocks;
 }

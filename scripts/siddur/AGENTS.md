@@ -11,7 +11,11 @@
 - A Wikisource source is fetched through the MediaWiki API at its pinned revision. Its `path` is a list of parts joined by ` | `; each part is a `{{#קטע}}` label, or `A .. B` for the text between label A and label B. Known templates become runs; an unknown template fails the build.
 - `flattenSmall` re-classifies a source that prints whole prayers in small print: it unwraps them and keeps only unvocalized fragments as instructions.
 - `node scripts/siddur/build.js --inspect <sourceKey> "<path>"` prints a source leaf with its segment indices (`P`: small print promoted to said text, `N`: instruction only). Manifest indices come from this listing.
-- [manifest.js](manifest.js) owns the source list (exact Sefaria version title or Wikisource revision, and credit) and, per text and nusach, the source section, range, groups, drops, edits, inserts, conditions, and the per-nusach rule sets (`rule()`, `variant()`, `variantBefore()`) that turn the sources' inline alternatives into conditional runs.
+- [manifest.js](manifest.js) owns the source list (exact Sefaria version title or Wikisource revision, and credit) and, per text and nusach, the source section, range, groups, drops, edits, inserts, conditions, the passages only some say (`SOME_SAY` labels), who says each passage only a minyan says (`SAID_BY` labels), and the per-nusach rule sets (`rule()`, `variant()`, `variantBefore()`) that turn the sources' inline alternatives into conditional runs.
+- Two kinds of passage label exist, and a segment may carry both.
+  - An optional label (`SOME_SAY`) marks a passage only some say; the reader folds it. A spec's `optional` makes its whole section optional.
+  - A minyan label (`SAID_BY`) names who says a passage only a minyan says: the chazzan, the chazzan with the congregation's answer, the repetition's Kedushah, Modim DeRabbanan and Priestly Blessing, the chazzan's Aneinu, mourners, or the person called to the Torah. The reader shows it open under its label. A spec's `minyan` labels each segment of that spec, but never its authored `insert` notes.
+- `optionalParts` and `minyanParts` take `[{ from, to, paragraph, until, label, englishInPart }]` and mark a run of segments inside a section. `paragraph` cuts the `from` segment where the run starts, and `until` cuts the `to` segment where it ends. The source English stays with the first piece unless `englishInPart`. A label may carry its own `when`, so the passage folds only on the days it is disputed.
 
 ## Local Contracts
 
@@ -24,9 +28,18 @@
   - an omer section that does not carry exactly 49 days, each with its own date label;
   - an instruction note that names a day (`CONDITIONAL_INSTRUCTION`) on a segment with no condition and no `reviewed` entry;
   - such a note in the middle of said text without its own run condition, even inside a conditioned segment, because that is an unresolved inline alternative;
-  - small print promoted to said text on an unconditioned segment, unless `reviewed` or matched by `ALWAYS_SAID`.
+  - small print promoted to said text on an unconditioned segment, unless `reviewed` or matched by `ALWAYS_SAID`;
+  - a passage label without Hebrew and English;
+  - two optional parts, or two minyan parts, that overlap;
+  - a labeled part that matches no text or cuts past a segment's last paragraph;
+  - both `minyan` and `minyanParts` on one spec;
+  - a group that mixes labeled and unlabeled text;
+  - merged sections that disagree on `optional`.
 
   Fix the manifest; never widen a pattern to silence one.
+- Fold a passage behind an optional label only when the source itself marks it as said by only some ("יש נוהגים / יש אומרים / ויש שמוסיפים / מי שרוצה"). The user chose this rule on 2026-10-05; kabbalistic additions the source prints as regular text, such as Leshem Yichud, stay regular.
+- Every Kaddish, Barchu, Kedushah, Modim DeRabbanan and Priestly Blessing carries a minyan label; [../../src/data/__tests__/siddur.test.ts](../../src/data/__tests__/siddur.test.ts) fails on one that does not. Kaddish Titkabel and half Kaddish are the chazzan's, and Kaddish Yatom and DeRabbanan are the mourners'. The congregation's answer to the chazzan outside the repetition, such as the answer to Barchu or the Torah-reading responses, sits inside the chazzan's block. The user decided both on 2026-10-05.
+- Drop or edit out a source note once a label says the same thing, such as "בחזרת הש״ץ אומרים כאן קדושה", and keep notes that add information. Weekday Maariv has no repetition, so the Ashkenaz source's Kedushah note in Maariv is dropped.
 - An `insert` is an authored instruction, never authored liturgy. It points at what the weekday text does not carry (the fast-day Torah reading, the erev Yom Kippur vidui, Eichah, disputed Tachanun) and carries its own condition.
 - Tag a segment with a condition only when the rule is certain for that nusach. Anything uncertain stays visible with its own instruction.
 - One nusach's wording may be taken from another source only when it is verified identical. Current cases: Ashkenaz candle lighting and havdalah come from the Metsudah Shabbat siddur (havdalah verified identical to Daat Siddur Ashkenaz); Chabad candle lighting and havdalah are derived from it with the Chabad divine name and "שבת קודש"; every nusach's Yom Kippur candle lighting comes from the Metsudah Yom Kippur machzor. In Shacharit, Ashkenaz Hallel comes from the Metsudah Shabbat siddur (verified identical to Wikisource Ashkenaz) and its Musaf middle blessing from Hebrew Wikisource; Sefard Musaf combines Metsudah Shabbat and Torat Emet; the lulav blessing comes from Metsudah Shabbat, and Edot HaMizrach takes only its blessings. These are the first items for halachic review.

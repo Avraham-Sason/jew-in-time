@@ -14,8 +14,8 @@ import { SIDDUR_FONT_SIZES, useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { fontFamilies, typography } from '@/theme/typography';
-import { Run, SiddurSection, SiddurSegment, SiddurText } from '@/types/siddur';
-import { dayFeatures, liturgicalDay, resolveSiddurText } from '@/utils/siddur';
+import { PassageLabel, Run, SegmentBlock, SiddurSection, SiddurSegment, SiddurText } from '@/types/siddur';
+import { dayFeatures, liturgicalDay, resolveSiddurText, segmentBlocks } from '@/utils/siddur';
 import { useI18n } from '@/i18n';
 
 const KEEP_AWAKE_TAG = 'siddur-reader';
@@ -67,6 +67,13 @@ export default function SiddurScreen() {
   const pickerRef = useRef<ScrollView>(null);
   const [shownSection, setShownSection] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [openedOptional, setOpenedOptional] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleOptional = (key: string) =>
+    setOpenedOptional((opened) => {
+      const next = new Set(opened);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
   const onViewableSectionsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken<SiddurSection>[] }) => {
     const top = viewableItems[0]?.index;
     if (top != null) setShownSection(top);
@@ -107,8 +114,56 @@ export default function SiddurScreen() {
   const hebrewDateLabel = language === 'he' ? hebrewDay.renderGematriya() : hebrewDay.render('en');
   const occasions = HebcalService.getHolidays(hebrewDay.greg(), location, language);
   const subtitle = (requestedDate ? [t(`nusach.${nusach}`), hebrewDateLabel, ...occasions] : [t(`nusach.${nusach}`)]).join(' · ');
-  const listExtraData = useMemo(() => ({ fontSize, language, colors }), [fontSize, language, colors]);
+  const listExtraData = useMemo(() => ({ fontSize, language, colors, openedOptional }), [fontSize, language, colors, openedOptional]);
   const titleOf = (section: SiddurSection) => (language === 'en' ? section.title.en : section.title.he);
+  const labelOf = (label: PassageLabel) => (language === 'en' ? label.en : label.he);
+  const labeledEdge = (language === 'he') === I18nManager.isRTL ? styles.labeledLeftEdge : styles.labeledRightEdge;
+  const segmentViews = (section: SiddurSection, segments: SiddurSegment[], start: number, color: string) => {
+    const runs: { added: boolean; start: number; segments: SiddurSegment[] }[] = [];
+    segments.forEach((segment, offset) => {
+      const added = isAddedForToday(segment, section);
+      const previous = runs[runs.length - 1];
+      if (previous?.added === added) previous.segments.push(segment);
+      else runs.push({ added, start: start + offset, segments: [segment] });
+    });
+    return runs.flatMap((run) => {
+      const views = run.segments.map((segment, offset) => (
+        <SegmentView key={run.start + offset} segment={segment} fontSize={fontSize} showEnglish={language === 'en'} color={color} />
+      ));
+      if (!run.added) return views;
+      return [
+        <View key={`added#${run.start}`} style={[styles.addedToday, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}>
+          <Text style={[typography.micro, styles.addedTodayLabel, { color: colors.gold }]}>{t('siddur.addedToday')}</Text>
+          {views}
+        </View>,
+      ];
+    });
+  };
+  const minyanViews = (section: SiddurSection, block: SegmentBlock, color: string) =>
+    segmentBlocks(block.segments, 'minyan', block.start).flatMap((inner) =>
+      inner.label
+        ? [
+            <View key={`minyan#${inner.start}`} style={[styles.labeledBody, labeledEdge, { borderColor: colors.minyan }]}>
+              <Text style={[typography.captionBold, styles.minyanLabel, { color: colors.minyan }]}>{labelOf(inner.label)}</Text>
+              {segmentViews(section, inner.segments, inner.start, colors.minyan)}
+            </View>,
+          ]
+        : segmentViews(section, inner.segments, inner.start, color),
+    );
+  const sectionBody = (section: SiddurSection) =>
+    segmentBlocks(section.segments, 'optional').flatMap((block) => {
+      if (!block.label) return minyanViews(section, block, section.optional ? colors.optional : colors.text);
+      const key = `${section.title.he}#${block.start}`;
+      const expanded = openedOptional.has(key);
+      return [
+        <View key={key}>
+          <OptionalToggle label={labelOf(block.label)} expanded={expanded} onPress={() => toggleOptional(key)} />
+          {expanded ? (
+            <View style={[styles.labeledBody, labeledEdge, { borderColor: colors.optional }]}>{minyanViews(section, block, colors.optional)}</View>
+          ) : null}
+        </View>,
+      ];
+    });
   const currentSection = sections[Math.min(shownSection, sections.length - 1)];
   const jumpTo = (index: number) => {
     setPickerOpen(false);
@@ -224,20 +279,31 @@ export default function SiddurScreen() {
             listRef.current?.scrollToIndex({ index: highestMeasuredFrameIndex, animated: false });
             setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true }), 50);
           }}
-          renderItem={({ item: section }) => (
-            <View style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}>
-              <Text style={[typography.heading, { color: colors.gold, marginBottom: 8 }]}>{titleOf(section)}</Text>
-              {section.segments.map((segment, segmentIndex) => (
-                <SegmentView
-                  key={segmentIndex}
-                  segment={segment}
-                  fontSize={fontSize}
-                  showEnglish={language === 'en'}
-                  addedForToday={isAddedForToday(segment, section)}
-                />
-              ))}
-            </View>
-          )}
+          renderItem={({ item: section }) => {
+            const expanded = openedOptional.has(section.title.he);
+            return (
+              <View style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}>
+                {section.optional ? (
+                  <>
+                    <OptionalToggle
+                      large
+                      label={labelOf(section.optional)}
+                      expanded={expanded}
+                      onPress={() => toggleOptional(section.title.he)}
+                    />
+                    {expanded ? (
+                      <View style={[styles.labeledBody, labeledEdge, { borderColor: colors.optional }]}>{sectionBody(section)}</View>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <Text style={[typography.heading, { color: colors.gold, marginBottom: 8 }]}>{titleOf(section)}</Text>
+                    {sectionBody(section)}
+                  </>
+                )}
+              </View>
+            );
+          }}
           ListFooterComponent={
             <>
               {mitzvah ? (
@@ -352,19 +418,51 @@ function SizeButton({
   );
 }
 
+function OptionalToggle({
+  label,
+  expanded,
+  onPress,
+  large = false,
+}: {
+  label: string;
+  expanded: boolean;
+  onPress: () => void;
+  large?: boolean;
+}) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      aria-expanded={expanded}
+      style={({ pressed }) => [styles.optionalToggle, { backgroundColor: colors.optionalBg, opacity: pressed ? 0.75 : 1 }]}
+    >
+      <Text style={[large ? typography.heading : typography.bodyBold, styles.optionalLabel, { color: colors.optional }]}>{label}</Text>
+      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+        <Path
+          d={expanded ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}
+          stroke={colors.optional}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    </Pressable>
+  );
+}
+
 function SegmentView({
   segment,
   fontSize,
   showEnglish,
-  addedForToday,
+  color,
 }: {
   segment: SiddurSegment;
   fontSize: number;
   showEnglish: boolean;
-  addedForToday: boolean;
+  color: string;
 }) {
   const { colors } = useTheme();
-  const { t } = useI18n();
   const runStyle = (run: Run) => {
     if (run.s === 'n') {
       return { fontFamily: fontFamilies.heebo.regular, fontSize: Math.round(fontSize * 0.62), color: colors.textMuted };
@@ -373,21 +471,13 @@ function SegmentView({
     return null;
   };
   return (
-    <View
-      style={[
-        styles.segment,
-        addedForToday ? { backgroundColor: colors.goldLight, borderColor: colors.gold, borderWidth: 1 } : null,
-      ]}
-    >
-      {addedForToday ? (
-        <Text style={[typography.micro, { color: colors.gold, textAlign: RIGHT_EDGE, marginBottom: 2 }]}>{t('siddur.addedToday')}</Text>
-      ) : null}
+    <View style={styles.segment}>
       {segment.he.map((runs, index) => (
         <Text
           key={index}
           style={[
             styles.hebrew,
-            { fontFamily: fontFamilies.siddur.regular, fontSize, lineHeight: Math.round(fontSize * 1.75), color: colors.text },
+            { fontFamily: fontFamilies.siddur.regular, fontSize, lineHeight: Math.round(fontSize * 1.75), color },
           ]}
         >
           {runs.map((run, runIndex) => (
@@ -474,6 +564,44 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 6,
     marginBottom: 6,
+  },
+  addedToday: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingTop: 4,
+    marginBottom: 6,
+  },
+  addedTodayLabel: {
+    textAlign: RIGHT_EDGE,
+    paddingHorizontal: 6,
+    marginBottom: 2,
+  },
+  optionalToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  optionalLabel: {
+    flex: 1,
+  },
+  labeledBody: {
+    marginBottom: 6,
+  },
+  labeledLeftEdge: {
+    borderLeftWidth: 2,
+    paddingLeft: 4,
+  },
+  labeledRightEdge: {
+    borderRightWidth: 2,
+    paddingRight: 4,
+  },
+  minyanLabel: {
+    paddingHorizontal: 6,
+    marginBottom: 2,
   },
   hebrew: {
     textAlign: RIGHT_EDGE,

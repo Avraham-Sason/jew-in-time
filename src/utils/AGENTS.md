@@ -9,7 +9,7 @@
 - [buildDayTimeline.ts](buildDayTimeline.ts) owns day schedule item construction and `currentOrNextWindow()`, which checks yesterday too, because night windows (omer, maariv) stay open past midnight. It steps days exactly as the scheduler does (device-local `setDate`), so the date it returns keys the same day as that window's notification.
 - [historyStats.ts](historyStats.ts) owns streak, daily, per-mitzvah, and missed-yesterday statistics.
 - [skipRules.ts](skipRules.ts) owns the single `skipOn` predicate shared by the scheduler, timeline, home, and history.
-- [siddur.ts](siddur.ts) owns the liturgical day of a text (`liturgicalDay()`), the day flags derived from Hebcal (`dayFeatures()`), condition matching, and resolving a text for a day. Resolution trims the whitespace a filtered-out alternative leaves at a paragraph's edges.
+- [siddur.ts](siddur.ts) owns the liturgical day of a text (`liturgicalDay()`), the day flags derived from Hebcal (`dayFeatures()`), condition matching, and resolving a text for a day. Resolution trims the whitespace a filtered-out alternative leaves at a paragraph's edges, and drops an optional or minyan label whose own `when` does not hold that day. `segmentBlocks(segments, field, offset)` groups consecutive segments that share one kind of label into one block. The reader groups a section by `optional` first, then each block by `minyan`; `offset` keeps the inner blocks' start indices in section terms.
 - [locationDay.ts](locationDay.ts) owns `locationNoon()`, which maps a device calendar day to the same date at the location.
 - Utility tests live in [__tests__/](__tests__/).
 

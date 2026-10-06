@@ -1,6 +1,6 @@
 import { HDate, months } from '@hebcal/core';
-import { dayFeatures, liturgicalDay, matchesCondition, resolveSiddurText } from '../siddur';
-import { DayFeatures, DayFlag, Place, SiddurText } from '@/types/siddur';
+import { dayFeatures, liturgicalDay, matchesCondition, resolveSiddurText, segmentBlocks } from '../siddur';
+import { DayFeatures, DayFlag, PassageLabel, Place, SiddurText } from '@/types/siddur';
 
 const ISRAEL: Place = { inIsrael: true, jerusalem: false };
 const DIASPORA: Place = { inIsrael: false, jerusalem: false };
@@ -420,5 +420,93 @@ describe('resolveSiddurText', () => {
       resolveSiddurText(insert, features(flags))[0].segments[0].he[0].map((run) => run.t).join('');
     expect(line([])).toBe('את יום חג הסכות הזה');
     expect(line(['shabbat'])).toBe('את יום השבת הזה ואת יום חג הסכות הזה');
+  });
+});
+
+describe('passage labels', () => {
+  const someSay: PassageLabel = { he: 'יש אומרים', en: 'Some say' };
+  const hallelToday: PassageLabel = { he: 'יש נוהגים לומר הלל היום', en: 'Some say Hallel today', when: { all: ['hallelDisputed'] } };
+  const verseOnRoshChodesh: PassageLabel = { he: 'יש אומרים פסוק', en: 'Some say a verse', when: { all: ['roshChodesh'] } };
+  const text: SiddurText = {
+    nusach: 'ashkenaz',
+    id: 'shacharit',
+    credits: [],
+    sections: [
+      {
+        title: { he: 'הלל', en: 'Hallel' },
+        optional: hallelToday,
+        segments: [{ he: [[{ t: 'הללויה' }]] }, { he: [[{ t: 'ואברהם זקן' }]], optional: verseOnRoshChodesh }],
+      },
+      {
+        title: { he: 'עמידה', en: 'Amidah' },
+        segments: [
+          { he: [[{ t: 'רפאנו' }]] },
+          { he: [[{ t: 'על החולה', s: 'n' }]], optional: someSay },
+          { he: [[{ t: 'יהי רצון' }]], optional: someSay },
+          { he: [[{ t: 'רופא חולי עמו ישראל' }]] },
+          { he: [[{ t: 'ענינו' }]], optional: { he: 'יש אומרים עננו', en: 'Some say Aneinu' } },
+        ],
+      },
+    ],
+  };
+  const labels = (flags: DayFlag[]) =>
+    resolveSiddurText(text, features(flags)).map((section) => ({
+      section: section.optional?.he ?? null,
+      segments: section.segments.map((segment) => segment.optional?.he ?? null),
+    }));
+
+  it('keeps a label only on the days its condition holds, and always keeps an unconditional one', () => {
+    expect(labels(['hallelDisputed'])).toEqual([
+      { section: hallelToday.he, segments: [null, null] },
+      { section: null, segments: [null, someSay.he, someSay.he, null, 'יש אומרים עננו'] },
+    ]);
+    expect(labels(['roshChodesh'])[0]).toEqual({ section: null, segments: [null, verseOnRoshChodesh.he] });
+    expect(labels([])[1].segments).toEqual([null, someSay.he, someSay.he, null, 'יש אומרים עננו']);
+  });
+
+  it('resolves a minyan label the same way, and groups by it with the offset of its enclosing block', () => {
+    const fastOnly: PassageLabel = { he: 'ברכת כהנים', en: 'Priestly Blessing', when: { all: ['publicFast'] } };
+    const chazzan: PassageLabel = { he: 'שליח הציבור', en: 'Chazzan' };
+    const amidah: SiddurText = {
+      ...text,
+      sections: [
+        {
+          title: { he: 'עמידה', en: 'Amidah' },
+          segments: [
+            { he: [[{ t: 'מודים' }]] },
+            { he: [[{ t: 'יברכך' }]], minyan: fastOnly },
+            { he: [[{ t: 'קדיש' }]], minyan: chazzan },
+            { he: [[{ t: 'יהא שמה' }]], minyan: chazzan },
+          ],
+        },
+      ],
+    };
+    const blocks = (flags: DayFlag[]) =>
+      segmentBlocks(resolveSiddurText(amidah, features(flags))[0].segments, 'minyan', 10).map((block) => [block.start, block.label?.he ?? null]);
+    expect(blocks(['publicFast'])).toEqual([
+      [10, null],
+      [11, fastOnly.he],
+      [12, chazzan.he],
+    ]);
+    expect(blocks([])).toEqual([
+      [10, null],
+      [12, chazzan.he],
+    ]);
+  });
+
+  it('groups each run of segments that share a label into one block, keeping the said text around it apart', () => {
+    const amidah = resolveSiddurText(text, features([]))[1];
+    expect(
+      segmentBlocks(amidah.segments, 'optional').map((block) => ({
+        start: block.start,
+        label: block.label?.he ?? null,
+        text: block.segments.map((segment) => segment.he[0][0].t),
+      })),
+    ).toEqual([
+      { start: 0, label: null, text: ['רפאנו'] },
+      { start: 1, label: someSay.he, text: ['על החולה', 'יהי רצון'] },
+      { start: 3, label: null, text: ['רופא חולי עמו ישראל'] },
+      { start: 4, label: 'יש אומרים עננו', text: ['ענינו'] },
+    ]);
   });
 });

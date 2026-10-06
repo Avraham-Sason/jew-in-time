@@ -14,6 +14,9 @@ export type ThemeColors = {
   urgentBorder: string;
   warning: string;
   safe: string;
+  optional: string;
+  optionalBg: string;
+  minyan: string;
   headerBg: string;
   headerText: string;
   headerSub: string;
@@ -41,6 +44,9 @@ export const T_LIGHT: ThemeColors = {
   urgentBorder: '#FECACA',
   warning: '#D97020',
   safe: '#0F9060',
+  optional: '#1F5F6E',
+  optionalBg: '#E8F2F4',
+  minyan: '#6B3FA0',
   headerBg: '#1C2B4A',
   headerText: '#FFFFFF',
   headerSub: 'rgba(255,255,255,0.55)',
@@ -67,6 +73,9 @@ export const T_DARK: ThemeColors = {
   urgentBorder: '#7F1D1D',
   warning: '#F59E0B',
   safe: '#10B981',
+  optional: '#8FCFDC',
+  optionalBg: '#1C3646',
+  minyan: '#C9A8EE',
   headerBg: '#091420',
   headerText: '#EDE7DB',
   headerSub: 'rgba(237,231,219,0.45)',

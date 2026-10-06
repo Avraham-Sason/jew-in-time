@@ -8,7 +8,7 @@
 
 - [mitzvah.ts](mitzvah.ts) owns mitzvah, reminder, content block, and related domain shapes.
 - [zmanim.ts](zmanim.ts) owns zmanim-related shared types.
-- [siddur.ts](siddur.ts) owns siddur text, section, segment, run, condition and day-flag shapes. The generated text assets follow it, so a change here needs `pnpm siddur:build`.
+- [siddur.ts](siddur.ts) owns siddur text, section, segment, run, condition, day-flag and passage-label shapes (`optional` and `minyan`), and the `SegmentBlock` the reader renders. The generated text assets follow it, so a change here needs `pnpm siddur:build`.
 
 ## Local Contracts
 

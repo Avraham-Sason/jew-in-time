@@ -70,14 +70,25 @@ export type Condition = {
 
 export type Run = { t: string; s?: 'b' | 'n'; when?: Condition };
 
+export type PassageLabel = { he: string; en: string; when?: Condition };
+
 export type SiddurSegment = {
   he: Run[][];
   en?: string;
   when?: Condition;
+  optional?: PassageLabel;
+  minyan?: PassageLabel;
 };
 
 export type SiddurSection = {
   title: { he: string; en: string };
+  optional?: PassageLabel;
+  segments: SiddurSegment[];
+};
+
+export type SegmentBlock = {
+  start: number;
+  label?: PassageLabel;
   segments: SiddurSegment[];
 };
 

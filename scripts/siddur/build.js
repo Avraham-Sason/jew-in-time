@@ -450,10 +450,66 @@ function mergeSameTitledSections(sections) {
   const merged = [];
   for (const section of sections) {
     const previous = merged[merged.length - 1];
-    if (previous && previous.title.he === section.title.he) previous.segments.push(...section.segments);
-    else merged.push({ ...section, segments: [...section.segments] });
+    if (previous && previous.title.he === section.title.he) {
+      if (JSON.stringify(previous.optional ?? null) !== JSON.stringify(section.optional ?? null)) {
+        throw new Error(`${section.title.he}: merged sections disagree on "optional"`);
+      }
+      previous.segments.push(...section.segments);
+    } else merged.push({ ...section, segments: [...section.segments] });
   }
   return merged.filter((section) => section.segments.length > 0);
+}
+
+const LABELED_PARTS = { optional: 'optionalParts', minyan: 'minyanParts' };
+
+function checkLabel(label, where) {
+  if (!label?.he?.trim() || !label?.en?.trim()) throw new Error(`${where}: a passage label needs Hebrew and English`);
+}
+
+function labeledPartsOf(spec, label) {
+  if (spec.minyan && spec.minyanParts) throw new Error(`${label}: both "minyan" and "minyanParts"`);
+  const parts = [];
+  for (const [field, key] of Object.entries(LABELED_PARTS)) {
+    const covered = new Set();
+    for (const part of spec[key] ?? []) {
+      const to = part.to ?? part.from;
+      checkLabel(part.label, `${label} ${field} part #${part.from}`);
+      if (part.paragraph !== undefined && part.paragraph < 1) throw new Error(`${label} #${part.from}: starts at paragraph ${part.paragraph}`);
+      if (part.until !== undefined && part.until < 1) throw new Error(`${label} #${to}: ends at paragraph ${part.until}`);
+      for (let i = part.from; i <= to; i++) {
+        if (covered.has(i)) throw new Error(`${label} #${i}: two ${field} parts overlap`);
+        covered.add(i);
+      }
+      parts.push({ ...part, to, field, source: part });
+    }
+  }
+  return parts;
+}
+
+function partCovers(part, index, first, last) {
+  return index >= part.from && index <= part.to && (index > part.from || first >= (part.paragraph ?? 0)) && (index < part.to || part.until === undefined || last < part.until);
+}
+
+function withLabels(draft, parts, label) {
+  const own = parts.filter((part) => draft.index >= part.from && draft.index <= part.to);
+  const cuts = [
+    ...own.filter((part) => part.from === draft.index && part.paragraph).map((part) => part.paragraph),
+    ...own.filter((part) => part.to === draft.index && part.until).map((part) => part.until),
+  ];
+  for (const cut of cuts) {
+    if (cut >= draft.he.length) throw new Error(`${label} #${draft.index}: cannot cut ${draft.he.length} paragraphs at ${cut}`);
+  }
+  const bounds = [...new Set([0, ...cuts, draft.he.length])].sort((a, b) => a - b);
+  const pieces = bounds.slice(0, -1).map((first, n) => {
+    const piece = { ...draft, he: draft.he.slice(first, bounds[n + 1]), en: '' };
+    for (const part of own.filter((candidate) => partCovers(candidate, draft.index, first, bounds[n + 1] - 1))) {
+      piece[part.field] = part.label;
+      if (part.englishInPart) piece.en = draft.en;
+    }
+    return piece;
+  });
+  if (!own.some((part) => part.englishInPart && pieces.some((piece) => piece.en))) pieces[0].en = draft.en;
+  return pieces;
 }
 
 async function buildSection(spec, ctx) {
@@ -467,6 +523,10 @@ async function buildSection(spec, ctx) {
   const omerOf = spec.omer ? tagOmerDays(spec, label) : () => undefined;
   const editsBySeg = bySegment(spec.edits);
   const enEditsBySeg = bySegment(spec.enEdits);
+  const parts = labeledPartsOf(spec, label);
+  const matchedParts = new Set();
+  if (spec.optional) checkLabel(spec.optional, label);
+  if (spec.minyan) checkLabel(spec.minyan, label);
   const selected = (i) => i >= from && i <= to && !spec.drop?.includes(i);
   const targets = [
     ...editsBySeg.keys(),
@@ -474,6 +534,7 @@ async function buildSection(spec, ctx) {
     ...Object.keys(spec.at ?? {}).map(Number),
     ...(spec.groups ?? []).flat(),
     ...(spec.reviewed ?? []),
+    ...parts.flatMap((part) => [part.from, part.to]),
   ];
   const stray = targets.filter((i) => !selected(i));
   if (stray.length) throw new Error(`${label}: edits, conditions or groups target unselected segments ${stray}`);
@@ -501,17 +562,25 @@ async function buildSection(spec, ctx) {
     const en = spec.en ? parseEnglish(enHtml) : '';
     if (en) ctx.credits.add(spec.en);
     const when = mergeConditions(spec.when, spec.at?.[i], omerOf(i));
-    drafts.push({ index: i, he, en, when, group: groupOf.get(i), promoted: classified.promoted });
+    for (const part of parts.filter((candidate) => i >= candidate.from && i <= candidate.to)) matchedParts.add(part);
+    drafts.push(...withLabels({ index: i, he, en, when, group: groupOf.get(i), promoted: classified.promoted }, parts, label));
   }
+  const unmatched = parts.filter((part) => !matchedParts.has(part));
+  if (unmatched.length) throw new Error(`${label}: labeled parts with no text at ${unmatched.map((part) => part.from)}`);
   for (const insert of (spec.insert ?? []).filter((item) => item.at > to)) {
     drafts.push({ index: insert.at - 0.5, he: parseHebrew(insert.he), en: insert.en ?? '', when: mergeConditions(spec.when, insert.when), authored: true });
   }
+
+  if (spec.minyan) for (const draft of drafts.filter((candidate) => !candidate.authored)) draft.minyan = spec.minyan;
 
   const segments = [];
   for (const draft of drafts) {
     const previous = segments[segments.length - 1];
     if (draft.group !== undefined && previous && previous.group === draft.group) {
       if (!sameCondition(previous.when, draft.when)) throw new Error(`${label}: group mixes conditions at #${draft.index}`);
+      if (previous.optional !== draft.optional || previous.minyan !== draft.minyan) {
+        throw new Error(`${label}: group mixes labeled and unlabeled text at #${draft.index}`);
+      }
       const merged = previous.he[previous.he.length - 1];
       merged.push({ t: ' ' }, ...draft.he.flat());
       previous.en = [previous.en, draft.en].filter(Boolean).join(' ');
@@ -551,7 +620,14 @@ async function buildSection(spec, ctx) {
 
   return {
     title: spec.title,
-    segments: segments.map(({ he, en, when }) => ({ he, ...(en ? { en } : {}), ...(when ? { when } : {}) })),
+    ...(spec.optional ? { optional: spec.optional } : {}),
+    segments: segments.map(({ he, en, when, optional, minyan }) => ({
+      he,
+      ...(en ? { en } : {}),
+      ...(when ? { when } : {}),
+      ...(optional ? { optional } : {}),
+      ...(minyan ? { minyan } : {}),
+    })),
   };
 }
 
