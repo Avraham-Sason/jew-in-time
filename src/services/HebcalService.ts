@@ -1,7 +1,7 @@
 import { HDate, HebrewCalendar, Location as HebcalLocation, flags } from '@hebcal/core';
 import { DateTime } from 'luxon';
-import { CalendarInfo, HebrewDate, Location } from '@/types/zmanim';
-import { ZmanimService } from '@/services/ZmanimService';
+import { CalendarInfo, HebrewDate, HolyBlock, HolyBlockKind, Location } from '@/types/zmanim';
+import { ZmanimService, candleLightingMinutes } from '@/services/ZmanimService';
 
 function toHDate(date: Date): HDate {
   return new HDate(date);
@@ -33,18 +33,80 @@ function hebrewDaysAt(instant: Date, loc?: Location): HDate[] {
   return [civilDay, civilDay.next()];
 }
 
-function isYomTovOnHebrewDay(hd: HDate, loc: Location): boolean {
+type DayKind = { yomTov: boolean; cholHamoed: boolean; yomKippur: boolean };
+
+const DAY_KIND_CACHE_LIMIT = 800;
+const dayKindCache = new Map<string, DayKind>();
+
+// Every surface asks about the same few days over and over (each mitzvah window, each block edge),
+// and a hebcal calendar run per question dominated the cost of a history or schedule render.
+function dayKind(hd: HDate, loc: Location): DayKind {
+  const key = `${hd.abs()}|${loc.inIsrael ? 'il' : 'chul'}`;
+  const cached = dayKindCache.get(key);
+  if (cached) return cached;
   const greg = hd.greg();
-  const events = HebrewCalendar.calendar({
-    start: greg,
-    end: greg,
-    location: buildLocation(loc),
-    il: loc.inIsrael,
-  });
-  return events.some((e) => {
-    const f = e.getFlags();
-    return Boolean(f & flags.CHAG) && !(f & flags.CHOL_HAMOED);
-  });
+  const events = HebrewCalendar.calendar({ start: greg, end: greg, il: loc.inIsrael });
+  const has = (mask: number) => events.some((e) => Boolean(e.getFlags() & mask));
+  const yomTov = events.some((e) => Boolean(e.getFlags() & flags.CHAG) && !(e.getFlags() & flags.CHOL_HAMOED));
+  const kind = { yomTov, cholHamoed: has(flags.CHOL_HAMOED), yomKippur: yomTov && has(flags.MAJOR_FAST) };
+  if (dayKindCache.size >= DAY_KIND_CACHE_LIMIT) {
+    const oldest = dayKindCache.keys().next().value;
+    if (oldest) dayKindCache.delete(oldest);
+  }
+  dayKindCache.set(key, kind);
+  return kind;
+}
+
+function isYomTovOnHebrewDay(hd: HDate, loc: Location): boolean {
+  return dayKind(hd, loc).yomTov;
+}
+
+function isHolyHebrewDay(hd: HDate, loc: Location): boolean {
+  return hd.getDay() === 6 || isYomTovOnHebrewDay(hd, loc);
+}
+
+function atLocation(hd: HDate, loc: Location, hour: number): Date {
+  const greg = hd.greg();
+  return DateTime.fromObject(
+    { year: greg.getFullYear(), month: greg.getMonth() + 1, day: greg.getDate(), hour },
+    { zone: loc.tz },
+  ).toJSDate();
+}
+
+function isoDate(hd: HDate): string {
+  const greg = hd.greg();
+  return `${greg.getFullYear()}-${String(greg.getMonth() + 1).padStart(2, '0')}-${String(greg.getDate()).padStart(2, '0')}`;
+}
+
+function blockKind(days: HDate[], loc: Location): HolyBlockKind {
+  const kinds = days.map((hd) => dayKind(hd, loc));
+  if (kinds.some((kind) => kind.yomKippur)) return 'yomKippur';
+  const yomTov = kinds.some((kind) => kind.yomTov);
+  if (!yomTov) return 'shabbat';
+  return days.some((hd) => hd.getDay() === 6) ? 'shabbatYomTov' : 'yomTov';
+}
+
+// Shabbat and Yom Tov that touch merge into one block: Yom Tov on Friday flows into Shabbat, two
+// days of Rosh Hashana into a third that is Shabbat. The block opens at candle lighting on the
+// erev and closes at tzeit of its last day. Where the sun never sets the civil day stands in.
+function holyBlockAround(hd: HDate, loc: Location): HolyBlock | null {
+  if (!isHolyHebrewDay(hd, loc)) return null;
+  let first = hd;
+  while (isHolyHebrewDay(first.prev(), loc)) first = first.prev();
+  let last = hd;
+  while (isHolyHebrewDay(last.next(), loc)) last = last.next();
+  const days: HDate[] = [];
+  for (let day = first; day.abs() <= last.abs(); day = day.next()) days.push(day);
+  const erev = ZmanimService.getZmanim(atLocation(first.prev(), loc, 12), loc);
+  const closing = ZmanimService.getZmanim(atLocation(last, loc, 12), loc);
+  return {
+    start: erev
+      ? new Date(erev.shkia.getTime() - candleLightingMinutes(loc) * 60_000)
+      : atLocation(first.prev(), loc, 12),
+    end: closing ? closing.tzeitHakochavim : atLocation(last.next(), loc, 0),
+    days: days.map(isoDate),
+    kind: blockKind(days, loc),
+  };
 }
 
 function renderHebrewDate(hd: HDate): HebrewDate {
@@ -111,6 +173,35 @@ export const HebcalService = {
 
   isYomTov(date: Date, loc: Location): boolean {
     return hebrewDaysAt(date, loc).some((hd) => isYomTovOnHebrewDay(hd, loc));
+  },
+
+  isCholHamoed(date: Date, loc: Location): boolean {
+    return hebrewDaysAt(date, loc).some((hd) => dayKind(hd, loc).cholHamoed);
+  },
+
+  // Day-granular: the location's calendar date of `date`, judged by its daytime. The clock time
+  // `date` carries never moves the answer.
+  isHolyDay(date: Date, loc: Location): boolean {
+    return isHolyHebrewDay(civilDayAt(date, loc), loc);
+  },
+
+  // The block whose daytime covers the location's calendar date of `date`.
+  holyBlockOn(date: Date, loc: Location): HolyBlock | null {
+    return holyBlockAround(civilDayAt(date, loc), loc);
+  },
+
+  // The block whose span [candle lighting, tzeit] contains `instant`, edges included. The days
+  // either side of the instant's civil day are candidates too: after candle lighting the block
+  // belongs to tomorrow, and far north tzeit can fall after midnight.
+  holyBlockAt(instant: Date, loc: Location): HolyBlock | null {
+    const civilDay = civilDayAt(instant, loc);
+    for (const hd of [civilDay.prev(), civilDay, civilDay.next()]) {
+      const block = holyBlockAround(hd, loc);
+      if (block && instant.getTime() >= block.start.getTime() && instant.getTime() <= block.end.getTime()) {
+        return block;
+      }
+    }
+    return null;
   },
 
   getDafYomi(date: Date): string | undefined {

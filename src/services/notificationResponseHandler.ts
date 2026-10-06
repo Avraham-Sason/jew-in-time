@@ -8,6 +8,8 @@ import {
   pendingNotificationMetaFromContent,
   PendingNotificationMeta,
 } from '@/services/NotificationScheduler';
+import { useUserStore } from '@/stores/useUserStore';
+import { isQuietAt } from '@/utils/skipRules';
 
 export const DEFAULT_NOTIFICATION_ACTION = 'expo.modules.notifications.actions.DEFAULT';
 export { MARK_DONE_ACTION, OPEN_TEXT_ACTION };
@@ -24,7 +26,14 @@ let pendingNavigation: (() => void) | null = null;
 export function consumePendingNotificationRoute(): void {
   const pending = pendingNavigation;
   pendingNavigation = null;
-  if (pending) navigate(pending);
+  if (pending && !isAppQuiet()) navigate(pending);
+}
+
+// Inside a Shabbat / Yom Tov block a tap must open nothing: the route would mount under the
+// Shabbat screen and stay there — the reader keeping the screen awake — until the block ends.
+function isAppQuiet(): boolean {
+  const { isOnboarded, location } = useUserStore.getState();
+  return isOnboarded && isQuietAt(new Date(), location);
 }
 
 function navigate(go: () => void) {
@@ -67,6 +76,13 @@ export function handleNotificationResponse(response: Notifications.NotificationR
   const data = getData(response);
   if (response.actionIdentifier === MARK_DONE_ACTION) {
     markDoneFromNotificationData(data, response.notification.request.identifier).catch(() => {});
+    return;
+  }
+
+  if (isAppQuiet()) return;
+
+  if (data.kind === 'blockNotice') {
+    if (response.actionIdentifier === DEFAULT_NOTIFICATION_ACTION) navigate(() => router.navigate('/(tabs)/home'));
     return;
   }
 

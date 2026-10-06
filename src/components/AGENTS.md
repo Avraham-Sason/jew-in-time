@@ -6,7 +6,9 @@
 
 ## Ownership
 
-- Components include [MitzvahCard.tsx](MitzvahCard.tsx), [CompletedRow.tsx](CompletedRow.tsx), [ReminderEditor.tsx](ReminderEditor.tsx), [TimeRibbon.tsx](TimeRibbon.tsx), [BottomTabs.tsx](BottomTabs.tsx), [NavBar.tsx](NavBar.tsx), [HebrewDate.tsx](HebrewDate.tsx), and [AppLogo.tsx](AppLogo.tsx).
+- Components include [MitzvahCard.tsx](MitzvahCard.tsx), [CompletedRow.tsx](CompletedRow.tsx), [ReminderEditor.tsx](ReminderEditor.tsx), [TimeRibbon.tsx](TimeRibbon.tsx), [BottomTabs.tsx](BottomTabs.tsx), [NavBar.tsx](NavBar.tsx), [HebrewDate.tsx](HebrewDate.tsx), [AppLogo.tsx](AppLogo.tsx), and [ShabbatScreen.tsx](ShabbatScreen.tsx).
+- [ShabbatScreen.tsx](ShabbatScreen.tsx) renders an in-tree overlay above the navigator, never a native `Modal`, which on iOS cannot present over another one. Android back exits the app. The caller decides when it shows. The file also owns `QuietBlockContext` and `useQuietBlock()`.
+- A component that renders a `Modal` gates it with `!useQuietBlock()`, as [ReminderEditor.tsx](ReminderEditor.tsx) does.
 - Component tests live in [__tests__/](__tests__/).
 
 ## Local Contracts

@@ -1,6 +1,8 @@
 import { HebcalService } from '../HebcalService';
 import { at, zmanimFor } from '@/testing/zmanim';
 import { Location } from '@/types/zmanim';
+import { CITIES } from '@/data/cities';
+import { candleLightingMinutes } from '@/data/mitzvot';
 
 // Boundary instants are derived from the zmanim themselves rather than written as clock times, so
 // the fixtures cannot silently mean a different moment than the one they claim.
@@ -105,5 +107,91 @@ describe('HebcalService', () => {
 
     const afterShavuot = new Date('2026-06-15T12:00:00Z');
     expect(HebcalService.getOmerDay(afterShavuot)).toBeUndefined();
+  });
+});
+
+describe('HebcalService holy blocks', () => {
+  const JERUSALEM_CITY = CITIES[0];
+  const NEW_YORK = CITIES.find((city) => city.nameEn === 'New York')!;
+  const noonAt = (loc: Location, date: string) => at(loc, `${date}T12:00`);
+  const lightingOn = (loc: Location, date: string) =>
+    minutesFrom(zmanimFor(noonAt(loc, date), loc).shkia, -candleLightingMinutes(loc));
+  const tzeitOn = (loc: Location, date: string) => zmanimFor(noonAt(loc, date), loc).tzeitHakochavim;
+
+  it('a plain Shabbat runs from candle lighting on Friday to tzeit on Saturday', () => {
+    const block = HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2026-04-25'), JERUSALEM_CITY)!;
+    expect(block.days).toEqual(['2026-04-25']);
+    expect(block.kind).toBe('shabbat');
+    expect(block.start).toEqual(lightingOn(JERUSALEM_CITY, '2026-04-24'));
+    expect(block.end).toEqual(tzeitOn(JERUSALEM_CITY, '2026-04-25'));
+    // Jerusalem lights 40 minutes before shkia.
+    expect(zmanimFor(noonAt(JERUSALEM_CITY, '2026-04-24'), JERUSALEM_CITY).shkia.getTime() - block.start.getTime()).toBe(40 * 60_000);
+  });
+
+  it('Rosh Hashana on Thursday-Friday merges with Shabbat into one three-day block', () => {
+    const block = HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2028-09-22'), JERUSALEM_CITY)!;
+    expect(block.days).toEqual(['2028-09-21', '2028-09-22', '2028-09-23']);
+    expect(block.kind).toBe('shabbatYomTov');
+    expect(block.start).toEqual(lightingOn(JERUSALEM_CITY, '2028-09-20'));
+    expect(block.end).toEqual(tzeitOn(JERUSALEM_CITY, '2028-09-23'));
+    // Every day of the run reports the same block.
+    expect(HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2028-09-21'), JERUSALEM_CITY)).toEqual(block);
+    expect(HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2028-09-23'), JERUSALEM_CITY)).toEqual(block);
+  });
+
+  it('Shabbat that flows into Rosh Hashana ends at tzeit of the second day', () => {
+    const block = HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2027-10-02'), JERUSALEM_CITY)!;
+    expect(block.days).toEqual(['2027-10-02', '2027-10-03']);
+    expect(block.start).toEqual(lightingOn(JERUSALEM_CITY, '2027-10-01'));
+    expect(block.end).toEqual(tzeitOn(JERUSALEM_CITY, '2027-10-03'));
+  });
+
+  it('Shavuot on Friday flows into Shabbat', () => {
+    const block = HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2027-06-11'), JERUSALEM_CITY)!;
+    expect(block.days).toEqual(['2027-06-11', '2027-06-12']);
+    expect(block.kind).toBe('shabbatYomTov');
+  });
+
+  it('the second day of Yom Tov makes the diaspora block longer than Israel\'s', () => {
+    const diaspora = HebcalService.holyBlockOn(noonAt(NEW_YORK, '2027-04-22'), NEW_YORK)!;
+    expect(diaspora.days).toEqual(['2027-04-22', '2027-04-23', '2027-04-24']);
+    expect(diaspora.start).toEqual(lightingOn(NEW_YORK, '2027-04-21'));
+    expect(diaspora.end).toEqual(tzeitOn(NEW_YORK, '2027-04-24'));
+    // In Israel 16 Nisan is chol hamoed, so Pesach I and the Shabbat after it are separate blocks.
+    expect(HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2027-04-22'), JERUSALEM_CITY)!.days).toEqual(['2027-04-22']);
+    expect(HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2027-04-24'), JERUSALEM_CITY)!.days).toEqual(['2027-04-24']);
+    expect(HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2027-04-23'), JERUSALEM_CITY)).toBeNull();
+  });
+
+  it('Yom Kippur is its own kind, also when it falls on Shabbat', () => {
+    expect(HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2027-10-11'), JERUSALEM_CITY)!.kind).toBe('yomKippur');
+    expect(HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2028-09-30'), JERUSALEM_CITY)!.kind).toBe('yomKippur');
+  });
+
+  it('holyBlockAt follows the instant across candle lighting and tzeit', () => {
+    const block = HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2026-04-25'), JERUSALEM_CITY)!;
+    expect(HebcalService.holyBlockAt(minutesFrom(block.start, -1), JERUSALEM_CITY)).toBeNull();
+    expect(HebcalService.holyBlockAt(block.start, JERUSALEM_CITY)).toEqual(block);
+    expect(HebcalService.holyBlockAt(at(JERUSALEM_CITY, '2026-04-24T23:00'), JERUSALEM_CITY)).toEqual(block);
+    expect(HebcalService.holyBlockAt(block.end, JERUSALEM_CITY)).toEqual(block);
+    expect(HebcalService.holyBlockAt(minutesFrom(block.end, 1), JERUSALEM_CITY)).toBeNull();
+  });
+
+  it('isHolyDay is day-granular: Friday night is still a weekday', () => {
+    expect(HebcalService.isHolyDay(at(JERUSALEM_CITY, '2026-04-24T23:00'), JERUSALEM_CITY)).toBe(false);
+    expect(HebcalService.isHolyDay(at(JERUSALEM_CITY, '2026-04-25T06:00'), JERUSALEM_CITY)).toBe(true);
+    expect(HebcalService.isHolyDay(at(JERUSALEM_CITY, '2026-04-25T23:00'), JERUSALEM_CITY)).toBe(true);
+    expect(HebcalService.isHolyDay(noonAt(JERUSALEM_CITY, '2027-10-18'), JERUSALEM_CITY)).toBe(false); // chol hamoed
+    expect(HebcalService.isHolyDay(noonAt(JERUSALEM_CITY, '2027-10-11'), JERUSALEM_CITY)).toBe(true); // Yom Kippur
+  });
+
+  it('isCholHamoed follows the second day of Yom Tov', () => {
+    // 16 Tishrei 5788: chol hamoed in Israel, Sukkot II (Yom Tov) in the diaspora.
+    expect(HebcalService.isCholHamoed(noonAt(JERUSALEM_CITY, '2027-10-17'), JERUSALEM_CITY)).toBe(true);
+    expect(HebcalService.isCholHamoed(noonAt(NEW_YORK, '2027-10-17'), NEW_YORK)).toBe(false);
+    expect(HebcalService.isYomTov(noonAt(NEW_YORK, '2027-10-17'), NEW_YORK)).toBe(true);
+    // Hoshana Raba is the last day of chol hamoed everywhere.
+    expect(HebcalService.isCholHamoed(noonAt(JERUSALEM_CITY, '2027-10-22'), JERUSALEM_CITY)).toBe(true);
+    expect(HebcalService.isCholHamoed(noonAt(JERUSALEM_CITY, '2027-10-24'), JERUSALEM_CITY)).toBe(false);
   });
 });

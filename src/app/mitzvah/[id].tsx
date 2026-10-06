@@ -20,14 +20,18 @@ import { dateKey } from '@/stores/useCompletionsStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useQuietBlock } from '@/components/ShabbatScreen';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { typography } from '@/theme/typography';
 import { ContentBlock, Reminder } from '@/types/mitzvah';
 import { currentOrNextWindow } from '@/utils/buildDayTimeline';
+import { reminderFires } from '@/utils/skipRules';
+import { buildTriggerTime } from '@/services/NotificationScheduler';
 import { useI18n } from '@/i18n';
 
 export default function MitzvahDetailScreen() {
   const { colors } = useTheme();
+  const quiet = useQuietBlock() !== null;
   const { language, t } = useI18n();
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string; highlightContent?: string }>();
@@ -53,15 +57,13 @@ export default function MitzvahDetailScreen() {
   const showText = Boolean(mitzvah && window && hasSiddurText(mitzvah, nusach, window.date, siddurPlace(location, inIsrael)));
   const nextTrigger = useMemo(() => {
     if (!window) return null;
+    const now = new Date();
     const candidates = reminders
-      .map((reminder) => {
-        const base = reminder.anchor === 'start' ? window.start : window.end;
-        return new Date(base.getTime() + reminder.offsetMin * 60_000);
-      })
-      .filter((date) => date.getTime() > Date.now())
+      .map((reminder) => buildTriggerTime(reminder, window))
+      .filter((trigger) => reminderFires(trigger, window, location, now))
       .sort((a, b) => a.getTime() - b.getTime());
     return candidates[0] ?? null;
-  }, [reminders, window]);
+  }, [reminders, window, location]);
 
   if (!mitzvah) {
     return (
@@ -309,7 +311,7 @@ export default function MitzvahDetailScreen() {
         onSave={saveReminder}
       />
       <Modal
-        visible={deleteIndex !== null}
+        visible={deleteIndex !== null && !quiet}
         transparent
         animationType="fade"
         onRequestClose={() => setDeleteIndex(null)}

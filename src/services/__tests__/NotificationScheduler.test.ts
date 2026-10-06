@@ -80,13 +80,45 @@ import {
   refreshSchedulingOnForeground,
   LAST_REBUILD_KEY,
   SCHEDULE_FORMAT_KEY,
+  notificationTargetFromData,
 } from '../NotificationScheduler';
 import { StorageService } from '@/services/StorageService';
+import { HebcalService } from '@/services/HebcalService';
 import { useUserStore } from '@/stores/useUserStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
 import { CITIES } from '@/data/cities';
+import { at } from '@/testing/zmanim';
+import { t } from '@/i18n';
 import type { Mitzvah } from '@/types/mitzvah';
+import type { HolyBlock } from '@/types/zmanim';
+
+// Nothing fires inside a Shabbat / Yom Tov block, so a suite running on the real clock would turn
+// vacuous — or fail — whenever it happened to run on Shabbat. Only Date is faked: the scheduler's
+// awaits and the completion store's queued microtasks keep running for real.
+const PINNED_NOW = at(CITIES[0], '2026-11-11T06:00'); // a plain Wednesday in Cheshvan
+beforeAll(() => {
+  jest.useFakeTimers({
+    now: PINNED_NOW,
+    doNotFake: [
+      'hrtime',
+      'nextTick',
+      'performance',
+      'queueMicrotask',
+      'requestAnimationFrame',
+      'cancelAnimationFrame',
+      'requestIdleCallback',
+      'cancelIdleCallback',
+      'setImmediate',
+      'clearImmediate',
+      'setInterval',
+      'clearInterval',
+      'setTimeout',
+      'clearTimeout',
+    ],
+  });
+});
+afterAll(() => jest.useRealTimers());
 
 // Always strictly in the future, so `scheduleOne`'s `trigger <= Date.now()` guard cannot be the
 // reason a notification is absent — otherwise these tests would pass for the wrong reason. Read on
@@ -102,6 +134,21 @@ function nextWeekdayAt(weekday: number, hour: number): Date {
 
 function idsFor(mitzvahId: string, key: string) {
   return mockState.pending.filter((p) => p.identifier.startsWith(`${mitzvahId}__${key}__`));
+}
+
+const triggerOf = (pending: ScheduleInput) => pending.trigger!.date.getTime();
+
+// The location's calendar date of an instant, shifted by whole days: the date every reminder of that
+// day is keyed by, whatever zone the device runs in.
+function locationDayKey(instant: Date, days = 0): string {
+  return DateTime.fromJSDate(instant).setZone(useUserStore.getState().location.tz).plus({ days }).toISODate()!;
+}
+
+function expectNothingInside(block: HolyBlock) {
+  const inside = mockState.pending.filter(
+    (p) => triggerOf(p) > block.start.getTime() && triggerOf(p) < block.end.getTime(),
+  );
+  expect(inside.map((p) => p.identifier)).toEqual([]);
 }
 
 function setupEnabled(ids: string[]) {
@@ -198,7 +245,7 @@ describe('NotificationScheduler', () => {
     const running = NotificationScheduler.rebuild();
     expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBeUndefined();
     await running;
-    expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBe(2);
+    expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBe(3);
   });
 
   it('6.3 cancelAll empties pending', async () => {
@@ -256,16 +303,20 @@ describe('NotificationScheduler', () => {
     rebuild.mockRestore();
   });
 
-  it('6.6 skipOn shabbat: tefillin not scheduled on Saturday', async () => {
-    setupEnabled(['tefillin', 'shacharit']);
+  it('6.6 Shabbat is quiet: nothing fires between candle lighting and tzeit, and Sunday is covered', async () => {
+    setupEnabled(['tefillin', 'shacharit', 'mincha', 'maariv', 'tzitzit', 'candle_lighting', 'havdalah']);
     const saturday = nextWeekdayAt(6, 0); // upcoming Saturday 00:00, so all of Shabbat morning is ahead
-    const saturdayKey = dateKey(saturday);
+    const block = HebcalService.holyBlockAt(saturday, CITIES[0])!;
 
     await NotificationScheduler.scheduleAll(saturday);
 
-    expect(idsFor('tefillin', saturdayKey)).toHaveLength(0);
-    // Proves the run reached Saturday at all: shacharit has no skipOn and is still scheduled.
-    expect(idsFor('shacharit', saturdayKey).length).toBeGreaterThan(0);
+    expectNothingInside(block);
+    expect(idsFor('shacharit', locationDayKey(saturday))).toHaveLength(0);
+    // The run reached past the block: havdalah and maariv fire at its tzeit, and Sunday is scheduled.
+    expect(idsFor('havdalah', locationDayKey(saturday)).map(triggerOf)).toContain(block.end.getTime());
+    expect(idsFor('maariv', locationDayKey(saturday)).map(triggerOf)).toContain(block.end.getTime());
+    expect(idsFor('tefillin', locationDayKey(saturday, 1)).length).toBeGreaterThan(0);
+    expect(idsFor('shacharit', locationDayKey(saturday, 1)).length).toBeGreaterThan(0);
   });
 
   // Replaces the old "when pending > PENDING_LIMIT only schedule today" test. That guard could
@@ -436,15 +487,18 @@ describe('NotificationScheduler', () => {
   it('6.10 skipped mitzvah is not rescheduled on rebuild', async () => {
     setupEnabled(['tefillin']);
     const future = new Date(Date.now() + 1000);
-    useCompletionsStore.getState().markSkipped('tefillin', future);
+    const [year, month, day] = locationDayKey(future).split('-').map(Number);
+    useCompletionsStore.getState().markSkipped('tefillin', new Date(year, month - 1, day));
     await NotificationScheduler.scheduleAll(future);
-    const sameDay = mockState.pending.filter((p) => p.identifier.startsWith('tefillin__' + dateKey(future)));
+    const sameDay = mockState.pending.filter((p) => p.identifier.startsWith('tefillin__' + locationDayKey(future)));
     expect(sameDay.length).toBe(0);
+    // Proves the run reached tefillin at all: tomorrow, which is not skipped, is scheduled.
+    expect(idsFor('tefillin', locationDayKey(future, 1)).length).toBeGreaterThan(0);
   });
 
   it('6.10b completed mitzvah is not rescheduled for that date', async () => {
     const today = new Date(Date.now() + 60_000);
-    const key = dateKey(today);
+    const key = locationDayKey(today);
     const doneMitzvah: Mitzvah = {
       id: 'synthetic_done',
       name: { he: 'בדיקת השלמה', en: 'Completed test' },
@@ -457,9 +511,9 @@ describe('NotificationScheduler', () => {
         { anchor: 'start', offsetMin: 0, label: 'first' },
         { anchor: 'start', offsetMin: 5, label: 'second' },
       ],
-      computeWindow: ({ date }) => ({
-        start: new Date(date.getTime() + 60_000),
-        end: new Date(date.getTime() + 20 * 60_000),
+      computeWindow: () => ({
+        start: new Date(Date.now() + 60_000),
+        end: new Date(Date.now() + 20 * 60_000),
       }),
     };
     useCompletionsStore.setState({
@@ -471,6 +525,8 @@ describe('NotificationScheduler', () => {
 
     const sameDay = mockState.pending.filter((p) => p.identifier.startsWith(`synthetic_done__${key}`));
     expect(sameDay.length).toBe(0);
+    // Proves the window was schedulable at all: the next day, not done, carries it.
+    expect(idsFor('synthetic_done', locationDayKey(today, 1)).length).toBeGreaterThan(0);
   });
 
   it('6.10c skipIfDone flag is carried into the scheduled notification payload', async () => {
@@ -487,9 +543,9 @@ describe('NotificationScheduler', () => {
         { anchor: 'start', offsetMin: 1, label: 'primary' },
         { anchor: 'start', offsetMin: 2, label: 'nudge', skipIfDone: true },
       ],
-      computeWindow: ({ date }) => ({
-        start: new Date(date.getTime() + 60_000),
-        end: new Date(date.getTime() + 20 * 60_000),
+      computeWindow: () => ({
+        start: new Date(Date.now() + 60_000),
+        end: new Date(Date.now() + 20 * 60_000),
       }),
     };
 
@@ -520,28 +576,177 @@ describe('NotificationScheduler', () => {
   // happened to run at. `isShabbat` is instant-sensitive, so a Friday-evening rebuild used to see
   // "Saturday 20:00" (past tzeit) as not-Shabbat and queue tefillin for Shabbat morning.
   it('6.13 a Friday-evening rebuild schedules nothing for Shabbat', async () => {
-    setupEnabled(['tefillin', 'shacharit']);
+    setupEnabled(['tefillin', 'shacharit', 'maariv']);
     const fridayEvening = nextWeekdayAt(5, 20); // upcoming Friday 20:00, after shkia
-    const saturday = new Date(fridayEvening);
-    saturday.setDate(saturday.getDate() + 1);
-    const saturdayKey = dateKey(saturday);
 
     await NotificationScheduler.scheduleAll(fridayEvening);
 
-    expect(idsFor('tefillin', saturdayKey)).toHaveLength(0);
-    // Proves the run reached Saturday at all: shacharit has no skipOn and is still scheduled.
-    expect(idsFor('shacharit', saturdayKey).length).toBeGreaterThan(0);
+    expectNothingInside(HebcalService.holyBlockAt(fridayEvening, CITIES[0])!);
+    expect(idsFor('tefillin', locationDayKey(fridayEvening, 1))).toHaveLength(0);
+    expect(idsFor('shacharit', locationDayKey(fridayEvening, 1))).toHaveLength(0);
+    // Proves the run reached past Shabbat: Sunday morning is already scheduled.
+    expect(idsFor('shacharit', locationDayKey(fridayEvening, 2)).length).toBeGreaterThan(0);
+  });
+
+  it('6.13c a three-day block is scheduled through to the weekday after it, with nothing inside', async () => {
+    setupEnabled(['tefillin', 'shacharit', 'mincha', 'maariv', 'candle_lighting', 'havdalah']);
+    const jerusalem = CITIES[0];
+    // Wednesday morning, erev Rosh Hashana 5789: Thursday-Friday Yom Tov, then Shabbat.
+    const erev = at(jerusalem, '2028-09-20T06:00');
+    const block = HebcalService.holyBlockAt(at(jerusalem, '2028-09-22T12:00'), jerusalem)!;
+    expect(block.days).toEqual(['2028-09-21', '2028-09-22', '2028-09-23']);
+
+    await NotificationScheduler.scheduleAll(erev);
+
+    expectNothingInside(block);
+    const keysOf = (id: string) => [...new Set(mockState.pending.filter((p) => p.identifier.startsWith(`${id}__`)).map((p) => p.identifier.split('__')[1]))];
+    expect(keysOf('candle_lighting')).toEqual(['2028-09-20']);
+    expect(keysOf('havdalah')).toEqual(['2028-09-23']);
+    expect(idsFor('candle_lighting', '2028-09-20').map(triggerOf)).toEqual([block.start.getTime()]);
+    expect(idsFor('havdalah', '2028-09-23').map(triggerOf)).toEqual([block.end.getTime()]);
+    // Sunday after the block is covered although nothing can reopen the app in between.
+    expect(idsFor('tefillin', '2028-09-24').length).toBeGreaterThan(0);
+    // One notice for the whole block, an hour before candle lighting.
+    const notices = mockState.pending.filter((p) => p.content.data.kind === 'blockNotice');
+    expect(notices.map(triggerOf)).toEqual([block.start.getTime() - 60 * 60_000]);
+  });
+
+  it('6.13d Shabbat into Yom Tov keeps havdalah for the end of the second day', async () => {
+    setupEnabled(['havdalah', 'maariv']);
+    const jerusalem = CITIES[0];
+    // Friday 2027-10-01: Shabbat is also Rosh Hashana 5788, and the second day is Sunday.
+    await NotificationScheduler.scheduleAll(at(jerusalem, '2027-10-01T06:00'));
+    const block = HebcalService.holyBlockAt(at(jerusalem, '2027-10-02T12:00'), jerusalem)!;
+
+    expectNothingInside(block);
+    expect(idsFor('havdalah', '2027-10-02')).toHaveLength(0);
+    expect(idsFor('havdalah', '2027-10-03').map(triggerOf)).toEqual([block.end.getTime()]);
+  });
+
+  it('6.13f the candle-lighting reminder offers no text: everything after it is quiet', async () => {
+    setupEnabled(['candle_lighting', 'havdalah']);
+    await NotificationScheduler.scheduleAll(nextWeekdayAt(5, 6));
+    const [lighting] = mockState.pending.filter((p) => p.identifier.startsWith('candle_lighting__'));
+    const [havdalah] = mockState.pending.filter((p) => p.identifier.startsWith('havdalah__'));
+    expect(lighting.content.categoryIdentifier).toBe(MITZVAH_REMINDER_CATEGORY);
+    // Havdalah fires at the block's end, when the app is open again, so it keeps its text.
+    expect(havdalah.content.categoryIdentifier).toBe(MITZVAH_TEXT_CATEGORY);
+  });
+
+  it('6.13g every location day of the horizon is visited once, keyed by its own date, whatever the device zone', async () => {
+    setupEnabled(['shacharit']);
+    const losAngeles = CITIES.find((city) => city.nameEn === 'Los Angeles')!;
+    useUserStore.getState().setLocation(losAngeles);
+    // Thursday morning in Los Angeles: Thursday, Friday, Shabbat and Sunday, each exactly once.
+    await NotificationScheduler.scheduleAll(at(losAngeles, '2026-11-12T05:00'));
+    const keys = mockState.pending.filter((p) => p.identifier.startsWith('shacharit__')).map((p) => p.identifier.split('__')[1]);
+    expect([...new Set(keys)].sort()).toEqual(['2026-11-12', '2026-11-13', '2026-11-15']);
+    expect(new Set(mockState.pending.map((p) => p.identifier)).size).toBe(mockState.pending.length);
+  });
+
+  it('6.13e a Thursday rebuild already reaches through Shabbat to Sunday', async () => {
+    setupEnabled(['shacharit']);
+    const thursday = nextWeekdayAt(4, 6);
+
+    await NotificationScheduler.scheduleAll(thursday);
+
+    expect(idsFor('shacharit', locationDayKey(thursday, 3)).length).toBeGreaterThan(0);
+  });
+
+  describe('block notice', () => {
+    const jerusalem = CITIES[0];
+    const noticesOf = () => mockState.pending.filter((p) => p.content.data.kind === 'blockNotice');
+
+    it('goes out an hour before candle lighting with the lighting and exit times', async () => {
+      const friday = nextWeekdayAt(5, 6);
+      const block = HebcalService.holyBlockOn(nextWeekdayAt(6, 12), jerusalem)!;
+
+      await NotificationScheduler.scheduleAll(friday);
+
+      const [notice, ...rest] = noticesOf();
+      expect(rest).toEqual([]);
+      expect(triggerOf(notice)).toBe(block.start.getTime() - 60 * 60_000);
+      expect(notice.identifier).toBe(`blockNotice:${block.days[0]}`);
+      expect(notice.content.title).toBe(t('holyBlock.title.shabbat'));
+      const clock = (instant: Date) => DateTime.fromJSDate(instant).toFormat('HH:mm');
+      expect(notice.content.body).toBe(
+        t('holyBlock.notice.body', { start: clock(block.start), exit: t('holyBlock.exit.shabbat'), end: clock(block.end) }),
+      );
+      // Not a mitzvah reminder: no category, so no "done" button can mark a fake mitzvah.
+      expect(notice.content.categoryIdentifier).toBeUndefined();
+      expect(notice.content.data.mitzvahId).toBeUndefined();
+    });
+
+    it('names the Omer counts that fall on the block\'s nights', async () => {
+      setupEnabled(['sefirat_haomer']);
+      // Friday 2027-04-30 (23 Nisan 5787): Friday night counts day 9.
+      await NotificationScheduler.scheduleAll(at(jerusalem, '2027-04-30T06:00'));
+      expect(noticesOf()[0].content.body).toContain(t('holyBlock.notice.omerTonight', { count: 9 }));
+
+      mockState.pending = [];
+      useUserStore.getState().setLocation(CITIES.find((city) => city.nameEn === 'New York')!);
+      // Pesach 5787 abroad: Thursday, Friday and Shabbat. Nights 1 and 2 fall inside the block.
+      await NotificationScheduler.scheduleAll(at(useUserStore.getState().location, '2027-04-21T06:00'));
+      const notice = noticesOf()[0];
+      expect(notice.content.title).toBe(t('holyBlock.title.shabbatYomTov'));
+      const on = (count: number, day: string) => t('holyBlock.notice.omerOn', { count, day });
+      expect(notice.content.body).toContain(
+        t('holyBlock.notice.omerNights', { counts: `${on(1, 'יום חמישי')}, ${on(2, 'יום שישי')}` }),
+      );
+    });
+
+    // The first Seder has no count: day 1 is the next night, inside the block. Calling it "tonight"
+    // sent diaspora users to count on the wrong night.
+    it('never calls a later night\'s count tonight', async () => {
+      setupEnabled(['sefirat_haomer']);
+      useUserStore.getState().setLocation(CITIES.find((city) => city.nameEn === 'New York')!);
+      // Pesach 5788 abroad: Tuesday and Wednesday. Monday night is the first Seder.
+      await NotificationScheduler.scheduleAll(at(useUserStore.getState().location, '2028-04-10T06:00'));
+      const body = noticesOf()[0].content.body ?? '';
+      expect(body).not.toContain(t('holyBlock.notice.omerTonight', { count: 1 }));
+      expect(body).toContain(t('holyBlock.notice.omerNights', { counts: t('holyBlock.notice.omerOn', { count: 1, day: 'יום שלישי' }) }));
+    });
+
+    it('leaves the Omer out when the user does not count it', async () => {
+      setupEnabled([]);
+      await NotificationScheduler.scheduleAll(at(jerusalem, '2027-04-30T06:00'));
+      expect(noticesOf()[0].content.body).not.toContain(t('holyBlock.notice.omerTonight', { count: 9 }));
+    });
+
+    it('greets Yom Kippur as Yom Kippur', async () => {
+      await NotificationScheduler.scheduleAll(at(jerusalem, '2027-10-10T06:00'));
+      const notice = noticesOf()[0];
+      expect(notice.content.title).toBe(t('holyBlock.title.yomKippur'));
+      expect(notice.content.body).toContain(t('holyBlock.exit.yomKippur'));
+    });
+
+    it('is never parsed as a mitzvah reminder', async () => {
+      await NotificationScheduler.scheduleAll(nextWeekdayAt(5, 6));
+      const notice = noticesOf()[0];
+      expect(notificationTargetFromData(notice.content.data, notice.identifier)).toBeNull();
+      await NotificationScheduler.cancelForMitzvah('blockNotice', new Date());
+      expect(noticesOf()).toHaveLength(1);
+    });
+
+    it('is not sent once candle lighting is less than an hour away', async () => {
+      const block = HebcalService.holyBlockOn(nextWeekdayAt(6, 12), jerusalem)!;
+      jest.setSystemTime(new Date(block.start.getTime() - 30 * 60_000));
+      try {
+        await NotificationScheduler.scheduleAll(new Date());
+        expect(noticesOf()).toHaveLength(0);
+      } finally {
+        jest.setSystemTime(PINNED_NOW);
+      }
+    });
   });
 
   it('6.13b a Thursday-evening rebuild still schedules Friday morning', async () => {
     setupEnabled(['tefillin']);
     const thursdayEvening = nextWeekdayAt(4, 20); // upcoming Thursday 20:00, after shkia
-    const friday = new Date(thursdayEvening);
-    friday.setDate(friday.getDate() + 1);
 
     await NotificationScheduler.scheduleAll(thursdayEvening);
 
-    expect(idsFor('tefillin', dateKey(friday)).length).toBeGreaterThan(0);
+    expect(idsFor('tefillin', locationDayKey(thursdayEvening, 1)).length).toBeGreaterThan(0);
   });
 
   function bulkMitzvah(id: string, reminders: Mitzvah['defaultReminders'], window: { start: Date; end: Date }): Mitzvah {

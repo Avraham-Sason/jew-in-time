@@ -60,8 +60,8 @@ function count(text: string, pattern: RegExp): number {
   return (text.match(new RegExp(pattern.source, 'g')) ?? []).length;
 }
 
-function eveningOf(civil: Date): DayFeatures {
-  return dayFeatures(liturgicalDay(civil, true), ISRAEL);
+function eveningOf(civil: Date, place = ISRAEL): DayFeatures {
+  return dayFeatures(liturgicalDay(civil, true), place);
 }
 
 function erev(day: number, month: number, year: number): Date {
@@ -166,6 +166,63 @@ describe('siddur content', () => {
       expect(tishaBav).toMatch(/מאורי האש/);
       expect(tishaBav).not.toMatch(/הגפן|הגפן|בשמים|המבדיל/);
     }
+  });
+
+  it('fits havdalah to what it closes: spices only after Shabbat, the flame after Shabbat and Yom Kippur', () => {
+    const lastDayOfPesachIsrael = new HDate(21, months.NISAN, 5786).greg(); // Wednesday
+    const lastDayOfPesachDiaspora = new HDate(22, months.NISAN, 5786).greg(); // Thursday
+    const yomKippur = new HDate(10, months.TISHREI, 5787).greg(); // Monday
+    const yomKippurOnShabbat = new HDate(10, months.TISHREI, 5785).greg();
+    const deferredTishaBav = new HDate(10, months.AV, 5782).greg(); // the fast, pushed to Sunday
+    expect(lastDayOfPesachIsrael.getDay()).toBe(3);
+    expect(yomKippurOnShabbat.getDay()).toBe(6);
+    expect(deferredTishaBav.getDay()).toBe(0);
+
+    for (const nusach of NUSCHAOT) {
+      for (const motzaeiYomTov of [eveningOf(lastDayOfPesachIsrael), eveningOf(lastDayOfPesachDiaspora, DIASPORA)]) {
+        const said = saidOn(nusach, 'havdalah', motzaeiYomTov);
+        expect(said).toMatch(/בורא פרי הג[פג]ן/);
+        expect(said).toMatch(/המבדיל בין קדש לחול/);
+        expect(said).not.toMatch(/בשמים/);
+        expect(said).not.toMatch(/מאורי האש/);
+      }
+
+      const afterYomKippur = saidOn(nusach, 'havdalah', eveningOf(yomKippur));
+      expect(afterYomKippur).toMatch(/בורא פרי הג[פג]ן/);
+      expect(afterYomKippur).toMatch(/מאורי האש/);
+      expect(afterYomKippur).toMatch(/המבדיל בין קדש לחול/);
+      expect(afterYomKippur).not.toMatch(/בשמים/);
+      expect(shownOn(nusach, 'havdalah', eveningOf(yomKippur))).toMatch(/נר ששבת/);
+
+      const afterYomKippurOnShabbat = saidOn(nusach, 'havdalah', eveningOf(yomKippurOnShabbat));
+      expect(afterYomKippurOnShabbat).toMatch(/בשמים/);
+      expect(afterYomKippurOnShabbat).toMatch(/מאורי האש/);
+
+      const afterTheFast = saidOn(nusach, 'havdalah', eveningOf(deferredTishaBav));
+      expect(afterTheFast).toMatch(/בורא פרי הג[פג]ן/);
+      expect(afterTheFast).toMatch(/המבדיל בין קדש לחול/);
+      expect(afterTheFast).not.toMatch(/בשמים/);
+      expect(afterTheFast).not.toMatch(/מאורי האש/);
+
+      // Nothing on screen asks for spices on a night that has none — the Edot HaMizrach source
+      // tells the user to hold them in its opening instruction.
+      for (const withoutSpices of [eveningOf(lastDayOfPesachIsrael), eveningOf(yomKippur), eveningOf(deferredTishaBav)]) {
+        expect(shownOn(nusach, 'havdalah', withoutSpices)).not.toMatch(/בשמים/);
+      }
+      expect(shownOn(nusach, 'havdalah', eveningOf(new Date(2026, 9, 10)))).toMatch(/בשמים/);
+
+      const tishaBavNight = shownOn(nusach, 'havdalah', eveningOf(new HDate(9, months.AV, 5782).greg()));
+      expect(tishaBavNight).toMatch(/בצאת הצום/);
+      expect(shownOn(nusach, 'havdalah', eveningOf(new Date(2026, 9, 10)))).not.toMatch(/נר ששבת|בצאת הצום/);
+    }
+  });
+
+  it('tells Ashkenaz to skip the verses after a weekday Yom Kippur, as its machzor does', () => {
+    const weekdayYomKippur = eveningOf(new HDate(10, months.TISHREI, 5787).greg());
+    const yomKippurOnShabbat = eveningOf(new HDate(10, months.TISHREI, 5785).greg());
+    expect(shownOn('ashkenaz', 'havdalah', weekdayYomKippur)).toMatch(/אין אומרים את הפסוקים/);
+    expect(shownOn('ashkenaz', 'havdalah', yomKippurOnShabbat)).not.toMatch(/אין אומרים את הפסוקים/);
+    expect(shownOn('ashkenaz', 'havdalah', eveningOf(new Date(2026, 9, 10)))).not.toMatch(/אין אומרים את הפסוקים/);
   });
 
   it('drops "she’asa li kol tzorki" on Tisha B’Av and Yom Kippur where the nusach does', () => {

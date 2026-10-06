@@ -12,6 +12,7 @@ import { HebcalService } from '@/services/HebcalService';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
 import { SIDDUR_FONT_SIZES, useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useQuietBlock } from '@/components/ShabbatScreen';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { fontFamilies, typography } from '@/theme/typography';
 import { PassageLabel, Run, SegmentBlock, SiddurSection, SiddurSegment, SiddurText } from '@/types/siddur';
@@ -44,6 +45,7 @@ function isAddedForToday(segment: SiddurSegment, section: SiddurSection): boolea
 
 export default function SiddurScreen() {
   const { colors } = useTheme();
+  const quiet = useQuietBlock() !== null;
   const { language, t } = useI18n();
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string; date?: string }>();
@@ -360,7 +362,7 @@ export default function SiddurScreen() {
         />
       )}
 
-      <Modal animationType="slide" transparent visible={pickerOpen} onRequestClose={() => setPickerOpen(false)}>
+      <Modal animationType="slide" transparent visible={pickerOpen && !quiet} onRequestClose={() => setPickerOpen(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable
             style={StyleSheet.absoluteFill}

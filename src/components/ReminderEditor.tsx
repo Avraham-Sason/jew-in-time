@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Reminder, ReminderAnchor } from '@/types/mitzvah';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useQuietBlock } from './ShabbatScreen';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 
@@ -26,6 +27,7 @@ type Props = {
 
 export function ReminderEditor({ visible, initialValue, window, mitzvahName, onClose, onSave }: Props) {
   const { colors } = useTheme();
+  const quiet = useQuietBlock() !== null;
   const { t } = useI18n();
   const [anchor, setAnchor] = useState<ReminderAnchor>('start');
   const [offsetMin, setOffsetMin] = useState('0');
@@ -65,7 +67,7 @@ export function ReminderEditor({ visible, initialValue, window, mitzvahName, onC
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible && !quiet} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[typography.heading, { color: colors.text, marginBottom: 14 }]}>

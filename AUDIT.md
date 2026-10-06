@@ -25,6 +25,29 @@ Found after the audit:
   defined in headless JS, because `defineTask` was reachable only through route modules. Fixed
   2026-08-10 via a root `index.js` entry.
 
+- **§2.9 was only half fixed**, and Shabbat itself was never quiet. Found and fixed 2026-10-06
+  with the holy-block quiet window:
+  - Only tefillin had `skipOn`. Shacharit, mincha, maariv, ק"ש, tzitzit, birchot hashachar and the
+    Omer all rang on Shabbat and Yom Tov, the Omer with its bracha in the body. No trigger inside
+    a block is scheduled now, and the app shows only the Shabbat screen until tzeit.
+  - Havdalah was still Saturday-only: it fired in the middle of a Yom Tov that starts on motzaei
+    Shabbat, and never at the end of a Yom Tov on a weekday. Its text always included the spices
+    and the flame, which motzaei Yom Tov, motzaei Yom Kippur and the night after a deferred Tisha
+    B'Av do not have.
+  - Candle lighting fired on a Friday that is itself Yom Tov (Rosh Hashana 5789).
+  - The candle-lighting "עוד 20 דק'" reminder never fired: it falls before its own window and the
+    scheduler's backstop drops it. Removed; the pre-block notice carries the lead time.
+  - The schedule stopped at tomorrow, so Sunday morning had no reminders whenever background
+    fetch did not run over Shabbat. The horizon now runs through any block to the weekday after.
+  - Tefillin reminders fired on chol hamoed in Israel. Now skipped there and for every nusach but
+    Ashkenaz abroad.
+  - The scheduler suite ran on the real clock, so it would have failed every Shabbat once nothing
+    fires then. It now pins `Date` to a fixed weekday.
+  - The schedule stepped in 24-hour device steps, so with the device in another zone than the
+    location a DST change could skip a block's last day (no havdalah) and the reader's liturgical
+    day could be the wrong one (no spices on a plain motzaei Shabbat). It now steps by the
+    location's dates and keys each reminder by its own day.
+
 Still open, deliberately:
 
 - **§2.11 / the second half of §2.8** — completions and notification identifiers still key off the
@@ -261,7 +284,7 @@ Failure scenario: a user in New York with ירושלים selected (a first-class
 
 Fix: `const zoned = DateTime.fromJSDate(date).setZone(loc.tz); cal.setDate(zoned)` (kosher-zmanim's `setDate` accepts a Luxon `DateTime` and keeps its zone); key the cache on `zoned.toISODate()`; give `dateKey()` the same treatment so completions bucket by the same day the zmanim do.
 
-### 2.9 Candle lighting: Friday only; havdalah: Saturday only — ✅ FIXED
+### 2.9 Candle lighting: Friday only; havdalah: Saturday only — ✅ FIXED (candle lighting 2026-10-04, havdalah 2026-10-06; see Status)
 `src/data/mitzvot.ts:203`, `:226`
 
 `candle_lighting.computeWindow` returns `null` unless `date.getDay() === 5`. So there is **no Erev Yom Tov candle lighting at all**, no second-night lighting in chu"l, and no havdalah at the end of a Yom Tov that isn't Saturday.

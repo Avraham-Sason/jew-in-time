@@ -30,6 +30,7 @@ import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useQuietBlock } from '@/components/ShabbatScreen';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { typography } from '@/theme/typography';
 import { durations } from '@/theme/tokens';
@@ -74,6 +75,7 @@ function buildContext(date: Date): ComputeContext | null {
 
 export default function HomeScreen() {
   const { colors } = useTheme();
+  const quiet = useQuietBlock() !== null;
   const { language, t } = useI18n();
   const router = useRouter();
   const user = useUserStore(
@@ -133,7 +135,7 @@ export default function HomeScreen() {
     for (const mitzvah of enabled) {
       const window = ctx ? mitzvah.computeWindow(ctx) : null;
       if (!window) continue;
-      if (isSkippedAt(mitzvah, window.start, user.location)) continue;
+      if (isSkippedAt(mitzvah, window.start, user.location, { nusach, inIsrael })) continue;
       applicable += 1;
       const name = language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he;
       const totalMs = window.end.getTime() - window.start.getTime();
@@ -388,7 +390,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <Modal animationType="slide" transparent visible={Boolean(selectedMitzvah)} onRequestClose={() => setSelectedId(null)}>
+      <Modal animationType="slide" transparent visible={Boolean(selectedMitzvah) && !quiet} onRequestClose={() => setSelectedId(null)}>
         <View style={styles.modalBackdrop}>
           <View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[typography.heading, { color: colors.text, marginBottom: 10 }]}>{t('home.quick.title')}</Text>

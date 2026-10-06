@@ -193,4 +193,70 @@ describe('mitzvot windows extra', () => {
       expect(windowAt(id, `${day}T23:30`)).toEqual(atNoon);
     }
   });
+  describe('a Shabbat / Yom Tov block lights candles once and makes havdalah once', () => {
+    const NEW_YORK = CITIES.find((c) => c.nameEn === 'New York')!;
+    const DIASPORA: UserSettings = { ...SETTINGS_GRA, inIsrael: false };
+    const windowOn = (id: string, day: string, loc = JERUSALEM, settings = SETTINGS_GRA) =>
+      findMitzvah(id)!.computeWindow(ctx(at(loc, `${day}T12:00`), settings, loc));
+
+    it('lights only on the erev of the block, never on a day inside it', () => {
+      // Rosh Hashana 5789 on Thursday-Friday, then Shabbat: one lighting, on Wednesday.
+      expect(windowOn('candle_lighting', '2028-09-20')).not.toBeNull();
+      expect(windowOn('candle_lighting', '2028-09-21')).toBeNull();
+      expect(windowOn('candle_lighting', '2028-09-22')).toBeNull(); // a Friday, but already Yom Tov
+      // Shabbat that flows into Rosh Hashana 5788: lit on Friday only.
+      expect(windowOn('candle_lighting', '2027-10-01')).not.toBeNull();
+      expect(windowOn('candle_lighting', '2027-10-02')).toBeNull();
+      // Erev Yom Kippur.
+      expect(windowOn('candle_lighting', '2027-10-10')).not.toBeNull();
+    });
+
+    it('makes havdalah only at the end of the block', () => {
+      expect(windowOn('havdalah', '2028-09-21')).toBeNull();
+      expect(windowOn('havdalah', '2028-09-22')).toBeNull();
+      const end = windowOn('havdalah', '2028-09-23')!;
+      expect(end.start).toEqual(zmanimFor(at(JERUSALEM, '2028-09-23T12:00'), JERUSALEM).tzeitHakochavim);
+      // Shabbat into Rosh Hashana: separated in kiddush, so the cup waits for Sunday night.
+      expect(windowOn('havdalah', '2027-10-02')).toBeNull();
+      expect(windowOn('havdalah', '2027-10-03')).not.toBeNull();
+      // A Yom Tov that ends on a weekday, and Yom Kippur on a Monday.
+      expect(windowOn('havdalah', '2027-04-28')).not.toBeNull(); // Pesach VII in Israel, a Wednesday
+      expect(windowOn('havdalah', '2027-10-11')).not.toBeNull();
+      // A plain weekday and chol hamoed have none.
+      expect(windowOn('havdalah', '2027-10-18')).toBeNull();
+    });
+
+    it('follows the second day of Yom Tov abroad', () => {
+      // Pesach 5787 abroad: Thursday, Friday and Shabbat are one block.
+      expect(windowOn('candle_lighting', '2027-04-21', NEW_YORK, DIASPORA)).not.toBeNull();
+      expect(windowOn('candle_lighting', '2027-04-22', NEW_YORK, DIASPORA)).toBeNull();
+      expect(windowOn('candle_lighting', '2027-04-23', NEW_YORK, DIASPORA)).toBeNull();
+      expect(windowOn('havdalah', '2027-04-22', NEW_YORK, DIASPORA)).toBeNull();
+      expect(windowOn('havdalah', '2027-04-24', NEW_YORK, DIASPORA)).not.toBeNull();
+      // The same Pesach I in Israel is a one-day block of its own.
+      expect(windowOn('havdalah', '2027-04-22')).not.toBeNull();
+    });
+
+    it('splits havdalah around a Tisha B’Av deferred from Shabbat', () => {
+      // 9 Av 5789 is Shabbat: the flame on Saturday night, the cup at the end of the fast on Sunday.
+      expect(windowOn('havdalah', '2029-07-21')).not.toBeNull();
+      const sunday = windowOn('havdalah', '2029-07-22')!;
+      expect(sunday.start).toEqual(zmanimFor(at(JERUSALEM, '2029-07-22T12:00'), JERUSALEM).tzeitHakochavim);
+      expect(windowOn('havdalah', '2029-07-23')).toBeNull();
+    });
+
+    it('waits for the fast to end when Tisha B’Av itself falls on Sunday', () => {
+      // 9 Av 5805 is a Sunday: the fast begins on motzaei Shabbat, so the cup waits for Sunday night.
+      expect(windowOn('havdalah', '2045-07-22')).not.toBeNull();
+      expect(windowOn('havdalah', '2045-07-23')).not.toBeNull();
+      expect(windowOn('havdalah', '2045-07-24')).toBeNull();
+    });
+
+    it('never tells the user Shabbat ended on a weekday night', () => {
+      const havdalah = findMitzvah('havdalah')!;
+      const said = havdalah.defaultReminders.flatMap((reminder) => [reminder.label, ...(reminder.bodyVariants ?? [])]);
+      // Havdalah also closes Yom Tov, Yom Kippur and the Sunday fast of Tisha B'Av.
+      for (const line of said) expect(line).not.toMatch(/שבת/);
+    });
+  });
 });

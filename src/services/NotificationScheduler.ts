@@ -2,13 +2,17 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
+import { DateTime } from 'luxon';
 import { ComputeContext, ContentBlock, Mitzvah, Reminder, UserSettings } from '@/types/mitzvah';
-import { Location } from '@/types/zmanim';
+import { HolyBlock, Location } from '@/types/zmanim';
 import { getAllMitzvot } from '@/data/customMitzvotAdapter';
+import { omerDayFor } from '@/data/mitzvot';
 import { hasSiddurText, siddurPlace } from '@/data/siddur';
+import { HebcalService } from '@/services/HebcalService';
 import { ZmanimService } from '@/services/ZmanimService';
 import { StorageService } from '@/services/StorageService';
-import { isSkippedAt } from '@/utils/skipRules';
+import { holyBlockLabelKeys, isSkippedAt, opensQuietBlock, reminderFires } from '@/utils/skipRules';
+import { locationNoon } from '@/utils/locationDay';
 import { t } from '@/i18n';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
@@ -27,7 +31,9 @@ const IOS_MAX = 64;
 const IOS_HEADROOM = 4;
 const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
 const SCHEDULE_FORMAT_KEY = 'notifications:schedule-format';
-const SCHEDULE_FORMAT = 2;
+const SCHEDULE_FORMAT = 3;
+const BLOCK_NOTICE_KIND = 'blockNotice';
+const BLOCK_NOTICE_LEAD_MIN = 60;
 const REBUILD_HOUR = 0;
 const REBUILD_MINUTE = 15;
 const BACKGROUND_NOTIFICATION_RESULT = {
@@ -47,6 +53,7 @@ function parseId(id: string): { mitzvahId: string; date: string; idx: number } |
 }
 
 export type PendingNotificationMeta = {
+  kind?: typeof BLOCK_NOTICE_KIND;
   mitzvahId?: string;
   dateKey?: string;
   reminderIndex?: number;
@@ -89,8 +96,10 @@ function parseDateKey(value: string): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+// `date` is a calendar day as every day-level surface holds it: the device-local midnight of the
+// location's date, whose zmanim are read at the location's own noon.
 function contextFor(date: Date, location: Location, settings: UserSettings): ComputeContext | null {
-  const zmanim = ZmanimService.getZmanim(date, location);
+  const zmanim = ZmanimService.getZmanim(locationNoon(date, location), location);
   return zmanim ? { date, location, settings, zmanim } : null;
 }
 
@@ -204,24 +213,23 @@ function candidatesFor(
   if (!ctx) return [];
   const window = mitzvah.computeWindow(ctx);
   if (!window) return [];
-  if (isSkippedAt(mitzvah, window.start, location)) return [];
+  if (isSkippedAt(mitzvah, window.start, location, settings)) return [];
   const completions = useCompletionsStore.getState();
   if (completions.isDone(mitzvah.id, date) || completions.isSkipped(mitzvah.id, date)) return [];
 
-  const now = Date.now();
+  const now = new Date();
   const reminders = remindersFor(mitzvah);
-  const category = hasSiddurText(mitzvah, settings.nusach, date, siddurPlace(location, settings.inIsrael))
-    ? MITZVAH_TEXT_CATEGORY
-    : MITZVAH_REMINDER_CATEGORY;
+  const hasText = hasSiddurText(mitzvah, settings.nusach, date, siddurPlace(location, settings.inIsrael));
   const candidates: ScheduleCandidate[] = [];
 
   for (let i = 0; i < reminders.length; i++) {
     const r = reminders[i];
     const trigger = buildTriggerTime(r, window);
-    if (trigger.getTime() <= now) continue;
-    // A reminder outside its own window cannot do its job — "time for X" after X has closed. The
-    // reminder editor rejects these up front; this is the backstop for already-persisted ones.
-    if (trigger.getTime() < window.start.getTime() || trigger.getTime() > window.end.getTime()) continue;
+    // The reminder editor rejects out-of-window offsets up front; this is the backstop for
+    // already-persisted ones, and the same rule drops anything inside a Shabbat / Yom Tov block.
+    if (!reminderFires(trigger, window, location, now)) continue;
+    // Candle lighting fires on the block's opening edge: its text would open only the Shabbat screen.
+    const category = hasText && !opensQuietBlock(trigger, location) ? MITZVAH_TEXT_CATEGORY : MITZVAH_REMINDER_CATEGORY;
     candidates.push({
       trigger,
       input: {
@@ -362,6 +370,95 @@ function isNotificationResponse(
   return Boolean(data && typeof data === 'object' && 'actionIdentifier' in data && 'notification' in data);
 }
 
+// The location's calendar days from the one `fromDate` falls on: today and tomorrow, then on through
+// any Shabbat / Yom Tov block that is reached or starts the next day, up to the first weekday after
+// it. Nothing reopens the app inside a block — the user does not touch the phone — so a schedule
+// that stopped at the block left Sunday morning with no reminders whenever background fetch did not
+// run. Stepping by the location's dates, never by 24-hour device steps, keeps a DST change in
+// either zone from skipping or repeating a day, and keys every reminder by the date its window
+// belongs to — the same day the reader's liturgical flags and the history read.
+function horizonDays(fromDate: Date, location: Location): Date[] {
+  const first = DateTime.fromJSDate(fromDate).setZone(location.tz).startOf('day');
+  const dayAt = (offset: number) => {
+    const day = first.plus({ days: offset });
+    return new Date(day.year, day.month - 1, day.day);
+  };
+  const isHoly = (day: Date) => HebcalService.isHolyDay(locationNoon(day, location), location);
+  const days = [dayAt(0), dayAt(1)];
+  while (isHoly(days[days.length - 1]) || isHoly(dayAt(days.length))) days.push(dayAt(days.length));
+  return days;
+}
+
+function holyBlocksWithin(days: Date[], location: Location): HolyBlock[] {
+  const blocks = new Map<string, HolyBlock>();
+  for (const day of days) {
+    const block = HebcalService.holyBlockOn(locationNoon(day, location), location);
+    if (block) blocks.set(block.days[0], block);
+  }
+  return [...blocks.values()];
+}
+
+function formatClock(instant: Date): string {
+  return DateTime.fromJSDate(instant).toFormat('HH:mm');
+}
+
+type OmerNight = { evening: DateTime; count: number };
+
+// The Omer counts due on the nights inside the block, when no reminder can fire, each with the
+// evening it is counted on. The erev's night may have none (the first Seder), so a count is never
+// assumed to be tonight's. The last day's night opens at the block's own tzeit, where the regular
+// Omer reminder fires as usual.
+function omerNightsWithin(block: HolyBlock, location: Location): OmerNight[] {
+  const evenings = [DateTime.fromISO(block.days[0], { zone: location.tz }).minus({ days: 1 })];
+  for (const day of block.days.slice(0, -1)) evenings.push(DateTime.fromISO(day, { zone: location.tz }));
+  return evenings.flatMap((evening) => {
+    const count = omerDayFor(evening.set({ hour: 12 }).toJSDate(), location.tz);
+    return count === null ? [] : [{ evening, count }];
+  });
+}
+
+function omerLine(block: HolyBlock, nights: OmerNight[]): string | null {
+  if (!nights.length) return null;
+  const erev = DateTime.fromISO(block.days[0]).minus({ days: 1 }).toISODate();
+  if (nights.length === 1 && nights[0].evening.toISODate() === erev) {
+    return t('holyBlock.notice.omerTonight', { count: nights[0].count });
+  }
+  const locale = isEnglish() ? 'en' : 'he';
+  const counts = nights.map(({ evening, count }) =>
+    t('holyBlock.notice.omerOn', { count, day: evening.setLocale(locale).toFormat('cccc') }),
+  );
+  return t('holyBlock.notice.omerNights', { counts: counts.join(', ') });
+}
+
+function blockNoticeCandidate(block: HolyBlock, location: Location, countsOmer: boolean): ScheduleCandidate | null {
+  const trigger = new Date(block.start.getTime() - BLOCK_NOTICE_LEAD_MIN * 60_000);
+  if (trigger.getTime() <= Date.now()) return null;
+  const labels = holyBlockLabelKeys(block);
+  const lines = [t('holyBlock.notice.body', { start: formatClock(block.start), exit: t(labels.exit), end: formatClock(block.end) })];
+  const omer = countsOmer ? omerLine(block, omerNightsWithin(block, location)) : null;
+  if (omer) lines.push(omer);
+  const identifier = `${BLOCK_NOTICE_KIND}:${block.days[0]}`;
+  return {
+    trigger,
+    input: {
+      identifier,
+      content: {
+        title: t(labels.title),
+        body: lines.join('\n'),
+        data: { kind: BLOCK_NOTICE_KIND },
+        autoDismiss: true,
+        sticky: false,
+        sound: 'default',
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: trigger,
+        channelId: ANDROID_CHANNEL_ID,
+      },
+    },
+  };
+}
+
 async function scheduleAllImpl(
   fromDate: Date,
   activeMitzvot: Mitzvah[],
@@ -370,12 +467,19 @@ async function scheduleAllImpl(
 ): Promise<void> {
   if (!hasNotificationPermission()) return;
   await ensureNotificationCategory();
-  const today = new Date(fromDate);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const days = horizonDays(fromDate, location);
 
   const candidates: ScheduleCandidate[] = [];
-  for (const d of [today, tomorrow]) {
+  const countsOmer = activeMitzvot.some((m) => m.id === 'sefirat_haomer');
+  for (const block of holyBlocksWithin(days, location)) {
+    try {
+      const notice = blockNoticeCandidate(block, location, countsOmer);
+      if (notice) candidates.push(notice);
+    } catch (err) {
+      if (__DEV__) console.warn('[notifications] block notice failed', block.days[0], err);
+    }
+  }
+  for (const d of days) {
     for (const m of activeMitzvot) {
       // Isolate per mitzvah: one failure must never abort the rest of the batch, or a single
       // bad computation leaves the user with an empty schedule (cancelAll already ran).

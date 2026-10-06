@@ -135,7 +135,7 @@ Each `Mitzvah` has:
 - `category`: daily/weekly/seasonal/learning grouping used by UI.
 - `computeWindow(ctx)`: returns `{ start, end }` or `null`.
 - `defaultReminders`: reminder definitions with `anchor`, `offsetMin`, `label`, optional `bodyVariants`, `includeContentInBody`, and `skipIfDone`.
-- `skipOn`: skip contexts. The scheduler currently consumes `shabbat` and `yomtov`.
+- `skipOn`: skip contexts. Every surface consumes `shabbat`, `yomtov` and `cholHamoed` through `isSkippedAt()`. `cholHamoed` follows the tefillin minhag in `keepsCholHamoed()`: skipped in Israel and for every nusach but Ashkenaz abroad.
 - `nuschaotSupported`: supported nusach IDs.
 - optional `contentBlocks`: text/blessing/link blocks shown on detail screens and optionally included in notifications.
 
@@ -147,7 +147,8 @@ Custom mitzvot live in `useCustomMitzvotStore` and are adapted through [customMi
 
 - `ZmanimService.getZmanim(date, location)` wraps `kosher-zmanim` `ComplexZmanimCalendar`, resolves the calendar day in the location's timezone, caches up to 90 entries, and returns cloned `Date` objects. It returns `null` (never throws) when the sun neither rises nor sets.
 - Sunrise/sunset use sea-level getters. `tzeitHakochavim` uses `getTzaisGeonim7Point083Degrees()`.
-- Candle lighting uses the same sea-level sunset basis, via `candleLightingMinutes(location)`: 40 minutes in Jerusalem (local minhag), 18 elsewhere in Israel, 20 outside Israel, or `location.candleLightingMinutes` when set. It fires before Shabbat and before Yom Tov.
+- Candle lighting uses the same sea-level sunset basis, via `candleLightingMinutes(location)`: 40 minutes in Jerusalem (local minhag), 18 elsewhere in Israel, 20 outside Israel, or `location.candleLightingMinutes` when set. It opens once per holy block, on its erev; havdalah once, at the block's last tzeit, plus the Sunday night after a Tisha B'Av fast that falls on Sunday, as it is or deferred from Shabbat.
+- A holy block is a maximal run of Shabbat / Yom Tov / Yom Kippur days at the location (second-day Yom Tov by `inIsrael`), from candle lighting on the erev to tzeit of the last day: `HebcalService.holyBlockAt()` / `holyBlockOn()`. The app is never active inside one, and that is the only mode — the user ruled out any setting for it on 2026-10-06. No notification fires strictly inside a block (`isQuietAt()`), and the root layout covers every route with `ShabbatScreen`. The edges stay open, so candle lighting at the start and havdalah or maariv at the end still fire.
 - `HebcalService` wraps `@hebcal/core` for Hebrew dates, parasha, holidays, yom tov, Daf Yomi, Omer, and Shabbat.
 - Always pass `Location` to `HebcalService.isShabbat(date, location)` for halachic boundary behavior. Without a location it falls back to Gregorian Saturday only.
 - Avoid UTC date shortcuts for mitzvah logic.
@@ -163,11 +164,12 @@ Custom mitzvot live in `useCustomMitzvotStore` and are adapted through [customMi
 
 Important constants and contracts:
 
-- Categories: `mitzvah_reminder` (mark-done only) and `mitzvah_reminder_text` (open text + mark done), chosen per reminder by `hasSiddurText()`
+- Categories: `mitzvah_reminder` (mark-done only) and `mitzvah_reminder_text` (open text + mark done), chosen per reminder by `hasSiddurText()`, except that a trigger on a block's opening edge (candle lighting) gets mark-done only: every screen it could open is behind the Shabbat screen
 - Actions: `MARK_DONE` (background) and `OPEN_TEXT` (opens the app to `/siddur/[id]?date=`)
-- Scheduled identifier format: `${mitzvahId}__${YYYY-MM-DD}__${reminderIndex}`
+- Scheduled identifier format: `${mitzvahId}__${YYYY-MM-DD}__${reminderIndex}`. A notification not tied to a mitzvah uses an id without `__` and carries `data.kind`: the pre-block notice is `blockNotice:<first holy day>`, with no category.
 - Pending guard: `PENDING_LIMIT = 60`, `IOS_MAX = 64`
-- Normal horizon: today + tomorrow. Candidates are ordered by trigger time and capped at `IOS_MAX - 4` on iOS / `PENDING_LIMIT` elsewhere, so an overflow drops the furthest-out reminders rather than all of tomorrow.
+- Horizon: the location's calendar days from today and tomorrow, then on through any holy block that is reached or starts the next day, up to the first weekday after it. Each step is the device-local midnight of that location date with its zmanim read at the location's noon, so ids and completion keys name the window's own day and a DST change in either zone cannot skip or repeat one. Candidates are ordered by trigger time and capped at `IOS_MAX - 4` on iOS / `PENDING_LIMIT` elsewhere, so an overflow drops the furthest-out reminders rather than all of tomorrow.
+- The pre-block notice fires an hour before candle lighting for every user with notifications on: title by block kind, lighting and exit times, and the Omer counts of the block's nights when `sefirat_haomer` is enabled.
 - Daily rebuild task: `jew-in-time-daily-rebuild`, gated by `notifications:last-rebuild-date` and intended to run once per local day at/after 00:15.
 - Background notification action task: `jew-in-time-notification-actions`.
 - Delivery must stay EXACT. expo-notifications only calls `setExactAndAllowWhileIdle` when `AlarmManager.canScheduleExactAlarms()` is true, and there is no JS API to detect the fallback — so the manifest is the only guarantee. `USE_EXACT_ALARM` covers API 33+, `SCHEDULE_EXACT_ALARM` (capped at `maxSdkVersion=32` by [scripts/withExactAlarmPermissions.js](scripts/withExactAlarmPermissions.js)) covers Android 12. Pinned by [exactAlarmConfig.test.ts](src/services/__tests__/exactAlarmConfig.test.ts).
@@ -176,13 +178,13 @@ Behavior to preserve:
 
 - `scheduleAll()` and `rebuild()` go through `withLock()`, which coalesces on the trailing edge: a request arriving mid-run queues exactly one re-run so the newest state is always applied.
 - `rebuild()` cancels all scheduled notifications and schedules enabled mitzvot again. Only `rebuildForNewDay()` records the last rebuild date, so a settings-driven rebuild cannot suppress the nightly recovery run.
-- `scheduleOne()` skips disabled/no-permission cases, Shabbat/Yom Tov skips, `null` windows, skipped or completed mitzvot for that date, and past triggers.
+- `scheduleOne()` skips disabled/no-permission cases, Shabbat/Yom Tov skips, `null` windows, skipped or completed mitzvot for that date, past triggers, and any trigger strictly inside a holy block.
 - `cancelForMitzvah(id, date)` cancels all pending reminders for that mitzvah/date and dismisses the presented ones, so marking a mitzvah done anywhere clears it from the tray and prevents later same-day notifications.
 - A language change rebuilds the schedule, because notification text and button titles are translated at scheduling time.
 - `SCHEDULE_FORMAT` is raised whenever a scheduled notification changes shape, so the first foreground after an update rebuilds once.
 - `useCompletionsStore.markDone`, `markSkipped`, and `unmark` also trigger notification cancellation/rebuild through a queued `require()` to avoid import cycles.
 - `initNotificationHandlers()` is called from [_layout.tsx](src/app/_layout.tsx) after fonts load and returns a teardown the layout runs on unmount. It also calls `refreshSchedulingOnForeground()`, which home repeats on `AppState 'active'` so the horizon cannot silently expire. It sets the foreground handler, registers category/action tasks, syncs permission, dismisses already-completed presented notifications, subscribes to store changes, and registers the daily rebuild task.
-- Tapping the notification body routes to `/mitzvah/[id]`; tapping `OPEN_TEXT` routes to `/siddur/[id]` with the notification's `dateKey`, buffered like the body tap on a cold start; tapping `MARK_DONE` marks completion without foregrounding the app.
+- Tapping the notification body routes to `/mitzvah/[id]`; tapping `OPEN_TEXT` routes to `/siddur/[id]` with the notification's `dateKey`, buffered like the body tap on a cold start; tapping `MARK_DONE` marks completion without foregrounding the app. The pre-block notice opens home. Inside a holy block a tap opens nothing (only `MARK_DONE` still runs), and a tap buffered on a cold start before the block is dropped rather than replayed into it.
 - [withMitzvahNotificationAction.js](scripts/withMitzvahNotificationAction.js) is an Expo config plugin that writes an Android Kotlin service to dismiss a notification after the mark-done action. Keep this in mind when changing notification action IDs.
 - Both `TaskManager.defineTask` calls live at [NotificationScheduler.ts](src/services/NotificationScheduler.ts) module scope, and the bundle entry is the root [index.js](index.js) (the `main` field in [package.json](package.json)), which imports that module. A killed-state `MARK_DONE` tap and background fetch arrive as headless launches that never load route modules — a `defineTask` reachable only through the router tree never runs and the OS-invoked event is silently dropped. Pinned by [backgroundTaskEntry.test.ts](src/services/__tests__/backgroundTaskEntry.test.ts).
 
@@ -209,7 +211,7 @@ All primary stores use Zustand with MMKV persistence through `StorageService.cre
 - `setLocale()` and `useI18n()` are lightweight wrappers. The `i18n-js` package is installed but the current app does not rely on the normal `i18n-js` runtime API.
 - RTL is dynamic based on `useUserStore.language`. `_layout.tsx` calls `I18nManager.allowRTL/forceRTL`; native language direction changes can require a reload.
 - Web also sets `document.documentElement.dir/lang` and `body.dir`.
-- Main reusable UI components: `MitzvahCard`, `CompletedRow`, `ReminderEditor`, `TimeRibbon`, `BottomTabs`, `NavBar`, `HebrewDate`, and `AppLogo`.
+- Main reusable UI components: `MitzvahCard`, `CompletedRow`, `ReminderEditor`, `TimeRibbon`, `BottomTabs`, `NavBar`, `HebrewDate`, `AppLogo`, and `ShabbatScreen`.
 
 ## Tests
 
@@ -233,6 +235,7 @@ Test rules that exist because the suite once passed while the app was broken:
 - A test must be able to fail for the reason it claims. `scheduleOne` compares triggers against the real clock, so fixtures in the past pass vacuously; derive dates from `Date.now()` instead.
 - A fixture must mean the same moment in every zone. `new Date(2026, 3, 24, 20)` is 20:00 on the device's clock, so build an instant for an instant API with `at(location, '2026-04-24T20:00')` from [src/testing/zmanim.ts](src/testing/zmanim.ts). Calendar-day APIs (`dateKey`, `getHebrewDate`, `getHolidays`, and `isShabbat` / `omerDayFor` without a location) read device-local dates, so they take local-component dates.
 - Run [pnpm test:tz](scripts/test-timezones.js) after touching date or timezone logic. It runs every suite in four real zones, and a setup guard fails any run whose zone did not take effect.
+- A suite that schedules notifications pins `Date` (and only `Date`) to a fixed weekday. Nothing fires inside a holy block, so on the real clock the suite would fail every Shabbat. Faking timers or `queueMicrotask` too would stall the completion store's queued side effects.
 
 When adding ESM or native-adjacent dependencies, check `transformIgnorePatterns` in [package.json](package.json); Jest may need the dependency allowlisted.
 
@@ -262,6 +265,8 @@ pnpm typecheck
 - New mitzvah: update the registry, default enabled behavior, detail/schedule/history expectations, and tests. A mitzvah added after release needs the `merge` in [useMitzvotStore.ts](src/stores/useMitzvotStore.ts) to reach existing users.
 - New scheduler export: update [NotificationScheduler.web.ts](src/services/NotificationScheduler.web.ts) too; [schedulerWebParity.test.ts](src/services/__tests__/schedulerWebParity.test.ts) enforces it.
 - New notification action/category ID: update scheduler constants, response handling, the [Android config plugin](scripts/withMitzvahNotificationAction.js), and notification tests.
+- New notification not tied to a mitzvah: an id `parseId` rejects (no `__`), a `data.kind`, no mitzvah category (its "done" button would mark a fake mitzvah), the kind in both scheduler files' `PendingNotificationMeta`, and its tap route in [notificationResponseHandler.ts](src/services/notificationResponseHandler.ts).
+- New decision about whether the app may act at an instant: extend `quietBlockAt()` in [skipRules.ts](src/utils/skipRules.ts). Never add a second copy of the quiet window.
 - New background task (`TaskManager.defineTask`): define it in a module imported from the root [index.js](index.js), never only behind a route module — headless launches do not load the router tree.
 - New persisted store field: add a default, reset behavior, and a `version`/`migrate` step in [persistOptions.ts](src/stores/persistOptions.ts) if old persisted data may exist.
 - New decision about whether a mitzvah applies to a day: extend [skipRules.ts](src/utils/skipRules.ts). Never add a second copy of that predicate.

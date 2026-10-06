@@ -1,13 +1,12 @@
-import { HDate } from '@hebcal/core';
+import { HDate, months } from '@hebcal/core';
 import { DateTime } from 'luxon';
 import { ComputeContext, Mitzvah, MitzvahWindow, Nusach } from '@/types/mitzvah';
 import { Location, Zmanim } from '@/types/zmanim';
 import { HebcalService } from '@/services/HebcalService';
-import { ZmanimService } from '@/services/ZmanimService';
+import { ZmanimService, candleLightingMinutes, isJerusalem } from '@/services/ZmanimService';
 
 const ALL_NUSCHAOT: Nusach[] = ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'];
-const FRIDAY = 5;
-const SATURDAY = 6;
+const SUNDAY = 0;
 
 function win(start: Date, end: Date): MitzvahWindow {
   if (end.getTime() <= start.getTime()) return null;
@@ -28,19 +27,14 @@ function dayOf(zmanim: Zmanim, location: Location): DateTime {
   return DateTime.fromJSDate(zmanim.chatzot).setZone(location.tz);
 }
 
-// Jerusalem's near-universal minhag is 40 minutes, and it is the app's default city — 18 minutes
-// there is simply the wrong time.
-const JERUSALEM_CANDLE_MINUTES = 40;
-
-export function isJerusalem(location: Location): boolean {
-  return location.nameEn === 'Jerusalem';
+// The fast of Tisha B'Av on a Sunday, whether 9 Av falls there or is pushed off Shabbat (10 Av).
+// Either way it began on motzaei Shabbat, which had only the flame.
+function isSundayTishaBav(day: DateTime): boolean {
+  const hd = new HDate(new Date(day.year, day.month - 1, day.day));
+  return hd.getMonth() === months.AV && (hd.getDate() === 9 || hd.getDate() === 10) && hd.getDay() === SUNDAY;
 }
 
-export function candleLightingMinutes(location: Location): number {
-  if (location.candleLightingMinutes) return location.candleLightingMinutes;
-  if (location.inIsrael) return isJerusalem(location) ? JERUSALEM_CANDLE_MINUTES : 18;
-  return 20;
-}
+export { candleLightingMinutes, isJerusalem };
 
 // The Omer is counted at nightfall, and that night belongs to the NEXT Hebrew day. So the count
 // due on the night that opens at tzeit of Gregorian day D is the count of Hebrew day D+1: night 1
@@ -83,7 +77,7 @@ export const MITZVOT: Mitzvah[] = [
     icon: 'tefillin',
     timeType: 'range-within-day',
     category: 'daily-morning',
-    skipOn: ['shabbat', 'yomtov'],
+    skipOn: ['shabbat', 'yomtov', 'cholHamoed'],
     nuschaotSupported: ALL_NUSCHAOT,
     defaultReminders: [
       {
@@ -217,26 +211,14 @@ export const MITZVOT: Mitzvah[] = [
     category: 'weekly',
     skipOn: [],
     nuschaotSupported: ALL_NUSCHAOT,
-    defaultReminders: [
-      {
-        anchor: 'start',
-        offsetMin: -20,
-        label: 'עוד 20 דק\' להדלקת נרות',
-        bodyVariants: ['עוד 20 דק\' להדלקת נרות', 'שבת מתקרבת — זמן להכין נרות', 'עוד מעט מדליקים נרות שבת'],
-      },
-      { anchor: 'start', offsetMin: 0, label: 'זמן הדלקת נרות' },
-    ],
+    defaultReminders: [{ anchor: 'start', offsetMin: 0, label: 'זמן הדלקת נרות' }],
     computeWindow: ({ location, zmanim }) => {
-      // Candles are lit before Shabbat AND before Yom Tov. Weekday-only meant no reminder at all
-      // for any chag that does not happen to start on a Friday — Sukkot and Pesach 5786 both begin
-      // midweek. When Yom Tov starts on motzaei Shabbat, lighting is from an existing flame after
-      // tzeit rather than at this time, so that case is excluded.
+      // Lit once, on the erev of a Shabbat / Yom Tov block. Inside a block — the second night of
+      // Yom Tov, or Shabbat that follows Yom Tov — candles are lit from an existing flame while the
+      // app is quiet, so a reminder there would land in the middle of the chag.
       const day = dayOf(zmanim, location);
-      const erevYomTov =
-        HebcalService.isYomTov(day.plus({ days: 1 }).toJSDate(), location) &&
-        !HebcalService.isYomTov(day.toJSDate(), location);
-      if (day.weekday !== FRIDAY && !erevYomTov) return null;
-      if (day.weekday === SATURDAY) return null;
+      if (HebcalService.isHolyDay(day.toJSDate(), location)) return null;
+      if (!HebcalService.isHolyDay(day.plus({ days: 1 }).toJSDate(), location)) return null;
       const t = new Date(zmanim.shkia.getTime() - candleLightingMinutes(location) * 60_000);
       return win(t, zmanim.shkia);
     },
@@ -254,11 +236,19 @@ export const MITZVOT: Mitzvah[] = [
         anchor: 'start',
         offsetMin: 0,
         label: 'זמן הבדלה',
-        bodyVariants: ['זמן הבדלה', 'מבדילים בין קודש לחול', 'צאת שבת — זמן הבדלה'],
+        bodyVariants: ['זמן הבדלה', 'מבדילים בין קודש לחול', 'הגיע זמן ברכות ההבדלה'],
       },
     ],
     computeWindow: ({ location, zmanim }) => {
-      if (dayOf(zmanim, location).weekday !== SATURDAY) return null;
+      // Havdalah closes a Shabbat / Yom Tov block, so it is due only on the block's last day:
+      // Shabbat that flows into Yom Tov is separated in kiddush instead, and a Yom Tov that ends on
+      // a weekday still needs it. When the Tisha B'Av fast falls on Sunday, motzaei Shabbat has only
+      // the flame and the cup waits for the end of the fast on Sunday night.
+      const day = dayOf(zmanim, location);
+      const closesBlock =
+        HebcalService.isHolyDay(day.toJSDate(), location) &&
+        !HebcalService.isHolyDay(day.plus({ days: 1 }).toJSDate(), location);
+      if (!closesBlock && !isSundayTishaBav(day)) return null;
       const end = new Date(zmanim.tzeitHakochavim.getTime() + 90 * 60_000);
       return win(zmanim.tzeitHakochavim, end);
     },

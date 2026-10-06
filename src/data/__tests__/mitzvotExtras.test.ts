@@ -58,7 +58,7 @@ describe('Mitzvot extras', () => {
   });
 
   it('skipOn values are recognized tokens', () => {
-    const allowed = new Set(['shabbat', 'yomtov', 'fast', 'omer-end']);
+    const allowed = new Set(['shabbat', 'yomtov', 'cholHamoed', 'fastDay']);
     for (const m of MITZVOT) {
       for (const s of m.skipOn) {
         expect(allowed.has(s)).toBe(true);

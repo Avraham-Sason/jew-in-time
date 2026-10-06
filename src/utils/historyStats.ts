@@ -42,7 +42,12 @@ export function computeStats(
     const noon = locationNoon(date, location);
     const zmanim = ZmanimService.getZmanim(noon, location);
     if (!zmanim) {
-      daily.push({ date: key, doneCount: 0, totalCount: 0, observed: { isShabbat: false, isYomTov: false } });
+      daily.push({
+        date: key,
+        doneCount: 0,
+        totalCount: 0,
+        observed: { isShabbat: false, isYomTov: false, isCholHamoed: false },
+      });
       continue;
     }
     let totalCount = 0;
@@ -52,7 +57,7 @@ export function computeStats(
     for (const mitzvah of mitzvot) {
       const window = mitzvah.computeWindow({ date, location, settings, zmanim });
       if (!window) continue;
-      if (isSkippedAt(mitzvah, window.start, location)) continue;
+      if (isSkippedAt(mitzvah, window.start, location, settings)) continue;
       totalCount += 1;
       perMitzvah[mitzvah.id].eligible += 1;
       if (doneMap[mitzvah.id]) {

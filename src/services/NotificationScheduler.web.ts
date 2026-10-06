@@ -12,6 +12,7 @@ const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
 const SCHEDULE_FORMAT_KEY = 'notifications:schedule-format';
 
 export type PendingNotificationMeta = {
+  kind?: 'blockNotice';
   mitzvahId?: string;
   dateKey?: string;
   reminderIndex?: number;

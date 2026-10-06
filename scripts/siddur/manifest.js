@@ -213,6 +213,30 @@ const T = {
 };
 
 const NOT_TISHA_BAV = { none: ['tishaBav'] };
+// Spices only on motzaei Shabbat; the flame on motzaei Shabbat and on motzaei Yom Kippur (from a
+// flame that burned through the fast). Positive conditions, so motzaei Yom Tov and the Sunday night
+// after a deferred Tisha B'Av, which carry no flag of their own, come out as wine and Hamavdil only.
+const HAVDALAH_SPICES = { any: ['motzaeiShabbat'], none: ['tishaBav'] };
+const HAVDALAH_FLAME = { any: ['motzaeiShabbat', 'dayAfterYomKippur'] };
+const HAVDALAH_FLAME_NOTES = [
+  {
+    he: '<small>במוצאי יום הכיפורים מברכים על נר ששבת, שדלק מערב יום הכיפורים</small>',
+    en: 'At the conclusion of Yom Kippur, the blessing is said over a flame that has burned since before Yom Kippur.',
+    when: { all: ['dayAfterYomKippur'] },
+  },
+  {
+    he: '<small>במוצאי שבת שחל בו תשעה באב מברכים הלילה רק על הנר, ואת ההבדלה על הכוס אומרים בצאת הצום בלי בשמים ובלי נר</small>',
+    en: 'When Tisha B’Av begins at the end of Shabbat, only the blessing over the flame is said tonight. Havdalah over the cup is said when the fast ends, without spices or flame.',
+    when: { all: ['tishaBav'] },
+  },
+];
+// The Metsudah Yom Kippur machzor marks the verses "במוצאי שבת מתחילין כאן" and the wine "בחול
+// מתחילין כאן", which is certain for Ashkenaz only.
+const HAVDALAH_WEEKDAY_YOM_KIPPUR_NOTE = {
+  he: '<small>במוצאי יום הכיפורים שחל בחול אין אומרים את הפסוקים, ומתחילים מהברכה על היין</small>',
+  en: 'When Yom Kippur ends on a weekday, the verses are omitted and Havdalah begins with the blessing over the wine.',
+  when: { all: ['dayAfterYomKippur'], none: ['motzaeiShabbat'] },
+};
 const NOT_FASTING_BAREFOOT = { none: ['tishaBav', 'yomKippur'] };
 const SHEHECHEYANU = { all: ['shehecheyanu'] };
 
@@ -706,7 +730,7 @@ function candles({ transform, shabbatEdits, shabbatEnEdits } = {}) {
   ];
 }
 
-function linearHavdalah({ transform } = {}) {
+function linearHavdalah({ transform, versesNote } = {}) {
   const base = { he: 'metsudahShabbatHe', en: 'metsudahShabbatEn', linear: true, transform, path: 'Havdalah' };
   return [
     {
@@ -716,10 +740,19 @@ function linearHavdalah({ transform } = {}) {
       to: 21,
       groups: [[2, 7], [8, 9], [10, 12], [13, 14], [15, 16], [17, 18], [19, 19], [20, 21]],
       when: NOT_TISHA_BAV,
+      ...(versesNote ? { insert: [{ ...versesNote, at: 2 }] } : {}),
     },
     { ...base, title: T.havdalahWine, from: 22, to: 25, groups: [[23, 25]], when: NOT_TISHA_BAV },
-    { ...base, title: T.havdalahSpices, from: 26, to: 29, groups: [[27, 29]], when: NOT_TISHA_BAV },
-    { ...base, title: T.havdalahFire, from: 30, to: 33, groups: [[31, 33]] },
+    { ...base, title: T.havdalahSpices, from: 26, to: 29, groups: [[27, 29]], when: HAVDALAH_SPICES },
+    {
+      ...base,
+      title: T.havdalahFire,
+      from: 30,
+      to: 33,
+      groups: [[31, 33]],
+      when: HAVDALAH_FLAME,
+      insert: HAVDALAH_FLAME_NOTES.map((note) => ({ ...note, at: 31 })),
+    },
     {
       ...base,
       title: T.havdalahBlessing,
@@ -836,7 +869,7 @@ const TEXTS = {
     }),
   },
   havdalah: {
-    ashkenaz: linearHavdalah(),
+    ashkenaz: linearHavdalah({ versesNote: HAVDALAH_WEEKDAY_YOM_KIPPUR_NOTE }),
     sefard: linearHavdalah(),
     edot_hamizrach: [
       {
@@ -845,9 +878,20 @@ const TEXTS = {
         path: 'Havdalah > Havdala',
         from: 1,
         drop: [10],
+        insert: [
+          {
+            he: '<small>יקח הכוס בידו הימנית ויאמר</small>',
+            en: 'Take the cup in the right hand and say:',
+            when: { none: ['motzaeiShabbat', 'tishaBav'] },
+            at: 3,
+          },
+          ...HAVDALAH_FLAME_NOTES.map((note) => ({ ...note, at: 12 })),
+        ],
         at: {
           ...each(1, 9, NOT_TISHA_BAV),
-          11: NOT_TISHA_BAV,
+          3: HAVDALAH_SPICES,
+          11: HAVDALAH_SPICES,
+          ...each(12, 13, HAVDALAH_FLAME),
           ...each(14, 20, NOT_TISHA_BAV),
           17: { all: ['roshChodesh'], none: ['tishaBav'] },
           18: { all: ['cholHamoedPesach'], none: ['tishaBav'] },

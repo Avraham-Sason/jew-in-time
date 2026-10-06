@@ -27,6 +27,7 @@ import {
 } from '@/services/deviceSettings';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useQuietBlock } from '@/components/ShabbatScreen';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 import { CITIES, getLocationName } from '@/data/cities';
@@ -39,6 +40,7 @@ const OPINIONS = ['GRA', 'MA'] as const;
 
 export default function SettingsScreen() {
   const { colors } = useTheme();
+  const quiet = useQuietBlock() !== null;
   const { t, language } = useI18n();
   const router = useRouter();
   const user = useUserStore();
@@ -293,7 +295,7 @@ export default function SettingsScreen() {
 
       </ScrollView>
 
-      <Modal animationType="fade" transparent visible={resetVisible} onRequestClose={() => setResetVisible(false)}>
+      <Modal animationType="fade" transparent visible={resetVisible && !quiet} onRequestClose={() => setResetVisible(false)}>
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[typography.heading, { color: colors.text, marginBottom: 8 }]}>

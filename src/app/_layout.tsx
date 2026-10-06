@@ -1,7 +1,7 @@
 import 'expo-dev-client';
 import 'react-native-gesture-handler';
-import React, { useEffect, useRef } from 'react';
-import { DevSettings, I18nManager, View, ActivityIndicator, Platform, Pressable, StyleSheet, Text } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, DevSettings, I18nManager, View, ActivityIndicator, Platform, Pressable, StyleSheet, Text } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
@@ -28,6 +28,10 @@ import {
 } from '@/services/notificationResponseHandler';
 import { setLocale, t } from '@/i18n';
 import { StorageService } from '@/services/StorageService';
+import { HebcalService } from '@/services/HebcalService';
+import { QuietBlockContext, ShabbatScreen } from '@/components/ShabbatScreen';
+import { nextQuietBoundary, quietBlockAt } from '@/utils/skipRules';
+import { HolyBlock, Location } from '@/types/zmanim';
 
 function syncDocumentDirection(language: 'he' | 'en') {
   if (Platform.OS !== 'web' || typeof document === 'undefined') return;
@@ -80,12 +84,52 @@ syncLayoutDirection(initialLanguage, needsRtlBootstrap);
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+const QUIET_RECHECK_MS = 60 * 60_000;
+
+// The Shabbat / Yom Tov block the app is inside right now, re-read the moment candle lighting or
+// tzeit passes while the app is open, and on every return to the foreground — JS timers do not run
+// while the app is in the background. Before onboarding the location is only a default guess, so
+// it cannot decide that the user is inside Shabbat.
+function useCurrentQuietBlock(location: Location, enabled: boolean): HolyBlock | null {
+  const [now, setNow] = useState(() => Date.now());
+  const block = useMemo(() => (enabled ? quietBlockAt(new Date(now), location) : null), [now, location, enabled]);
+
+  useEffect(() => {
+    const boundary = nextQuietBoundary(new Date(now), location);
+    const untilBoundary = boundary ? boundary.getTime() - Date.now() + 1000 : QUIET_RECHECK_MS;
+    const timer = setTimeout(() => setNow(Date.now()), Math.max(1000, Math.min(untilBoundary, QUIET_RECHECK_MS)));
+    return () => clearTimeout(timer);
+  }, [now, location]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setNow(Date.now());
+    });
+    return () => sub.remove();
+  }, []);
+
+  return block;
+}
+
 function RootInner() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const segments = useSegments();
   const isOnboarded = useUserStore((s) => s.isOnboarded);
   const language = useUserStore((s) => s.language);
+  const location = useUserStore((s) => s.location);
+  const quietBlock = useCurrentQuietBlock(location, isOnboarded);
+  const quiet = quietBlock !== null;
+
+  // Unwind everything stacked under the Shabbat screen — when the block starts, and again after any
+  // navigation inside it — so nothing stale stays mounted for a day, above all the reader, which
+  // keeps the screen awake while it is open.
+  useEffect(() => {
+    if (!quiet) return;
+    try {
+      if (router.canDismiss()) router.dismissAll();
+    } catch {}
+  }, [quiet, segments, router]);
 
   useEffect(() => {
     const first = segments[0];
@@ -112,22 +156,34 @@ function RootInner() {
   }, []);
 
   return (
-    <View style={{ flex: 1, direction: language === 'he' ? 'rtl' : 'ltr' }}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.bg },
-          animation: 'fade',
-        }}
-      >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="mitzvah/[id]" options={{ presentation: 'card' }} />
-        <Stack.Screen name="siddur/[id]" options={{ presentation: 'card' }} />
-        <Stack.Screen name="day/[date]" options={{ presentation: 'card' }} />
-        <Stack.Screen name="custom-mitzvah" options={{ presentation: 'card' }} />
-      </Stack>
-    </View>
+    <QuietBlockContext.Provider value={quietBlock}>
+      <View style={{ flex: 1, direction: language === 'he' ? 'rtl' : 'ltr' }}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <View
+          style={{ flex: 1 }}
+          importantForAccessibility={quiet ? 'no-hide-descendants' : 'auto'}
+          accessibilityElementsHidden={quiet}
+        >
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.bg },
+              animation: 'fade',
+            }}
+          >
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="mitzvah/[id]" options={{ presentation: 'card' }} />
+            <Stack.Screen name="siddur/[id]" options={{ presentation: 'card' }} />
+            <Stack.Screen name="day/[date]" options={{ presentation: 'card' }} />
+            <Stack.Screen name="custom-mitzvah" options={{ presentation: 'card' }} />
+          </Stack>
+        </View>
+        <ShabbatScreen
+          block={quietBlock}
+          subtitle={quietBlock ? HebcalService.getHebrewDateAt(new Date(), location).hebrewDateStr : undefined}
+        />
+      </View>
+    </QuietBlockContext.Provider>
   );
 }
 

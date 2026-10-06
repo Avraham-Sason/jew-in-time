@@ -1,6 +1,7 @@
 const mockAddNotificationResponseReceivedListener = jest.fn();
 const mockMarkDoneFromNotificationData = jest.fn<Promise<boolean>, [unknown, string?]>(async () => true);
 const mockRouterPush = jest.fn();
+const mockRouterNavigate = jest.fn();
 
 jest.mock('react-native-mmkv', () => {
   const { createMockMMKV } = require('react-native-mmkv/lib/commonjs/createMMKV.mock');
@@ -19,7 +20,10 @@ jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
 jest.mock('expo-background-fetch', () => ({ registerTaskAsync: jest.fn(), BackgroundFetchResult: {} }));
 
 jest.mock('expo-router', () => ({
-  router: { push: (...args: unknown[]) => mockRouterPush(...args) },
+  router: {
+    push: (...args: unknown[]) => mockRouterPush(...args),
+    navigate: (...args: unknown[]) => mockRouterNavigate(...args),
+  },
 }));
 
 // Only `markDoneFromNotificationData` is stubbed. The parser used to be re-implemented here too —
@@ -40,6 +44,9 @@ import {
   MARK_DONE_ACTION,
   OPEN_TEXT_ACTION,
 } from '../notificationResponseHandler';
+import { useUserStore } from '@/stores/useUserStore';
+import { CITIES } from '@/data/cities';
+import { at } from '@/testing/zmanim';
 
 function response(actionIdentifier: string, data: Record<string, unknown>, identifier = 'notif-id', dataString?: string) {
   return {
@@ -58,6 +65,7 @@ describe('notificationResponseHandler', () => {
     mockAddNotificationResponseReceivedListener.mockReset();
     mockMarkDoneFromNotificationData.mockClear();
     mockRouterPush.mockClear();
+    mockRouterNavigate.mockClear();
   });
 
   it('marks a mitzvah done from the notification action', () => {
@@ -150,5 +158,62 @@ describe('notificationResponseHandler', () => {
     });
     consumePendingNotificationRoute();
     expect(mockRouterPush).toHaveBeenCalledTimes(2);
+  });
+
+  it('opens home from the pre-block notice, never a mitzvah lookup', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+    listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'blockNotice' }, 'blockNotice:2026-11-14'));
+
+    expect(mockRouterNavigate).toHaveBeenCalledWith('/(tabs)/home');
+    expect(mockRouterPush).not.toHaveBeenCalled();
+    expect(mockMarkDoneFromNotificationData).not.toHaveBeenCalled();
+  });
+
+  describe('inside a Shabbat block', () => {
+    const jerusalem = CITIES[0];
+    beforeAll(() => {
+      jest.useFakeTimers({
+        now: at(jerusalem, '2026-11-14T10:00'),
+        doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'],
+      });
+    });
+    afterAll(() => jest.useRealTimers());
+    beforeEach(() => {
+      useUserStore.getState().setLocation(jerusalem);
+      useUserStore.getState().setOnboarded(true);
+    });
+    afterEach(() => useUserStore.getState().reset());
+
+    // The route would mount under the Shabbat screen and stay there — the reader keeping the screen
+    // awake — until tzeit.
+    it('opens nothing from a tap, but still honours "done"', () => {
+      initNotificationResponseHandler();
+      const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+      listener(response(OPEN_TEXT_ACTION, { mitzvahId: 'candle_lighting', dateKey: '2026-11-13' }, 'candle_lighting__2026-11-13__0'));
+      listener(response(DEFAULT_NOTIFICATION_ACTION, { mitzvahId: 'candle_lighting' }, 'candle_lighting__2026-11-13__0'));
+      listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'blockNotice' }, 'blockNotice:2026-11-14'));
+      expect(mockRouterPush).not.toHaveBeenCalled();
+      expect(mockRouterNavigate).not.toHaveBeenCalled();
+
+      listener(response(MARK_DONE_ACTION, { mitzvahId: 'candle_lighting', dateKey: '2026-11-13' }, 'candle_lighting__2026-11-13__0'));
+      expect(mockMarkDoneFromNotificationData).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops a tap buffered before the block began instead of replaying it into Shabbat', () => {
+      useUserStore.getState().setOnboarded(false);
+      initNotificationResponseHandler();
+      const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+      mockRouterPush.mockImplementationOnce(() => {
+        throw new Error('navigator not mounted');
+      });
+      listener(response(DEFAULT_NOTIFICATION_ACTION, { mitzvahId: 'shacharit' }));
+
+      useUserStore.getState().setOnboarded(true);
+      consumePendingNotificationRoute();
+      expect(mockRouterPush).toHaveBeenCalledTimes(1);
+    });
   });
 });

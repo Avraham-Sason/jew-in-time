@@ -14,6 +14,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCustomMitzvotStore, makeCustomMitzvahId } from '@/stores/useCustomMitzvotStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { useQuietBlock } from '@/components/ShabbatScreen';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 import {
@@ -60,6 +61,7 @@ function cleanContentBlocks(blocks: ContentBlock[]): ContentBlock[] | undefined 
 
 export default function CustomMitzvahScreen() {
   const { colors } = useTheme();
+  const quiet = useQuietBlock() !== null;
   const { t, language } = useI18n();
   const router = useRouter();
   const { id: rawId } = useLocalSearchParams<{ id?: string }>();
@@ -486,7 +488,7 @@ export default function CustomMitzvahScreen() {
         ) : null}
       </ScrollView>
 
-      <Modal animationType="fade" transparent visible={deleteVisible} onRequestClose={() => setDeleteVisible(false)}>
+      <Modal animationType="fade" transparent visible={deleteVisible && !quiet} onRequestClose={() => setDeleteVisible(false)}>
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[typography.heading, { color: colors.text, marginBottom: 8 }]}>{t('custom.deleteConfirmTitle')}</Text>

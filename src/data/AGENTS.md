@@ -20,10 +20,12 @@
 - Static mitzvah changes must preserve the `Mitzvah` contract from [../types/mitzvah.ts](../types/mitzvah.ts).
 - Mitzvah windows must avoid UTC date shortcuts and stay compatible with [../services/ZmanimService.ts](../services/ZmanimService.ts) and [../services/HebcalService.ts](../services/HebcalService.ts).
 - In a static `computeWindow`, ask every calendar question (weekday, next day, `isYomTov`, Omer count) about `dayOf(ctx.zmanim, location)`: the location's day those zmanim belong to, at its midday. Never use `ctx.date`. Its device-local getters read the wrong day once the zones differ, and its clock time depends on the caller (midnight, now, or a rebuild's evening). An evening `ctx.date` already sits in the next Hebrew day, which once erased erev-Yom-Tov candle lighting.
+- Candle lighting opens only on the erev of a holy block (the day is not holy and the next is), and havdalah only on the block's last day, plus a Sunday on which the Tisha B'Av fast falls (9 Av, or 10 Av deferred from Shabbat), because motzaei Shabbat had only the flame. Havdalah's notification lines never mention Shabbat: it also closes Yom Tov, Yom Kippur and that fast. Both ask `HebcalService.isHolyDay()` about `dayOf()` days.
+- A reminder must fall inside its own window, so the candle-lighting reminder fires at lighting time only; the scheduler's pre-block notice carries the lead time.
 - Never build a night-time window end with `Date.setDate(+1)` on `zmanim.chatzot` — that is midday chatzot and yields the next day's noon. Use `zmanim.chatzotLayla` (solar midnight, already the next civil date) or the next day's `alotHaShachar`.
 - `omerDayFor()` returns the count due on the night that OPENS at tzeit of the given day, which belongs to the next Hebrew day: night 1 on the evening of 15 Nisan, night 49 on the evening of 4 Sivan. Do not re-anchor it to the daytime Hebrew date.
 - When a screen or service must include custom mitzvot, use `getAllMitzvot()` or `findAnyMitzvah()`.
-- `hasSiddurText()` is the single answer to "does this reminder offer a text": the scheduler category, the mitzvah screen button and the reader all use it. A custom mitzvah offers its own non-link content blocks.
+- `hasSiddurText()` is the single answer to "does this reminder offer a text": the scheduler category (withheld only on a holy block's opening edge, where the reader is unreachable), the mitzvah screen button and the reader all use it. A custom mitzvah offers its own non-link content blocks.
 - New user-facing labels or text must be reflected in [../i18n/AGENTS.md](../i18n/AGENTS.md) when they are normal UI copy.
 
 ## Work Guidance

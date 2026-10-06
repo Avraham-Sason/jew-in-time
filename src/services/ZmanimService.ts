@@ -1,7 +1,20 @@
 import { ComplexZmanimCalendar, GeoLocation } from 'kosher-zmanim';
 import { DateTime } from 'luxon';
 import { Location, Zmanim } from '@/types/zmanim';
-import { candleLightingMinutes } from '@/data/mitzvot';
+
+// Jerusalem's near-universal minhag is 40 minutes, and it is the app's default city — 18 minutes
+// there is simply the wrong time.
+const JERUSALEM_CANDLE_MINUTES = 40;
+
+export function isJerusalem(location: Location): boolean {
+  return location.nameEn === 'Jerusalem';
+}
+
+export function candleLightingMinutes(location: Location): number {
+  if (location.candleLightingMinutes) return location.candleLightingMinutes;
+  if (location.inIsrael) return isJerusalem(location) ? JERUSALEM_CANDLE_MINUTES : 18;
+  return 20;
+}
 
 const ZMANIM_CACHE_LIMIT = 90;
 const ALOT_FALLBACK_MIN = 72;

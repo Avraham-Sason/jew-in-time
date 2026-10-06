@@ -30,19 +30,25 @@ export const ZMAN_KEYS = [
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
 
+const NEXT_WINDOW_LOOKAHEAD_DAYS = 9;
+
 export function currentOrNextWindow(
   mitzvah: Mitzvah,
   location: Location,
   settings: UserSettings,
   now: Date = new Date(),
 ): { start: Date; end: Date; date: Date } | null {
-  for (const offset of [-1, 0, 1]) {
+  // Far enough ahead to clear the longest run of skipped days — Sukkot in Israel keeps tefillin
+  // off for chol hamoed, Shemini Atzeret and a Shabbat — and to reach next week's candle lighting.
+  for (let offset = -1; offset <= NEXT_WINDOW_LOOKAHEAD_DAYS; offset++) {
     const date = new Date(now);
     date.setDate(date.getDate() + offset);
     const zmanim = ZmanimService.getZmanim(date, location);
     if (!zmanim) continue;
     const window = mitzvah.computeWindow({ date, location, settings, zmanim });
-    if (window && window.end.getTime() > now.getTime()) return { ...window, date };
+    if (!window || window.end.getTime() <= now.getTime()) continue;
+    if (isSkippedAt(mitzvah, window.start, location, settings)) continue;
+    return { ...window, date };
   }
   return null;
 }
@@ -70,7 +76,7 @@ export function buildDayTimeline(
   mitzvot.forEach((mitzvah) => {
     const window = mitzvah.computeWindow({ date, location, settings, zmanim });
     if (!window) return;
-    if (isSkippedAt(mitzvah, window.start, location)) return;
+    if (isSkippedAt(mitzvah, window.start, location, settings)) return;
     timeline.push({
       id: `${mitzvah.id}-${window.start.toISOString()}`,
       name: language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he,

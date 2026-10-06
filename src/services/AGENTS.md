@@ -6,8 +6,8 @@
 
 ## Ownership
 
-- [ZmanimService.ts](ZmanimService.ts) owns kosher-zmanim calculations and caching.
-- [HebcalService.ts](HebcalService.ts) owns Hebrew calendar, holidays, Shabbat, Daf Yomi, and Omer logic.
+- [ZmanimService.ts](ZmanimService.ts) owns kosher-zmanim calculations and caching, and the per-location candle-lighting minutes (`candleLightingMinutes()`, `isJerusalem()`). They live here, below every caller, so no service imports the mitzvah registry and no require cycle forms.
+- [HebcalService.ts](HebcalService.ts) owns Hebrew calendar, holidays, Shabbat, chol hamoed, holy blocks, Daf Yomi, and Omer logic.
 - [LocationService.ts](LocationService.ts) owns location access wrappers.
 - [StorageService.ts](StorageService.ts) owns MMKV-backed storage helpers.
 - [NotificationScheduler.ts](NotificationScheduler.ts) owns native notification scheduling, rebuilds, categories, and background tasks.
@@ -21,13 +21,14 @@
 ## Local Contracts
 
 - Keep [NotificationScheduler.ts](NotificationScheduler.ts) and [NotificationScheduler.web.ts](NotificationScheduler.web.ts) API-compatible.
-- Preserve notification identifiers as `${mitzvahId}__${YYYY-MM-DD}__${reminderIndex}` unless all scheduler, response, and tests are updated together.
+- Preserve notification identifiers as `${mitzvahId}__${YYYY-MM-DD}__${reminderIndex}` unless all scheduler, response, and tests are updated together. A notification not tied to a mitzvah (the pre-block notice, `blockNotice:<YYYY-MM-DD>`) uses an id without `__` and a `data.kind`, so `parseId` and every mitzvah lookup ignore it, and it carries no category.
 - `MARK_DONE` must stay aligned with [../../scripts/withMitzvahNotificationAction.js](../../scripts/withMitzvahNotificationAction.js).
-- A reminder gets the `mitzvah_reminder_text` category (`OPEN_TEXT` + `MARK_DONE`) exactly when `hasSiddurText()` is true for its window date; otherwise `mitzvah_reminder`. `OPEN_TEXT` opens the app to the reader and needs no native handling; the Android plugin only dismisses on `MARK_DONE`.
+- A reminder gets the `mitzvah_reminder_text` category (`OPEN_TEXT` + `MARK_DONE`) exactly when `hasSiddurText()` is true for its window date and its trigger is not a holy block's opening edge (`opensQuietBlock()`); otherwise `mitzvah_reminder`. `OPEN_TEXT` opens the app to the reader and needs no native handling; the Android plugin only dismisses on `MARK_DONE`.
 - Category button titles are translated, so a language change rebuilds; it is part of the user-store subscription.
 - Raise `SCHEDULE_FORMAT` whenever the shape of a scheduled notification changes (category, actions, payload). A rebuild deletes the stamp before it touches the schedule and writes it back when done, and a foreground with a missing or stale stamp rebuilds once — so an update, or a rebuild cut short by a reload (a language switch reloads the app for RTL), is redone; otherwise reminders already scheduled by the previous bundle keep the old shape until the next day.
 - `cancelForMitzvah(id, date)` must cancel all pending reminders for that mitzvah/date and dismiss the ones already in the tray; every done and skip path relies on it.
 - Always pass `Location` to `HebcalService.isShabbat(date, location)` when halachic boundary behavior matters.
+- Holy blocks: `holyBlockAt(instant)` returns the block whose [candle lighting, tzeit] span contains the instant, edges included; `isHolyDay(date)` and `holyBlockOn(date)` are day-granular, judging the location's calendar date of `date` by its daytime. A block merges every touching Shabbat / Yom Tov / Yom Kippur day. Per-day holiday flags are memoized per Hebrew day and `inIsrael`.
 - `isShabbat` and `isYomTov` both derive from one internal `hebrewDaysAt(instant, loc)` primitive. Its civil day is the instant's date in the LOCATION's zone, the same day `ZmanimService` resolves, never the device's. A Hebrew day turns over at shkia, and between shkia and tzeit both candidate days are returned so an observance counts if either carries it. Do not reintroduce a Gregorian-day check for either.
 - Use `getHebrewDateAt(instant, loc)` for "today" displays (it advances at shkia) and `getHebrewDate(date)` only for calendar grids, where each cell is a civil day.
 - Avoid UTC date shortcuts for mitzvah logic.
@@ -39,6 +40,8 @@
 - `withLock()` coalesces on the trailing edge: a request arriving mid-run queues exactly one re-run. Never make it drop-on-conflict.
 - Only `rebuildForNewDay()` stamps `LAST_REBUILD_KEY`; a settings-driven `rebuild()` must not, or it suppresses that night's recovery run.
 - Scheduling is capped and ordered by trigger time (`IOS_MAX`/`PENDING_LIMIT`), every candidate carries `channelId` on the trigger, and a trigger outside its own window is dropped.
+- Whether a reminder fires is `reminderFires()` from [../utils/skipRules.ts](../utils/skipRules.ts): ahead, inside its own window, and not strictly inside a holy block. The scheduler and the mitzvah screen's next-reminder preview both use it. The horizon steps by the location's calendar dates through any block that is reached or starts the next day, to the first weekday after it; each step is the device-local midnight of that date, with zmanim at the location's noon, the mapping every day-level surface uses.
+- [notificationResponseHandler.ts](notificationResponseHandler.ts) opens nothing while the app is quiet (onboarded and `isQuietAt()` now), drops a buffered cold-start tap then too, and routes the pre-block notice to home. `MARK_DONE` is never blocked.
 - `AppResetService` wraps its work in `setSchedulingSuspended(true)` so resetting the stores cannot re-arm a schedule from the restored defaults.
 - `ZmanimService.getZmanim()` must never throw. It returns `Zmanim | null`, where `null` means the sun neither rises nor sets that day; every caller must handle `null` instead of assuming a value. Depression-angle zmanim that have no solution fall back to their fixed-minute shita (alot 72 min, misheyakir 52 min before sunrise), and misheyakir is always kept inside `(alot, netz)`.
 - `scheduleAllImpl()` must isolate each `scheduleOne()` in try/catch so one failing mitzvah cannot empty the whole schedule.
