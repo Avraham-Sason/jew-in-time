@@ -16,6 +16,7 @@
 - [SiddurService.ts](SiddurService.ts) owns loading a nusach text asset from disk (fetch on web), cached per nusach and text.
 - [CompletionService.ts](CompletionService.ts) and [AppResetService.ts](AppResetService.ts) own completion/reset service behavior.
 - [deviceSettings.ts](deviceSettings.ts) owns OS-settings deep links (battery optimisation exemption).
+- [appUpdates.ts](appUpdates.ts) owns the version label settings shows (`appVersionLabel()`, `<version>-<n>` with `n` from `EXPO_PUBLIC_UPDATE_NUMBER`, see [../../scripts/publish-update.js](../../scripts/publish-update.js)) and `downloadNewUpdate()`, which checks for and downloads a newer update outside development. expo-updates is already in the shipped binary, so both reach installs over OTA.
 - Service tests live in [__tests__/](__tests__/).
 
 ## Local Contracts

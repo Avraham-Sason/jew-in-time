@@ -35,9 +35,9 @@ pnpm build:android:production      # EAS production AAB for the store
 pnpm build:android:production-apk  # EAS production APK for direct install
 pnpm build:ios:production          # EAS production build for App Store / TestFlight
 pnpm submit:ios                    # upload the latest iOS build to App Store Connect
-pnpm update:development            # EAS update to development channel
-pnpm update:preview                # EAS update to preview channel
-pnpm update:production             # EAS update to production — reaches installed users
+pnpm update:development --message "…"  # numbered EAS update to the development channel
+pnpm update:preview --message "…"      # numbered EAS update to the preview channel
+pnpm update:production --message "…"   # numbered EAS update to production — reaches installed users
 ```
 
 `pnpm web` calls [scripts/free-port.js](scripts/free-port.js) (cross-platform) and may kill a listener on port 8081. Use a dev client/native build when verifying `react-native-mmkv`, background tasks, or notifications.
@@ -53,6 +53,16 @@ Two different mechanisms ship this app, and the choice is not stylistic: one rea
 - A native module that `expo` already links transitively (`expo-file-system`, `expo-keep-awake`) may be added as a direct dependency over OTA only at the exact version the shipped binary carries. Check the committed lockfile before raising one.
 
 An update carries no native code, so shipping a native change as an update produces a bundle that calls into something the installed binary does not have. Prefer an update; reach for a build only when the change is actually native.
+
+### Every update is numbered
+
+Settings shows `<version>-<n>`: `n` counts the updates published on that channel for that `version`, and a build shows `-0`. The user asked for it on 2026-10-08 so the phone shows which update it runs.
+
+- `pnpm update:*` runs [scripts/publish-update.js](scripts/publish-update.js), which takes the next `n` from EAS and publishes with it. Never publish with `npx eas-cli update` directly: the update would carry no number and the next one would repeat a number.
+- `n` starts each EAS message (`1.0.16-5: …`), so the dashboard and `eas update:list` show the same label as the phone. The first numbered update on 1.0.16 was 5, because four updates had shipped on it before numbering began.
+- Home offers a reload banner once an update is downloaded. The app checks for one at launch (expo-updates) and on every return to the foreground.
+- Launches, failed launches and unique users of an update: `npx eas-cli update:insights <group-id>`, or the update's Insights tab on expo.dev.
+- Roll back by republishing the last good group, which keeps its number on the phone: `npx eas-cli update:republish --group <group-id> --message "Rollback to <version>-<n>" --non-interactive`. `npx eas-cli update:roll-back-to-embedded` returns every install to its build's bundle (`-0`).
 
 ### Never raise `version` for a JS change
 

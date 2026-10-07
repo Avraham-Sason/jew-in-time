@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
-import Constants from 'expo-constants';
+import { appVersionLabel } from '@/services/appUpdates';
 import { LocationService } from '@/services/LocationService';
 import {
   NotificationScheduler,
@@ -290,7 +290,7 @@ export default function SettingsScreen() {
         </Pressable>
 
         <Text style={[typography.small, styles.versionText, { color: colors.textMuted }]}>
-          {t('settings.version', { version: Constants.expoConfig?.version ?? '' })}
+          {t('settings.version', { version: appVersionLabel() })}
         </Text>
 
       </ScrollView>

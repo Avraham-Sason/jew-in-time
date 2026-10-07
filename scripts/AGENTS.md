@@ -13,6 +13,8 @@
 - [withMitzvahNotificationAction.js](withMitzvahNotificationAction.js) is an Expo config plugin that injects Android notification action handling.
 - [check-dox.js](check-dox.js) enforces the mechanical half of the DOX contract: dead links, plain-text file references, section order, and Child DOX Index accuracy.
 - [jest-asset-stub.js](jest-asset-stub.js) stands in for siddur asset modules under Jest, where Metro asset resolution does not exist.
+- [publish-update.js](publish-update.js) backs every `pnpm update:*`. It reads the update messages EAS holds for the channel's branch and the [../app.json](../app.json) `version` (the runtime version, by the `appVersion` policy) and takes the next number: one above the highest `<version>-<n>:` message prefix, or, when no message carries one, one above the count of updates. It prefixes `--message` with `<version>-<n>: `, puts `n` in `EXPO_PUBLIC_UPDATE_NUMBER`, which Metro inlines into the bundle, and runs `eas update --clear-cache` so no cached transform keeps an older number. A branch EAS does not know yet starts at 1. It refuses to publish without `--message` or when EAS cannot list the branch.
+- Script tests live in [__tests__/](__tests__/).
 - [siddur/AGENTS.md](siddur/AGENTS.md) owns the siddur content build.
 
 ## Local Contracts
@@ -33,6 +35,7 @@
 - Run `pnpm web` or `node scripts/free-port.js <port>` after changing [free-port.js](free-port.js).
 - Run `pnpm test:tz` after changing date or timezone handling.
 - After changing [test-timezones.js](test-timezones.js) or [jest-timezone-setup.js](jest-timezone-setup.js), check that the guard still fails a run whose zone did not apply, e.g. `JEST_TZ=Pacific/Kiritimati npx jest src/theme` from Git Bash.
+- Run `pnpm test -- scripts/__tests__/publishUpdate.test.js` after changing [publish-update.js](publish-update.js). For the inlining, `npx expo export --platform android --no-bytecode --clear` with `EXPO_PUBLIC_UPDATE_NUMBER` set must compile `appVersionLabel()` to that number, and to `0` without it.
 - Run `pnpm doctor` after changing Expo config plugin behavior.
 - Run `pnpm check:dox` after changing [check-dox.js](check-dox.js) itself, and confirm it still fails on a deliberately broken link before trusting a pass.
 - Use a dev client or native build to verify Android notification-action behavior.

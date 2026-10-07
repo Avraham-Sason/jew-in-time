@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import * as Updates from 'expo-updates';
 import { NavBar } from '@/components/NavBar';
 import { MitzvahCard } from '@/components/MitzvahCard';
 import { CompletedRow } from '@/components/CompletedRow';
@@ -43,6 +44,7 @@ import {
   dismissCompletedPresentedNotifications,
   refreshSchedulingOnForeground,
 } from '@/services/NotificationScheduler';
+import { downloadNewUpdate } from '@/services/appUpdates';
 import { useI18n, t as translate } from '@/i18n';
 
 type LiveItem = {
@@ -79,6 +81,7 @@ export default function HomeScreen() {
   const quiet = useQuietBlock() !== null;
   const { language, t } = useI18n();
   const router = useRouter();
+  const { isUpdatePending } = Updates.useUpdates();
   const user = useUserStore(
     useShallow((s) => ({
       location: s.location,
@@ -265,6 +268,7 @@ export default function HomeScreen() {
         syncNotificationPermissionStatus().catch(() => {});
         dismissCompletedPresentedNotifications().catch(() => {});
         refreshSchedulingOnForeground().catch(() => {});
+        downloadNewUpdate().catch(() => {});
       }
     });
     return () => sub.remove();
@@ -331,6 +335,14 @@ export default function HomeScreen() {
             color={colors.urgent}
             background={colors.urgentBg}
             onPress={() => Linking.openSettings().catch(() => {})}
+          />
+        ) : null}
+        {isUpdatePending ? (
+          <Banner
+            text={t('home.updateReady')}
+            color={colors.safe}
+            background={`${colors.safe}18`}
+            onPress={() => Updates.reloadAsync().catch(() => {})}
           />
         ) : null}
 
