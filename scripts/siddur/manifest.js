@@ -136,6 +136,7 @@ const CONDITIONAL_INSTRUCTION = [
   /מוצאי|מוצ ש/,
   /חול המועד|חוה מ/,
   /ניסן|אייר|סיון/,
+  /מעוברת|עיבור/,
 ];
 
 const ALWAYS_SAID = [/^ברוך שם כבוד מלכותו לעולם ועד$/, /^אמן$/, /^יתגדל ויתקדש שמה רבא/, /^(תתקבל|יהא שלמא|עושה שלום|על ישראל ועל רבנן) /];
@@ -208,6 +209,8 @@ const T = {
   kaveh: { he: 'קוה', en: 'Kaveh' },
   petichatEliyahu: { he: 'פתח אליהו', en: 'Patach Eliyahu' },
   hannah: { he: 'תפילת חנה', en: "Hannah's Prayer" },
+  selichot: { he: 'סליחות', en: 'Selichot' },
+  megillah: { he: 'קריאת המגילה', en: 'Reading of the Megillah' },
   festivalPsalm: { he: 'מזמור לחג', en: 'Psalm of the Festival' },
   sixRemembrances: { he: 'שש זכירות', en: 'Six Remembrances' },
 };
@@ -263,7 +266,7 @@ const PURIM = { all: ['purim'] };
 const TISHA_BAV = { all: ['tishaBav'] };
 const MOTZAEI = { all: ['motzaei'] };
 const VI_HI_NOAM = { all: ['viHiNoam'] };
-const VEATA_KADOSH = { any: ['viHiNoam', 'tishaBav'] };
+const VEATA_KADOSH = { any: ['viHiNoam', 'tishaBav', 'purim'] };
 const MINCHA_TACHANUN = { all: ['tachanunMincha'] };
 const MINCHA_AVINU_MALKEINU = { any: [AYT, 'publicFast'], all: ['tachanunMincha'] };
 const OMER = { all: ['omer'] };
@@ -287,7 +290,7 @@ const UNDISPUTED_HALLEL = { any: ['hallelWhole', 'hallelHalf'] };
 const NO_UNDISPUTED_HALLEL = { none: ['hallelWhole', 'hallelHalf'] };
 const NO_LAMNATZEACH_DAYS = ['roshChodesh', 'chanukah', 'purimOrShushan', 'purimKatan', 'erevPesach', 'erevYomKippur', 'tishaBav'];
 const LAMNATZEACH = { none: NO_LAMNATZEACH_DAYS };
-const KEL_ERECH_APAYIM = { any: ['monday', 'thursday'], none: NO_LAMNATZEACH_DAYS };
+const KEL_ERECH_APAYIM = { any: ['monday', 'thursday'], none: [...NO_LAMNATZEACH_DAYS, 'cholHamoedPesach', 'cholHamoedSukkot'] };
 const MIZMOR_LETODA = { none: ['erevPesach', 'cholHamoedPesach', 'erevYomKippur'] };
 const TITKABEL_AFTER_UVA_LETZION = { none: ['musaf', 'tishaBav'] };
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
@@ -297,7 +300,7 @@ const NO_TACHANUN_NOR_HALLEL = { none: ['tachanunShacharit', 'hallelWhole', 'hal
 const WHOLE_HALLEL = { all: ['hallelWhole'] };
 const CHABAD_KEL_ERECH_APAYIM = {
   any: ['monday', 'thursday'],
-  none: ['roshChodesh', 'chanukah', 'purimOrShushan', 'purimKatan', 'erevPesach', 'tishaBav'],
+  none: ['roshChodesh', 'chanukah', 'purimOrShushan', 'purimKatan', 'erevPesach', 'tishaBav', 'cholHamoedPesach', 'cholHamoedSukkot'],
 };
 
 function both(first, second) {
@@ -326,6 +329,30 @@ const NOTES = {
     he: '<small>יש קהילות שאינן אומרות תחנון היום.</small>',
     en: 'Some communities do not say Tachanun today.',
     when: { all: ['tachanunMincha', 'tachanunDisputed'] },
+  },
+  fastSelichot: {
+    he: '<small>בתענית ציבור אומרים כאן סליחות כמנהג הקהילה.</small>',
+    en: 'On a public fast, Selichot are said here according to the custom of the community.',
+    when: { all: ['publicFast'], none: ['tishaBav'] },
+  },
+  chanukahPsalm: {
+    he: '<small>בחנוכה נוהגים לומר אחר שיר של יום מזמור שיר חנוכת הבית.</small>',
+    en: 'On Chanukah, many say the Psalm for the Dedication of the Temple after the Song of the Day.',
+  },
+  ayTPeaceChatimah: {
+    he: '<small>בעשרת ימי תשובה יש נוהגים לחתום "עושה השלום" במקום "המברך את עמו ישראל בשלום".</small>',
+    en: 'During the Ten Days of Repentance, some conclude "Oseh HaShalom" instead of "HaMevarech et amo Yisrael bashalom".',
+    when: IN_AYT,
+  },
+  tefillinCholHamoed: {
+    he: '<small>בחול המועד המניחים תפילין מברכים בלחש.</small>',
+    en: 'On Chol HaMoed, those who put on tefillin say the blessings quietly.',
+    when: CHOL_HAMOED,
+  },
+  megillahNight: {
+    he: '<small>בליל פורים קוראים כאן את המגילה בברכותיה, ואחר כך אומרים "ואתה קדוש".</small>',
+    en: 'On Purim night, the Megillah is read here with its blessings, followed by VeAtah Kadosh.',
+    when: PURIM,
   },
   tishaBavEichah: {
     he: '<small>בליל תשעה באב קוראים כאן מגילת איכה ואומרים קינות, ואחר כך "ואתה קדוש".</small>',
@@ -383,7 +410,30 @@ const SAID_BY = {
   modimDeRabbanan: { he: 'מודים דרבנן — הקהל אומר בחזרת הש״ץ', en: "Modim DeRabbanan — said by the congregation in the chazzan's repetition" },
   birkatKohanim: { he: 'ברכת כהנים — רק בחזרת הש״ץ', en: "The Priestly Blessing — only in the chazzan's repetition" },
   aneinu: { he: 'עננו — שליח הציבור אומר בחזרת הש״ץ', en: "Aneinu — said by the chazzan in the repetition" },
+  withMinyan: { he: 'נאמר רק במניין', en: 'Said only with a minyan' },
 };
+
+const WHEN_SAID = {
+  mournersHouse: { he: 'בבית האבל אומרים', en: 'Said in a house of mourning' },
+  tefillinInterruption: {
+    he: 'אם הפסיק בין תפילין של יד לתפילין של ראש',
+    en: 'Only if one interrupted between the hand and head tefillin',
+  },
+  fastDay: { he: 'ביום תענית אומרים', en: 'Said on a fast day', when: { none: ['publicFast'] } },
+  gomel: { he: 'מי שחייב להודות מברך הגומל', en: 'Said by one who must give thanks (HaGomel)' },
+  barMitzvahFather: { he: 'אבי בר המצווה אומר בעליית בנו הראשונה', en: "Said by a bar mitzvah boy's father at his son's first aliyah" },
+  alone: { he: 'המתפלל ביחיד אומר', en: 'Said when praying without a minyan' },
+  women: { he: 'נשים אומרות', en: 'Said by women' },
+  noKohanim: { he: 'כשאין כהנים נושאים כפיים, שליח הציבור אומר', en: 'When no kohanim bless the congregation, the chazzan says' },
+  kohanimBless: { he: 'כשהכהנים נושאים כפיים, הקהל אומר', en: 'Said by the congregation when the kohanim bless it' },
+};
+const NO_KOHANIM_IN_ISRAEL = { ...WHEN_SAID.noKohanim, when: IN_ISRAEL };
+const SEFARD_SHOMEA_TEFILLAH_CLOSING = 'כִּי אַתָּה שׁוֹמֵֽעַ תְּפִלַּת כָּל פֶּה עַמְּ֒ךָ יִשְׂרָאֵל בְּרַחֲמִים: בָּרוּךְ אַתָּה יְהֹוָה שׁוֹמֵֽעַ תְּפִלָּה:';
+const SEFARD_PARNASSA_BEFORE_SHOMEA_TEFILLAH = [
+  { seg: 78, from: `* ${SEFARD_SHOMEA_TEFILLAH_CLOSING}`, to: '' },
+  { seg: 79, from: '* ', to: '' },
+  { seg: 80, from: 'יְכַלכְּךָ:</small>', to: `יְכַלכְּךָ:</small><br>${SEFARD_SHOMEA_TEFILLAH_CLOSING}` },
+];
 
 const RAVS_PRAYER_NOTE ='יש אומרים תפילת רב מגמרה ברכות ט"ז ע"ב שכתב החיד"א ז"ל בסידורו';
 
@@ -402,6 +452,19 @@ const SOME_SAY = {
   mournersVerse: { he: 'יש שמוסיפים "ותשועת צדיקים"', en: 'Some add "Uteshuat tzadikim"' },
   personalFast: { he: 'מי שרוצה מקבל כאן תענית יחיד למחר', en: 'To take on a personal fast for tomorrow' },
   kadeshVehaya: { he: 'יש נוהגים לומר גם קדש והיה כי יביאך', en: 'Some also say Kadesh and Vehaya Ki Yeviacha' },
+  threeFastsAneinu: {
+    he: 'יש אומרים בג׳ צומות נוסח עננו זה במקום הנוסח הקודם',
+    en: 'On the three fasts, some say this Aneinu instead of the one above',
+  },
+};
+
+const SEFARD_OMER_NIGHT_NOTE = { seg: 64, from: '(השייכת לאותו הלילה)', to: '(<small>השייכת לאותו הלילה</small>)' };
+const EDOT_THREE_FASTS_ANEINU ={ all: ['publicFast'], none: ['taanitEsther'] };
+const EDOT_SANSAN_LEYAIR = { from: 'סנסן ליעיר', to: 'סנסן ליאיר' };
+const EDOT_MODIM_DERABBANAN_HEADING = { from: 'מודים דרבנן <br><small>בחזרת הש"ץ כשהחזן אומר מודים, הקהל אומרים:</small><br>', to: '' };
+const EDOT_MUSAF_MODIM_DERABBANAN_HEADING = {
+  from: '<small><b>מודים דרבנן</b></small><br><small>בחזרת הש"ץ כשהחזן אומר מודים, הקהל אומרים:</small><br>',
+  to: '',
 };
 
 const MARKS = '[\\u0591-\\u05C7]*';
@@ -773,15 +836,31 @@ const CHABAD = { he: 'chabadHe', en: 'chabadEn' };
 
 const TEXTS = {
   tefillin: {
-    ashkenaz: [{ ...ASHKENAZ, title: T.tefillin, path: ashkenazPrep('Tefillin') }],
+    ashkenaz: [{ ...ASHKENAZ, title: T.tefillin, path: ashkenazPrep('Tefillin'), insert: [{ at: 0, ...NOTES.tefillinCholHamoed }] }],
     sefard: [{ ...SEFARD, title: T.tefillin, path: 'Upon Arising > Tefilin' }],
-    edot_hamizrach: [{ ...EDOT, title: T.tefillin, path: 'Weekday Shacharit > Order of Tefillin', from: 1, reviewed: [2] }],
+    edot_hamizrach: [
+      {
+        ...EDOT,
+        title: T.tefillin,
+        path: 'Weekday Shacharit > Order of Tefillin',
+        from: 1,
+        reviewed: [2],
+        optionalParts: [{ from: 2, paragraph: 1, label: WHEN_SAID.tefillinInterruption }],
+      },
+    ],
     chabad: [
-      { ...CHABAD, title: T.tefillin, path: 'Shacharit > Tefillin', from: 4 },
+      {
+        ...CHABAD,
+        title: T.tefillin,
+        path: 'Shacharit > Tefillin',
+        from: 4,
+        optionalParts: [{ from: 7, label: WHEN_SAID.tefillinInterruption }],
+      },
       {
         ...CHABAD,
         title: T.rabbenuTam,
         path: 'Shacharit > Rabbenu Tam',
+        transform: chabadName,
         edits: [{ seg: 0, from: ' ויש נוהגין לומר גם כן פרשת קדש והיה כי יביאך:', to: ':' }],
         optionalParts: [{ from: 6, label: SOME_SAY.kadeshVehaya }],
       },
@@ -814,6 +893,8 @@ const TEXTS = {
         ...ASHKENAZ,
         title: T.shema,
         path: 'Weekday > Shacharit > Blessings of the Shema > Shema',
+        drop: [0],
+        optionalParts: [{ from: 1, label: WHEN_SAID.alone }],
         minyanParts: [{ from: 10, to: 11, label: SAID_BY.chazzan }],
       },
     ],
@@ -822,8 +903,9 @@ const TEXTS = {
         ...SEFARD,
         title: T.shema,
         path: 'Weekday Shacharit > The Shema',
-        from: 17,
+        from: 18,
         to: 28,
+        optionalParts: [{ from: 18, label: WHEN_SAID.alone }],
         minyanParts: [{ from: 27, to: 28, label: SAID_BY.chazzan }],
       },
     ],
@@ -920,6 +1002,7 @@ const TEXTS = {
         from: 1,
         omer: { first: 4, stride: 1 },
         transform: withoutOmerNumber,
+        edits: [SEFARD_OMER_NIGHT_NOTE],
       },
     ],
     edot_hamizrach: [edotOmer()],
@@ -987,6 +1070,7 @@ function chabadMincha() {
       },
       reviewed: [9, 32],
       insert: [{ at: 44, ...NOTES.erevYomKippurVidui }],
+      optionalParts: [{ from: 39, label: NO_KOHANIM_IN_ISRAEL }],
       minyanParts: [
         { from: 9, label: SAID_BY.kedusha },
         { from: 15, label: SAID_BY.aneinu },
@@ -1002,6 +1086,7 @@ function chabadMincha() {
       when: MINCHA_TACHANUN,
       at: { 9: MINCHA_AVINU_MALKEINU },
       insert: [{ at: 0, ...NOTES.tachanunDisputed }],
+      minyanParts: [{ from: 5, to: 6, label: SAID_BY.withMinyan }],
     },
     { ...base, title: T.kaddish, path: tachanun, from: 12, minyan: SAID_BY.chazzan },
     { ...base, title: T.ledavid, path: aleinu, to: 0, when: LEDAVID },
@@ -1042,7 +1127,10 @@ function chabadMaariv() {
       from: 64,
       to: 66,
       at: { 64: VI_HI_NOAM, 65: VI_HI_NOAM, 66: VEATA_KADOSH },
-      insert: [{ at: 66, ...NOTES.tishaBavEichah }],
+      insert: [
+        { at: 64, ...NOTES.megillahNight },
+        { at: 66, ...NOTES.tishaBavEichah },
+      ],
     },
     { ...base, title: T.kaddishAfterAdditions, from: 59, to: 62, when: VEATA_KADOSH, at: { 60: VI_HI_NOAM }, minyan: SAID_BY.chazzan },
     {
@@ -1069,8 +1157,8 @@ function chabadBirchot() {
       path: 'Shacharit > Morning Blessings',
       from: 1,
       to: 23,
-      drop: [2, 5],
-      at: each(14, 15, NOT_FASTING_BAREFOOT),
+      drop: [2, 5, 14],
+      at: { 15: NOT_FASTING_BAREFOOT },
     },
     { ...CHABAD, title: T.torahBlessings, path: 'Shacharit > Morning Blessings', from: 25 },
   ];
@@ -1148,6 +1236,7 @@ function chabadShacharit() {
         38: IN_AYT,
       },
       reviewed: [9, 29],
+      optionalParts: [{ from: 36, label: NO_KOHANIM_IN_ISRAEL }],
       minyanParts: [
         { from: 9, label: SAID_BY.kedusha },
         { from: 15, label: SAID_BY.aneinu },
@@ -1180,7 +1269,15 @@ function chabadShacharit() {
       insert: [{ at: 9, ...NOTES.hoshanot }],
     },
     ...chabadSongs(MUSAF),
-    { ...base, title: T.tachanun, path: tachanun, to: 8, when: TACHANUN_SHACHARIT, insert: [{ at: 0, ...NOTES.tachanunDisputedShacharit }] },
+    {
+      ...base,
+      title: T.tachanun,
+      path: tachanun,
+      to: 8,
+      when: TACHANUN_SHACHARIT,
+      insert: [{ at: 0, ...NOTES.tachanunDisputedShacharit }],
+      minyanParts: [{ from: 5, to: 6, label: SAID_BY.withMinyan }],
+    },
     { ...heOnly, title: T.tachanun, path: tachanun, from: 10, to: 30, when: LONG_TACHANUN },
     { ...heOnly, title: T.tachanun, path: tachanun, from: 31, to: 33, when: TACHANUN_SHACHARIT, at: { 31: SHACHARIT_AVINU_MALKEINU } },
     { ...heOnly, title: T.halfKaddish, path: tachanun, from: 34, when: NO_UNDISPUTED_HALLEL, minyan: SAID_BY.chazzan },
@@ -1209,10 +1306,14 @@ function chabadShacharit() {
         { at: 26, ...NOTES.megillah },
         { at: 26, ...NOTES.kinot },
       ],
+      optionalParts: [
+        { from: 17, to: 19, label: WHEN_SAID.gomel },
+        { from: 21, to: 22, label: WHEN_SAID.barMitzvahFather },
+      ],
     },
     { ...heOnly, title: T.uvaLetzion, path: uvaLetzion, to: 3, drop: [1], at: { 2: TACHANUN_SHACHARIT }, transform: compose(CHABAD_VARIANTS, UVA_LETZION_COVENANT) },
-    { ...heOnly, title: T.uvaLetzion, path: uvaLetzion, from: 4, to: 8, when: NOT_MUSAF, at: { 6: TITKABEL_AFTER_UVA_LETZION }, minyan: SAID_BY.chazzan },
     { ...heOnly, title: T.returningTorah, path: uvaLetzion, from: 9, when: TORAH_READING, minyan: SAID_BY.chazzanAndCongregation },
+    { ...heOnly, title: T.kaddish, path: uvaLetzion, from: 4, to: 8, when: NOT_MUSAF, at: { 6: TITKABEL_AFTER_UVA_LETZION }, minyan: SAID_BY.chazzan },
     {
       ...heOnly,
       title: T.musaf,
@@ -1220,6 +1321,7 @@ function chabadShacharit() {
       to: 25,
       when: ROSH_CHODESH,
       at: each(16, 17, CHANUKAH),
+      optionalParts: [{ from: 20, label: NO_KOHANIM_IN_ISRAEL }],
       minyanParts: [
         { from: 0, to: 1, label: SAID_BY.chazzan },
         { from: 7, label: SAID_BY.kedusha },
@@ -1246,6 +1348,7 @@ function chabadShacharit() {
         ...each(38, 39, { all: ['sukkotOffering6'] }),
         ...each(43, 44, { all: ['sukkotOffering7'] }),
       },
+      optionalParts: [{ from: 52, label: NO_KOHANIM_IN_ISRAEL }],
       minyanParts: [
         { from: 0, label: SAID_BY.chazzan },
         { from: 6, label: SAID_BY.kedusha },
@@ -1260,6 +1363,22 @@ function chabadShacharit() {
     { ...heOnly, title: T.mournersKaddish, path: at('Aleinu'), from: 3, to: 5, minyan: SAID_BY.mourners },
     { ...heOnly, title: T.alTira, path: at('Aleinu'), from: 6 },
     { ...heOnly, title: T.sixRemembrances, path: at('Six Remembrances') },
+  ];
+}
+
+function ashkenazMournersHouse(base, kaddishPath) {
+  const inMournersHouse = { title: T.mournersHouse, optional: WHEN_SAID.mournersHouse };
+  return [
+    {
+      ...SEFARD,
+      ...inMournersHouse,
+      path: "Weekday Shacharit > L'David Hashem",
+      from: 4,
+      to: 7,
+      drop: [5, 6],
+      at: { 4: TACHANUN_SHACHARIT, 7: NO_TACHANUN_SHACHARIT },
+    },
+    { ...base, ...inMournersHouse, path: kaddishPath, minyan: SAID_BY.mourners },
   ];
 }
 
@@ -1311,7 +1430,7 @@ function ashkenazShacharit() {
     shema('Barchu', { minyanParts: [{ from: 1, to: 4, label: SAID_BY.chazzanAndCongregation }] }),
     shema('First Blessing before Shema'),
     shema('Second Blessing before Shema'),
-    shema('Shema', { minyanParts: [{ from: 10, to: 11, label: SAID_BY.chazzan }] }),
+    shema('Shema', { drop: [0], optionalParts: [{ from: 1, label: WHEN_SAID.alone }], minyanParts: [{ from: 10, to: 11, label: SAID_BY.chazzan }] }),
     shema('Blessing after Shema'),
     ...ashkenazAmidah('Shacharit'),
     lulavBlessing(),
@@ -1329,13 +1448,19 @@ function ashkenazShacharit() {
       title: T.vidui,
       path: at('Post Amidah > Vidui and 13 Middot'),
       when: TACHANUN_SHACHARIT,
-      insert: [{ at: 0, ...NOTES.tachanunDisputedShacharit }],
+      insert: [
+        { at: 0, ...NOTES.fastSelichot },
+        { at: 0, ...NOTES.tachanunDisputedShacharit },
+      ],
+      minyanParts: [{ from: 5, to: 8, label: SAID_BY.withMinyan }],
+      edits: [{ seg: 4, from: 'וַַיִּתְיַצֵּב', to: 'וַיִּתְיַצֵּב' }],
     },
     {
       ...base,
       title: T.avinuMalkeinu,
       path: at('Post Amidah > Avinu Malkenu'),
       when: SHACHARIT_AVINU_MALKEINU,
+      drop: [53],
       at: { 4: IN_AYT, 5: FAST_NOT_AYT, ...each(20, 25, IN_AYT), ...each(26, 31, FAST_NOT_AYT) },
     },
     tachanun('For Monday and Thursday', LONG_TACHANUN),
@@ -1357,7 +1482,13 @@ function ashkenazShacharit() {
     torah('Removing the Torah from Ark > Av Harachamim'),
     torah('Removing the Torah from Ark > Vetigaleh Veteraeh', { minyan: SAID_BY.chazzanAndCongregation }),
     torah('Reading from Sefer > Birkat HaTorah', { minyan: SAID_BY.oleh }),
-    torah('Reading from Sefer > Birkat Hagomel'),
+    torah('Reading from Sefer > Birkat Hagomel', {
+      drop: [3],
+      optionalParts: [
+        { from: 0, to: 2, label: WHEN_SAID.gomel },
+        { from: 4, label: WHEN_SAID.barMitzvahFather },
+      ],
+    }),
     torah('Reading from Sefer > Half Kaddish', { minyan: SAID_BY.chazzan }),
     torah('Reading from Sefer > Raising the Torah', {
       at: each(3, 8, LONG_TACHANUN),
@@ -1402,10 +1533,21 @@ function ashkenazShacharit() {
         [16, 18],
       ]),
     }),
-    concluding(T.songOfDay, 'Barchi Nafshi', { when: ROSH_CHODESH }),
+    {
+      ...base,
+      title: T.songOfDay,
+      path: at('Pesukei Dezimra > Introductory Psalm'),
+      from: 1,
+      when: CHANUKAH,
+      insert: [{ at: 1, ...NOTES.chanukahPsalm }],
+    },
+    concluding(T.songOfDay, "Mourner's Kaddish", { when: { any: ['roshChodesh', 'ledavidSeason'] }, minyan: SAID_BY.mourners }),
+    concluding(T.songOfDay, 'Barchi Nafshi', { from: 1, when: ROSH_CHODESH }),
+    concluding(T.songOfDay, "Mourner's Kaddish", { when: { all: ['roshChodesh', 'ledavidSeason'] }, minyan: SAID_BY.mourners }),
     concluding(T.songOfDay, 'LeDavid', { to: 1, when: LEDAVID }),
     concluding(T.songOfDay, 'LeDavid', { from: 2, minyan: SAID_BY.mourners }),
-    israelKorbanot('Ein Kelohenu'),
+    ...ashkenazMournersHouse(base, at("Concluding Prayers > Mourner's Kaddish")),
+    israelKorbanot('Ein Kelohenu', { edits: [{ seg: 2, from: ' <small>(בחלק מהמהדורות: יְהֹוָה אֱלֹהֵינוּ)</small>', to: '' }] }),
     israelKorbanot('Pitum HaKetoret'),
     israelKorbanot("Mourner's Kaddish", { minyan: SAID_BY.mourners }),
     israelKorbanot('Barchu', { minyan: SAID_BY.chazzanAndCongregation }),
@@ -1422,7 +1564,9 @@ function sefardBirchot() {
       title: T.morningBlessings,
       path: 'Weekday Shacharit > Blessings on Torah',
       from: 7,
-      at: each(19, 20, NOT_FASTING_BAREFOOT),
+      drop: [11, 19],
+      at: { 20: NOT_FASTING_BAREFOOT },
+      optionalParts: [{ from: 12, label: WHEN_SAID.women }],
     },
   ];
 }
@@ -1518,9 +1662,14 @@ function sefardMusaf() {
         ...each(98, 99, CHANUKAH),
         ...each(100, 101, PURIM),
         ...each(103, 105, IN_AYT),
+        ...each(113, 114, IN_ISRAEL),
         ...each(117, 119, IN_AYT),
       },
       reviewed: [95, 114],
+      optionalParts: [
+        { from: 108, to: 112, label: NO_KOHANIM_IN_ISRAEL },
+        { from: 113, to: 114, label: WHEN_SAID.kohanimBless },
+      ],
       minyanParts: [
         { from: 94, to: 95, label: SAID_BY.modimDeRabbanan },
         { from: 108, to: 114, label: SAID_BY.birkatKohanim },
@@ -1540,15 +1689,17 @@ function sefardSongs(placement) {
       title: T.songOfDay,
       path: at('Song of the Day'),
       when: early ? MUSAF : NOT_MUSAF,
+      drop: [4, 8, 12, 16, 20],
       at: weekdaySongs([
-        [1, 4],
-        [5, 8],
-        [9, 12],
-        [13, 16],
-        [17, 20],
-        [21, 24],
+        [1, 3],
+        [5, 7],
+        [9, 11],
+        [13, 15],
+        [17, 19],
+        [21, 23],
       ]),
     },
+    { ...base, title: T.songOfDay, path: at("L'David Hashem"), from: 8, to: 12, when: early ? MUSAF : NOT_MUSAF, minyan: SAID_BY.mourners },
     ...(early ? [{ ...base, title: T.barchiNafshi, path: at('Barchi Nafshi'), when: { all: ['musaf', 'roshChodesh'] } }] : []),
     {
       ...base,
@@ -1564,8 +1715,21 @@ function sefardShacharit() {
   const base = { ...SEFARD, transform: SEFARD_VARIANTS };
   const at = (node) => `Weekday Shacharit > ${node}`;
   const ashrei = (title, extra) => ({ ...base, title, path: at('Ashrei'), ...extra });
+  const enteringSynagogue = { ...SEFARD, path: 'Upon Arising > Upon Entering Synagogue' };
+  const birchot = sefardBirchot();
+  const morningBlessings = birchot.pop();
   return [
-    ...sefardBirchot(),
+    ...birchot,
+    { ...enteringSynagogue, title: T.maTovu, to: 3 },
+    { ...enteringSynagogue, title: T.adonOlam, from: 4, to: 14, groups: [[5, 14]] },
+    {
+      ...enteringSynagogue,
+      title: T.yigdal,
+      from: 15,
+      drop: [16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40],
+      groups: [[17, 41]],
+    },
+    morningBlessings,
     { ...base, title: T.akedah, path: at('Morning Prayer'), to: 3, at: each(2, 3, TACHANUN_SHACHARIT) },
     { ...base, title: T.sovereignty, path: at('Morning Prayer'), from: 4 },
     { ...base, title: T.korbanot, path: at('Korbanot'), drop: [5], at: each(24, 25, ROSH_CHODESH) },
@@ -1582,6 +1746,8 @@ function sefardShacharit() {
       ...base,
       title: T.shemaBlessings,
       path: at('The Shema'),
+      drop: [17],
+      optionalParts: [{ from: 18, label: WHEN_SAID.alone }],
       minyanParts: [
         { from: 1, to: 4, label: SAID_BY.chazzanAndCongregation },
         { from: 27, to: 28, label: SAID_BY.chazzan },
@@ -1591,6 +1757,7 @@ function sefardShacharit() {
       ...base,
       title: T.amidah,
       path: at('Amidah'),
+      edits: SEFARD_PARNASSA_BEFORE_SHOMEA_TEFILLAH,
       at: {
         ...each(3, 5, IN_AYT),
         ...each(9, 10, SUMMER),
@@ -1611,11 +1778,16 @@ function sefardShacharit() {
         ...each(98, 99, CHANUKAH),
         ...each(100, 101, PURIM),
         ...each(103, 105, IN_AYT),
+        ...each(113, 114, IN_ISRAEL),
         ...each(117, 119, IN_AYT),
       },
       reviewed: [51, 80, 95, 114],
       drop: [19, 20, 50, 107],
-      optionalParts: [{ from: 51, label: SOME_SAY.forTheSick }],
+      optionalParts: [
+        { from: 51, label: SOME_SAY.forTheSick },
+        { from: 108, to: 112, label: NO_KOHANIM_IN_ISRAEL },
+        { from: 113, to: 114, label: WHEN_SAID.kohanimBless },
+      ],
       minyanParts: [
         { from: 21, to: 32, label: SAID_BY.kedusha },
         { from: 94, to: 95, label: SAID_BY.modimDeRabbanan },
@@ -1641,7 +1813,11 @@ function sefardShacharit() {
       from: 1,
       to: 9,
       when: TACHANUN_SHACHARIT,
-      insert: [{ at: 1, ...NOTES.tachanunDisputedShacharit }],
+      insert: [
+        { at: 1, ...NOTES.fastSelichot },
+        { at: 1, ...NOTES.tachanunDisputedShacharit },
+      ],
+      minyanParts: [{ from: 6, to: 8, label: SAID_BY.withMinyan }],
     },
     { ...base, title: T.tachanun, path: at('Tachanun'), from: 10, when: TACHANUN_SHACHARIT },
     {
@@ -1673,7 +1849,12 @@ function sefardShacharit() {
       title: T.torahReading,
       path: at('Torah Reading'),
       when: TORAH_READING,
+      drop: [28],
       at: { ...each(0, 1, KEL_ERECH_APAYIM), ...each(34, 39, LONG_TACHANUN) },
+      optionalParts: [
+        { from: 24, to: 27, label: WHEN_SAID.gomel },
+        { from: 29, to: 30, label: WHEN_SAID.barMitzvahFather },
+      ],
       minyanParts: [
         { from: 7, to: 10, label: SAID_BY.chazzanAndCongregation },
         { from: 12, to: 15, label: SAID_BY.chazzanAndCongregation },
@@ -1702,10 +1883,12 @@ function sefardShacharit() {
       ...base,
       title: T.mournersHouse,
       path: at("L'David Hashem"),
-      from: 3,
+      from: 4,
+      to: 7,
+      drop: [6],
       when: NOT_MUSAF,
-      at: { ...each(3, 5, TACHANUN_SHACHARIT), ...each(6, 7, NO_TACHANUN_SHACHARIT) },
-      minyanParts: [{ from: 8, to: 12, label: SAID_BY.mourners }],
+      at: { ...each(4, 5, TACHANUN_SHACHARIT), 7: NO_TACHANUN_SHACHARIT },
+      optional: WHEN_SAID.mournersHouse,
     },
     { ...base, title: T.kaveh, path: at('Kaveh'), minyanParts: [{ from: 11, to: 17, label: SAID_BY.mourners }] },
     { ...base, title: T.aleinu, path: at('Aleinu'), minyanParts: [{ from: 4, to: 8, label: SAID_BY.mourners }] },
@@ -1720,7 +1903,16 @@ function ashkenazBirchot() {
     { ...ASHKENAZ, title: T.elokaiNeshama, path: ashkenazPrep('Elokai Neshama') },
     { ...ASHKENAZ, title: T.torahBlessings, path: ashkenazPrep('Torah Blessings') },
     { ...ASHKENAZ, title: T.torahBlessings, path: ashkenazPrep('Torah Study') },
-    { ...ASHKENAZ, title: T.morningBlessings, path: ashkenazPrep('Morning Blessings') },
+    {
+      ...ASHKENAZ,
+      title: T.morningBlessings,
+      path: ashkenazPrep('Morning Blessings'),
+      edits: [
+        { seg: 4, from: '(<small>נשים אומרות:</small> ', to: '' },
+        { seg: 4, from: 'כִּרְצוֹנוֹ:)', to: 'כִּרְצוֹנוֹ:' },
+      ],
+      optionalParts: [{ from: 4, label: WHEN_SAID.women }],
+    },
   ];
 }
 
@@ -1774,15 +1966,28 @@ function edotHallel() {
 function edotMusaf() {
   const heOnly = { he: 'edotHe', transform: EDOT_VARIANTS, title: T.musaf };
   return [
-    { ...heOnly, path: 'Rosh Hodesh > Song of the Day', from: 16, when: MUSAF, minyanParts: [{ from: 17, to: 18, label: SAID_BY.chazzan }] },
+    {
+      ...heOnly,
+      path: 'Rosh Hodesh > Song of the Day',
+      from: 16,
+      when: MUSAF,
+      at: { 16: ROSH_CHODESH },
+      edits: [{ seg: 17, from: 'אומר החזן חצי קדיש וחולצין תפילין', to: 'אומר החזן חצי קדיש<if all="roshChodesh"> וחולצין תפילין</if>' }],
+      minyanParts: [{ from: 17, to: 18, label: SAID_BY.chazzan }],
+    },
     {
       ...heOnly,
       path: 'Rosh Hodesh > Mussaf',
       from: 2,
       to: 40,
-      drop: [21],
+      drop: [21, 29],
       when: ROSH_CHODESH,
       at: each(17, 19, CHANUKAH),
+      optionalParts: [{ from: 30, to: 33, label: WHEN_SAID.noKohanim }],
+      edits: [
+        { seg: 12, from: '<small><small>בשנה מעוברת אומרים:</small> וּלְכַפָּרַת פֶּשַׁע.</small>', to: '<if all="ulechaparatPesha">וּלְכַפָּרַת פֶּשַׁע.</if>' },
+        { seg: 16, ...EDOT_MUSAF_MODIM_DERABBANAN_HEADING },
+      ],
       minyanParts: [
         { from: 7, label: SAID_BY.kedusha },
         { from: 16, label: SAID_BY.modimDeRabbanan },
@@ -1797,6 +2002,11 @@ function edotMusaf() {
       drop: [6, 7, 8, 13, 15, 17, 23, 25, 29, 30, 31, 37],
       when: CHOL_HAMOED,
       at: { 14: CHOL_HAMOED_PESACH, 22: CHOL_HAMOED_PESACH, 16: CHOL_HAMOED_SUKKOT, 24: CHOL_HAMOED_SUKKOT },
+      edits: [
+        { seg: 35, ...EDOT_MUSAF_MODIM_DERABBANAN_HEADING },
+        { seg: 46, from: '<small><small>אם אין כהנים אומר החזן:</small><br>', to: '<small>' },
+      ],
+      optionalParts: [{ from: 46, to: 49, label: WHEN_SAID.noKohanim }],
       transform: compose(EDOT_FESTIVAL_INSERTS, EDOT_VARIANTS),
       minyanParts: [
         { from: 9, label: SAID_BY.kedusha },
@@ -1805,6 +2015,14 @@ function edotMusaf() {
       ],
     },
     { ...heOnly, path: 'Rosh Hodesh > Mussaf', from: 41, when: MUSAF, minyanParts: [{ from: 43, to: 47, label: SAID_BY.chazzan }] },
+  ];
+}
+
+function hoshienuAfterEverySong(fridaySegment, otherDays) {
+  return [
+    { seg: fridaySegment, from: '<small>(תהילים צ״ג:א׳-ב׳)</small>', to: '<if all="friday"><small>(תהילים צ״ג:א׳-ב׳)</small>' },
+    { seg: fridaySegment, from: '<br><br><b>הוֹשִׁיעֵ֨נוּ</b>', to: '</if><br><br><b>הוֹשִׁיעֵ֨נוּ</b>' },
+    ...otherDays.map((seg) => ({ seg, from: '<small>וממשיך הושיענו</small>', to: '' })),
   ];
 }
 
@@ -1872,7 +2090,8 @@ function edotShacharit() {
         ...each(15, 16, FAST),
         ...each(18, 19, NO_RAIN),
         ...each(20, 21, RAIN),
-        ...each(29, 30, FAST),
+        29: FAST,
+        30: EDOT_THREE_FASTS_ANEINU,
         ...each(33, 38, YAALEH_VEYAVO),
         35: ROSH_CHODESH,
         36: CHOL_HAMOED_PESACH,
@@ -1882,9 +2101,16 @@ function edotShacharit() {
         48: PURIM,
       },
       reviewed: [8, 44, 51, 52, 53, 55, 56, 57, 59, 60, 61, 62, 64, 67, 69, 71],
-      edits: [{ seg: 69, from: RAVS_PRAYER_NOTE, to: '' }],
-      drop: [6, 7, 14, 42, 43, 50],
-      optionalParts: [{ from: 69, paragraph: 1, label: SOME_SAY.ravsPrayer }],
+      edits: [
+        { seg: 30, ...EDOT_SANSAN_LEYAIR },
+        { seg: 69, from: RAVS_PRAYER_NOTE, to: '' },
+      ],
+      drop: [6, 7, 14, 42, 43, 50, 58],
+      optionalParts: [
+        { from: 30, label: SOME_SAY.threeFastsAneinu },
+        { from: 59, to: 62, label: WHEN_SAID.noKohanim },
+        { from: 69, paragraph: 1, label: SOME_SAY.ravsPrayer },
+      ],
       minyanParts: [
         { from: 8, label: SAID_BY.kedusha },
         { from: 15, to: 16, label: SAID_BY.aneinu },
@@ -1901,12 +2127,25 @@ function edotShacharit() {
       title: T.tachanun,
       path: vidui,
       from: 1,
-      to: 10,
+      to: 9,
       when: TACHANUN_SHACHARIT,
-      at: { 10: FAST },
       insert: [{ at: 1, ...NOTES.tachanunDisputedShacharit }],
+      minyanParts: [{ from: 3, label: SAID_BY.withMinyan }],
     },
-    { ...heOnly, title: T.tachanun, path: vidui, from: 13, to: 32, when: LONG_TACHANUN },
+    { ...heOnly, title: T.tachanun, path: vidui, from: 13, to: 32, when: { ...LONG_TACHANUN, none: ['publicFast'] } },
+    ...[
+      ['Fast of Gedalya', 3, 28, 'tzomGedaliah'],
+      ['Tenth of Tevet', 2, 35, 'asaraBTevet'],
+      ['Fast of Esther', 2, 33, 'taanitEsther'],
+      ['Seventeenth of Tammuz', 3, 38, 'tzomTammuz'],
+    ].map(([leaf, from, to, fast]) => ({
+      ...heOnly,
+      title: T.selichot,
+      path: `Fast Days and Mourning > ${leaf}`,
+      from,
+      to,
+      when: { all: [fast, 'tachanunShacharit'] },
+    })),
     { ...heOnly, title: T.halfKaddish, path: vidui, from: 12, to: 12, when: TACHANUN_SHACHARIT, minyan: SAID_BY.chazzan },
     { ...heOnly, title: T.halfKaddish, path: vidui, from: 12, to: 12, when: NO_TACHANUN_NOR_HALLEL, minyan: SAID_BY.chazzan },
     {
@@ -1919,18 +2158,24 @@ function edotShacharit() {
       at: { ...each(1, 3, TACHANUN_SHACHARIT), ...each(4, 5, NO_TACHANUN_SHACHARIT) },
     },
     { ...heOnly, title: T.torahReading, path: 'Rosh Hodesh > Hallel', from: 36, to: 37, when: MUSAF },
+    { ...heOnly, title: T.torahReading, path: torah, from: 6, to: 17, when: TORAH_READING, minyanParts: [{ from: 9, to: 17, label: SAID_BY.oleh }] },
+    {
+      ...heOnly,
+      title: T.torahReading,
+      path: 'Shabbat Shacharit > HaGomel',
+      from: 1,
+      to: 10,
+      when: TORAH_READING,
+      optionalParts: [{ from: 1, to: 10, label: WHEN_SAID.gomel }],
+    },
     {
       ...heOnly,
       title: T.torahReading,
       path: torah,
-      from: 6,
-      drop: [18],
+      from: 19,
       when: TORAH_READING,
       insert: [{ at: 21, ...NOTES.kinotEdot }],
-      minyanParts: [
-        { from: 9, to: 17, label: SAID_BY.oleh },
-        { from: 19, to: 20, label: SAID_BY.lastOleh },
-      ],
+      minyanParts: [{ from: 19, to: 20, label: SAID_BY.lastOleh }],
     },
     { ...base, title: T.uvaLetzion, path: at('Ashrei'), from: 1, drop: [4], at: { 5: TACHANUN_SHACHARIT } },
     {
@@ -1960,6 +2205,7 @@ function edotShacharit() {
       from: 1,
       to: 13,
       when: MUSAF,
+      edits: hoshienuAfterEverySong(12, [2, 4, 6, 8, 10]),
       at: {
         ...weekdaySongs([
           [1, 2],
@@ -1967,7 +2213,7 @@ function edotShacharit() {
           [5, 6],
           [7, 8],
           [9, 10],
-          [11, 12],
+          [11, 11],
         ]),
         13: CHANUKAH,
       },
@@ -1986,6 +2232,7 @@ function edotShacharit() {
       to: 23,
       when: NOT_MUSAF,
       transform: compose(EDOT_LEVITES_LINE, EDOT_VARIANTS),
+      edits: hoshienuAfterEverySong(13, [3, 5, 7, 9, 11]),
       at: {
         ...weekdaySongs([
           [2, 3],
@@ -1993,7 +2240,7 @@ function edotShacharit() {
           [6, 7],
           [8, 9],
           [10, 11],
-          [12, 13],
+          [12, 12],
         ]),
         ...each(14, 15, { any: ['tzomGedaliah', 'asaraBTevet'] }),
         ...each(16, 17, { all: ['dayAfterYomKippur'] }),
@@ -2006,9 +2253,10 @@ function edotShacharit() {
       ...heOnly,
       title: T.mournersHouse,
       path: songs,
-      from: 24,
+      from: 25,
       to: 26,
       when: NOT_MUSAF,
+      optional: WHEN_SAID.mournersHouse,
       edits: [{ seg: 26, from: '<small>ויש שמוסיפים</small><br>', to: '' }],
       optionalParts: [{ from: 26, label: SOME_SAY.mournersVerse }],
     },
@@ -2075,7 +2323,8 @@ function edotMincha() {
         ...each(19, 20, RAIN),
         ...each(26, 27, TISHA_BAV),
         28: { none: ['tishaBav'] },
-        ...each(31, 32, FAST),
+        31: FAST,
+        32: EDOT_THREE_FASTS_ANEINU,
         ...each(35, 40, YAALEH_VEYAVO),
         37: { all: ['roshChodesh'] },
         38: { all: ['cholHamoedPesach'] },
@@ -2083,15 +2332,24 @@ function edotMincha() {
         ...each(45, 46, AL_HANISSIM),
         47: CHANUKAH,
         48: PURIM,
-        ...each(51, 62, FAST),
+        ...each(51, 57, FAST),
+        ...each(59, 62, FAST),
       },
       reviewed: [7, 44, 65, 67, 68, 69, 71],
       insert: [{ at: 64, ...NOTES.erevYomKippurVidui }],
-      edits: [{ seg: 67, from: RAVS_PRAYER_NOTE, to: '' }],
-      drop: [6, 13, 50],
+      edits: [
+        { seg: 32, ...EDOT_SANSAN_LEYAIR },
+        { seg: 44, ...EDOT_MODIM_DERABBANAN_HEADING },
+        { seg: 67, from: RAVS_PRAYER_NOTE, to: '' },
+        { seg: 69, from: 'ביום תענית יאמר <br>', to: '' },
+      ],
+      drop: [6, 13, 50, 58],
       optionalParts: [
+        { from: 32, label: SOME_SAY.threeFastsAneinu },
+        { from: 59, to: 62, label: WHEN_SAID.noKohanim },
         { from: 67, paragraph: 1, label: SOME_SAY.ravsPrayer },
         { from: 68, label: SOME_SAY.personalFast },
+        { from: 69, label: WHEN_SAID.fastDay },
       ],
       minyanParts: [
         { from: 7, label: SAID_BY.kedusha },
@@ -2101,8 +2359,25 @@ function edotMincha() {
       ],
     },
     { ...base, title: T.avinuMalkeinu, path: amidah, from: 72, to: 104, when: AYT_TACHANUN_MINCHA },
-    { ...base, title: T.yehiShem, path: amidah, from: 105, to: 106, when: { none: ['tachanunMincha'] } },
-    { ...base, title: T.tachanun, path: vidui, from: 1, to: 9, when: MINCHA_TACHANUN, insert: [{ at: 1, ...NOTES.tachanunDisputed }] },
+    {
+      ...base,
+      title: T.yehiShem,
+      path: amidah,
+      from: 105,
+      to: 106,
+      when: { none: ['tachanunMincha'] },
+      edits: [{ seg: 106, from: "<br><br><small>ואחר כך אומר הש''צ חצי קדיש</small>", to: '' }],
+    },
+    {
+      ...base,
+      title: T.tachanun,
+      path: vidui,
+      from: 1,
+      to: 9,
+      when: MINCHA_TACHANUN,
+      insert: [{ at: 1, ...NOTES.tachanunDisputed }],
+      minyanParts: [{ from: 3, label: SAID_BY.withMinyan }],
+    },
     { ...base, title: T.kaddish, path: vidui, from: 10, to: 14, minyan: SAID_BY.chazzan },
     {
       ...base,
@@ -2157,6 +2432,7 @@ function edotMaariv() {
       reviewed: [46, 48, 50],
       edits: [
         { seg: 26, from: 'בתשעה באב יש אומרים<br>', to: '<br>' },
+        { seg: 27, ...EDOT_SANSAN_LEYAIR },
         { seg: 48, from: RAVS_PRAYER_NOTE, to: '' },
       ],
       optionalParts: [
@@ -2165,19 +2441,26 @@ function edotMaariv() {
       ],
     },
     { ...base, title: T.yehiShem, path: amidah, from: 51, to: 51 },
+    { ...base, title: T.megillah, path: 'Purim > Megillah Reading', from: 1, to: 13, when: PURIM },
     {
       ...base,
       title: T.motzaeiShabbat,
       path: amidah,
-      from: 52,
+      from: 53,
       to: 60,
-      drop: [55],
-      at: { ...each(52, 54, VI_HI_NOAM), ...each(56, 58, VI_HI_NOAM), 59: VEATA_KADOSH, 60: VI_HI_NOAM },
+      drop: [54, 55],
+      at: {
+        53: VI_HI_NOAM,
+        ...each(56, 58, VI_HI_NOAM),
+        59: { any: ['viHiNoam', 'tishaBav', 'purim'] },
+        60: { any: ['viHiNoam', 'purim'] },
+      },
       optionalParts: [{ from: 56, label: SOME_SAY.beforeShuvah }],
       minyanParts: [{ from: 53, label: SAID_BY.chazzan }],
       insert: [{ at: 59, ...NOTES.tishaBavEichah }],
     },
     { ...base, title: T.kaddish, path: amidah, from: 61, to: 65, minyan: SAID_BY.chazzan },
+    { ...base, title: T.shirHamaalot, path: 'Weekday Shacharit > Beit Yaakov', from: 4, to: 4, when: PURIM },
     edotOmer({ when: OMER }),
     { ...base, title: T.shirLamaalot, path: amidah, from: 66, to: 69, minyanParts: [{ from: 67, to: 69, label: SAID_BY.mourners }] },
     { ...base, title: T.closingBarchu, path: amidah, from: 70, to: 72, minyan: SAID_BY.chazzanAndCongregation },
@@ -2196,7 +2479,7 @@ function sefardMincha() {
       title: T.ashrei,
       path: 'Weekday Mincha > Korbanot',
       from: 22,
-      insert: [{ at: 28, ...NOTES.fastTorahReading }],
+      insert: [{ at: 23, ...NOTES.fastTorahReading }],
       minyanParts: [{ from: 23, to: 27, label: SAID_BY.chazzan }],
     },
     {
@@ -2226,12 +2509,17 @@ function sefardMincha() {
         ...each(100, 101, CHANUKAH),
         ...each(102, 103, PURIM),
         ...each(105, 107, IN_AYT),
-        ...each(111, 116, FAST),
+        ...each(111, 114, FAST),
+        ...each(115, 116, { all: ['publicFast', 'inIsrael'] }),
         ...each(119, 121, IN_AYT),
       },
       reviewed: [65, 97],
       insert: [{ at: 123, ...NOTES.erevYomKippurVidui }],
       drop: [19, 20, 47, 109, 110],
+      optionalParts: [
+        { from: 111, to: 114, label: NO_KOHANIM_IN_ISRAEL },
+        { from: 115, to: 116, label: WHEN_SAID.kohanimBless },
+      ],
       minyanParts: [
         { from: 21, to: 32, label: SAID_BY.kedusha },
         { from: 48, label: SAID_BY.aneinu },
@@ -2246,12 +2534,29 @@ function sefardMincha() {
       when: MINCHA_AVINU_MALKEINU,
       at: { ...each(4, 5, IN_AYT), ...each(6, 7, FAST_NOT_AYT), ...each(22, 27, IN_AYT), ...each(28, 33, FAST_NOT_AYT) },
     },
-    { ...base, title: T.tachanun, path: tachanun, to: 16, when: MINCHA_TACHANUN, insert: [{ at: 0, ...NOTES.tachanunDisputed }] },
+    {
+      ...base,
+      title: T.tachanun,
+      path: tachanun,
+      to: 16,
+      when: MINCHA_TACHANUN,
+      insert: [{ at: 0, ...NOTES.tachanunDisputed }],
+      minyanParts: [{ from: 5, to: 7, label: SAID_BY.withMinyan }],
+    },
     { ...base, title: T.kaddish, path: tachanun, from: 17, to: 23, minyan: SAID_BY.chazzan },
     { ...base, title: T.aleinu, path: tachanun, from: 24, to: 26 },
     { ...base, title: T.mournersKaddish, path: tachanun, from: 27, to: 31, minyan: SAID_BY.mourners },
     { ...base, title: T.ledavid, path: tachanun, from: 32, to: 34, when: LEDAVID },
-    { ...base, title: T.mournersHouse, path: tachanun, from: 35, to: 36, when: MINCHA_TACHANUN },
+    {
+      ...base,
+      title: T.mournersHouse,
+      path: tachanun,
+      from: 36,
+      to: 36,
+      when: MINCHA_TACHANUN,
+      optional: WHEN_SAID.mournersHouse,
+      insert: [{ at: 37, he: '<small>(קדיש יתום)</small>', en: "(Mourner's Kaddish)" }],
+    },
   ];
 }
 
@@ -2268,6 +2573,8 @@ function sefardMaariv() {
       title: T.shemaBlessings,
       path: shema,
       from: 6,
+      drop: [8],
+      optionalParts: [{ from: 9, label: WHEN_SAID.alone }],
       minyanParts: [
         { from: 18, to: 19, label: SAID_BY.chazzan },
         { from: 29, to: 32, label: SAID_BY.chazzan },
@@ -2278,6 +2585,7 @@ function sefardMaariv() {
       title: T.amidah,
       path: amidah,
       to: 95,
+      edits: [{ seg: 62, from: 'תְּפִלָתֵֽנוּ*', to: 'תְּפִלָתֵֽנוּ' }],
       at: {
         ...each(3, 5, IN_AYT),
         ...each(9, 10, SUMMER),
@@ -2319,7 +2627,10 @@ function sefardMaariv() {
       from: 3,
       to: 10,
       at: { ...each(3, 4, VI_HI_NOAM), ...each(5, 10, VEATA_KADOSH) },
-      insert: [{ at: 5, ...NOTES.tishaBavEichah }],
+      insert: [
+        { at: 3, ...NOTES.megillahNight },
+        { at: 5, ...NOTES.tishaBavEichah },
+      ],
     },
     {
       ...base,
@@ -2339,6 +2650,7 @@ function sefardMaariv() {
       when: OMER,
       omer: { first: 4, stride: 1 },
       transform: compose(SEFARD_VARIANTS, withoutOmerNumber),
+      edits: [SEFARD_OMER_NIGHT_NOTE],
     },
     {
       ...base,
@@ -2370,7 +2682,13 @@ function ashkenazAmidah(service, { musaf } = {}) {
   const middleBlessings = [
     { ...base, path: at('Knowledge'), ...(maariv ? { at: { 1: MOTZAEI } } : {}) },
     ...['Repentance', 'Forgiveness'].map((node) => ({ ...base, path: at(node) })),
-    { ...base, path: at('Redemption'), ...(maariv ? {} : { at: { 1: FAST } }) },
+    { ...base, path: at('Redemption'), ...(maariv ? {} : { drop: [1] }) },
+    ...(maariv
+      ? []
+      : [
+          { ...base, path: 'Weekday > Minchah > Amida > Response to Prayer', from: 2, to: 2, when: FAST, minyan: SAID_BY.aneinu },
+          { he: 'wikiAshkenazAmidah', title: base.title, path: 'עננו ת', transform: ashkenazName, when: FAST, minyan: SAID_BY.aneinu },
+        ]),
     {
       ...base,
       path: at('Healing'),
@@ -2423,14 +2741,24 @@ function ashkenazAmidah(service, { musaf } = {}) {
     },
     ...(maariv
       ? []
-      : [{ ...base, path: at('Birkat Kohanim'), minyan: SAID_BY.birkatKohanim, ...(mincha ? { when: FAST, drop: [0] } : {}) }]),
+      : [
+          {
+            ...base,
+            path: at('Birkat Kohanim'),
+            minyan: SAID_BY.birkatKohanim,
+            ...(mincha ? { when: FAST, drop: [0] } : {}),
+            optionalParts: [{ from: 1, to: mincha ? 2 : 5, label: NO_KOHANIM_IN_ISRAEL }],
+          },
+        ]),
     {
       ...base,
       path: at('Peace'),
       at: mincha ? { 0: NOT_FAST, 1: FAST, 2: IN_AYT, 3: IN_AYT } : { 1: IN_AYT, 2: IN_AYT },
+      ...(maariv ? { edits: [{ seg: 1, from: ' (בָּרוּךְ אַתָּה יְהֹוָה עֹשֶׂה הַשָּׁלוֹם:)', to: '' }] } : {}),
+      insert: [{ at: mincha ? 4 : 3, ...NOTES.ayTPeaceChatimah }],
     },
     mincha
-      ? { ...base, path: at('Concluding Passage'), insert: [{ at: 0, ...NOTES.erevYomKippurVidui }] }
+      ? { ...base, path: at('Concluding Passage'), drop: [4], insert: [{ at: 0, ...NOTES.erevYomKippurVidui }] }
       : { ...base, path: at('Concluding Passage'), ...(maariv ? {} : { drop: [4] }) },
   ];
 }
@@ -2477,7 +2805,7 @@ function ashkenazMaariv() {
     { ...base, title: T.barchu, path: at('Barchu'), minyan: SAID_BY.chazzanAndCongregation },
     shema('First Blessing before Shema'),
     shema('Second Blessing before Shema'),
-    shema('Shema', { minyanParts: [{ from: 10, to: 11, label: SAID_BY.chazzan }] }),
+    shema('Shema', { drop: [0], optionalParts: [{ from: 1, label: WHEN_SAID.alone }], minyanParts: [{ from: 10, to: 11, label: SAID_BY.chazzan }] }),
     shema('First Blessing after Shema', { from: 1 }),
     shema('Second Blessing after Shema', { from: 1 }),
     shema('Third Blessing after Shema', { from: 1, when: NOT_IN_ISRAEL }),
@@ -2494,15 +2822,18 @@ function ashkenazMaariv() {
       ...base,
       title: T.motzaeiShabbat,
       path: at("Additions for Motza'ei Shabbat > Viyehi Noam"),
-      at: { ...each(0, 1, VI_HI_NOAM), ...each(2, 10, { any: ['viHiNoam', 'tishaBav'] }) },
-      insert: [{ at: 2, ...NOTES.tishaBavEichah }],
+      at: { ...each(0, 1, VI_HI_NOAM), ...each(2, 10, VEATA_KADOSH) },
+      insert: [
+        { at: 0, ...NOTES.megillahNight },
+        { at: 2, ...NOTES.tishaBavEichah },
+      ],
     },
     {
       ...base,
       title: T.kaddishAfterAdditions,
       path: at('Kaddish Shalem'),
       from: 1,
-      when: { any: ['viHiNoam', 'tishaBav'] },
+      when: VEATA_KADOSH,
       at: { 6: VI_HI_NOAM },
       minyan: SAID_BY.chazzan,
     },
@@ -2518,6 +2849,7 @@ function ashkenazMaariv() {
     { ...base, title: T.aleinu, path: at('Alenu') },
     { ...base, title: T.mournersKaddish, path: at("Mourner's Kaddish"), minyan: SAID_BY.mourners },
     { ...base, title: T.ledavid, path: at('LeDavid'), when: LEDAVID, minyanParts: [{ from: 2, to: 8, label: SAID_BY.mourners }] },
+    ...ashkenazMournersHouse(base, at("Mourner's Kaddish")),
   ];
 }
 

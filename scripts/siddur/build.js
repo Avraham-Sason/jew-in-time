@@ -550,7 +550,7 @@ async function buildSection(spec, ctx) {
     for (const insert of (spec.insert ?? []).filter((item) => item.at === i)) {
       drafts.push({ index: i - 0.5, he: parseHebrew(insert.he), en: insert.en ?? '', when: mergeConditions(spec.when, insert.when), authored: true });
     }
-    let html = heAll[i].normalize('NFC');
+    let html = heAll[i].replace(/‎/g, '').normalize('NFC');
     if (editsBySeg.has(i)) html = applyEdits(html, editsBySeg.get(i), `${label} #${i}`);
     if (spec.flattenSmall) html = flattenSmall(html);
     if (spec.transform) html = spec.transform(html, i);

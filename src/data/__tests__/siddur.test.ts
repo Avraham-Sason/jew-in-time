@@ -613,6 +613,34 @@ describe('weekday shacharit', () => {
     expect(shownOn('edot_hamizrach', 'shacharit', chanukah)).not.toMatch(/השיר שהיו הלוים/);
   });
 
+  it('says Hoshienu after the Song of every day, though Edot HaMizrach and Sefard sources print it only after Friday’s', () => {
+    const songOf = (nusach: Nusach, features: DayFeatures) =>
+      letters(
+        resolveSiddurText(load(nusach, 'shacharit'), features)
+          .filter((section) => section.title.he === 'שיר של יום')
+          .flatMap((section) =>
+            section.segments.filter((segment) => !segment.minyan).flatMap((segment) => segment.he.flat().filter((run) => run.s !== 'n').map((run) => run.t)),
+          )
+          .join(' '),
+      );
+    const fridaySong = /\S+ מלך גאות לבש/;
+    const hoshienu: Partial<Record<Nusach, RegExp>> = {
+      edot_hamizrach: /הושיענו \S+ אלהינו וקבצנו מן ?הגוים .* אמן ואמן$/,
+      sefard: /הושיענו אלהי ישענו וקבצנו והצילנו מן ?הגוים .* אמן ואמן$/,
+      chabad: /הושיענו \S+ אלהינו וקבצנו מן ?הגוים/,
+    };
+    for (const [nusach, pattern] of Object.entries(hoshienu) as [Nusach, RegExp][]) {
+      for (let date = 7; date <= 12; date++) {
+        const song = songOf(nusach, day(date, months.CHESHVAN, 5787));
+        expect(song).toMatch(pattern);
+        expect(song.match(fridaySong) !== null).toBe(date === 12);
+      }
+      expect(songOf(nusach, roshChodesh)).toMatch(pattern);
+    }
+    expect(shownOn('edot_hamizrach', 'shacharit', tuesday)).not.toMatch(/וממשיך הושיענו/);
+    expect(shownOn('sefard', 'shacharit', tuesday)).not.toMatch(/הושיענו וכו/);
+  });
+
   it('says Avinu Malkeinu in the Ten Days on days with Tachanun, and on fasts where the nusach does', () => {
     for (const nusach of NUSCHAOT) {
       expect(saidOn(nusach, 'shacharit', tenDays)).toMatch(avinuMalkeinu);
@@ -697,7 +725,7 @@ describe('passages only some say', () => {
 
   it('folds what only Israel’s congregations add, and shows nothing of it abroad', () => {
     const abroad = day(9, months.CHESHVAN, 5787, DIASPORA);
-    expect(foldedSections('ashkenaz', 'shacharit', weekday)).toEqual(['אין כאלהינו']);
+    expect(foldedSections('ashkenaz', 'shacharit', weekday)).toEqual(['בבית האבל', 'אין כאלהינו']);
     expect(sections('ashkenaz', 'shacharit', abroad).map((section) => section.title.he)).not.toContain('אין כאלהינו');
     expect(foldedSections('sefard', 'maariv', weekday)).toEqual(['שיר למעלות']);
     expect(sections('sefard', 'maariv', abroad).map((section) => section.title.he)).not.toContain('שיר למעלות');
@@ -751,11 +779,42 @@ describe('passages only some say', () => {
     expect(saidOn('edot_hamizrach', 'maariv', weekday)).not.toMatch(/עננו אבינו עננו/);
   });
 
+  it('folds what is said only in a circumstance the date cannot tell', () => {
+    const labelOf = (nusach: Nusach, id: SiddurTextId, features: DayFeatures, said: RegExp) => {
+      const found = sections(nusach, id, features)
+        .flatMap((section) => section.segments.map((segment) => ({ section, segment })))
+        .find(({ segment }) => said.test(letters(segment.he.flat().filter((run) => run.s !== 'n').map((run) => run.t).join(' '))));
+      expect(found).toBeDefined();
+      return found!.segment.optional?.he ?? found!.section.optional?.he ?? null;
+    };
+    const monday = day(8, months.CHESHVAN, 5787);
+    for (const nusach of ['edot_hamizrach', 'ashkenaz', 'sefard'] as const) {
+      expect(labelOf(nusach, 'shacharit', monday, /^למנצח לבני ?קרח מזמור שמעו ?זאת/)).toBe('בבית האבל אומרים');
+    }
+    expect(labelOf('sefard', 'mincha', monday, /^למנצח לבני ?קרח מזמור שמעו ?זאת/)).toBe('בבית האבל אומרים');
+    for (const nusach of NUSCHAOT) {
+      expect(labelOf(nusach, 'shacharit', monday, /הגומל לחיבים טובות/)).toBe('מי שחייב להודות מברך הגומל');
+    }
+    for (const nusach of ['edot_hamizrach', 'chabad'] as const) {
+      expect(labelOf(nusach, 'tefillin', weekday, /וצונו להניח תפלין/)).toBeNull();
+      expect(labelOf(nusach, 'tefillin', weekday, /וצונו על מצות תפלין/)).toBe('אם הפסיק בין תפילין של יד לתפילין של ראש');
+    }
+    for (const nusach of ['ashkenaz', 'sefard'] as const) {
+      expect(labelOf(nusach, 'birchot_hashachar', weekday, /שעשני כרצונו/)).toBe('נשים אומרות');
+      expect(labelOf(nusach, 'krias_shma_shacharit', weekday, /^אל מלך נאמן/)).toBe('המתפלל ביחיד אומר');
+      expect(labelOf(nusach, 'krias_shma_shacharit', weekday, /^שמע ישראל/)).toBeNull();
+    }
+    const privateFastPrayer = /^רבון העולמים גלוי לפניך בזמן שבית המקדש קים/;
+    expect(labelOf('edot_hamizrach', 'mincha', weekday, privateFastPrayer)).toBe('ביום תענית אומרים');
+    expect(labelOf('edot_hamizrach', 'mincha', day(10, months.TEVET, 5787), privateFastPrayer)).toBeNull();
+  });
+
   it('keeps every passage the source marks as said by only some behind a label', () => {
     const someSay = /(^|[\s(])(ו?יש\s+(ה?נוהגי[םן]|אומרים|שמוסיפים)|ה?רוצה\s+ל|מי\s+שרוצה)/;
     const notAPassage = [
       /^אין אומרים אאא/,
       /^בערב שבת אין אומרים למנצח/,
+      /^בעשרת ימי תשובה יש נוהגים לחתום/,
       /^דרש ר שמלאי/,
       /^יש נוהגים שלא לומר למנצח/,
       /^כשנופל על פניו/,
