@@ -626,7 +626,7 @@ describe('weekday shacharit', () => {
     const fridaySong = /\S+ מלך גאות לבש/;
     const hoshienu: Partial<Record<Nusach, RegExp>> = {
       edot_hamizrach: /הושיענו \S+ אלהינו וקבצנו מן ?הגוים .* אמן ואמן$/,
-      sefard: /הושיענו אלהי ישענו וקבצנו והצילנו מן ?הגוים .* אמן ואמן$/,
+      sefard: /הושיענו \S+ אלהינו וקבצנו מן ?הגוים .* אמן ואמן$/,
       chabad: /הושיענו \S+ אלהינו וקבצנו מן ?הגוים/,
     };
     for (const [nusach, pattern] of Object.entries(hoshienu) as [Nusach, RegExp][]) {
@@ -639,6 +639,20 @@ describe('weekday shacharit', () => {
     }
     expect(shownOn('edot_hamizrach', 'shacharit', tuesday)).not.toMatch(/וממשיך הושיענו/);
     expect(shownOn('sefard', 'shacharit', tuesday)).not.toMatch(/הושיענו וכו/);
+  });
+
+  it('follows the order and days the user chose where sources disagree', () => {
+    const sefardMonday = titles('sefard', monday);
+    expect(sefardMonday.indexOf('הכנסת ספר התורה')).toBeGreaterThan(sefardMonday.indexOf('אשרי ובא לציון'));
+    expect(sefardMonday.indexOf('הכנסת ספר התורה')).toBeLessThan(sefardMonday.indexOf('קדיש'));
+    const tenDaysMincha = resolveSiddurText(load('sefard', 'mincha'), day(5, months.TISHREI, 5787)).map((section) => section.title.he);
+    expect(tenDaysMincha.indexOf('תחנון')).toBeLessThan(tenDaysMincha.indexOf('אבינו מלכנו'));
+    expect(tenDaysMincha.indexOf('אבינו מלכנו')).toBeLessThan(tenDaysMincha.indexOf('סיום התחנון'));
+    const threeFastsAneinu = /סנסן ליאיר/;
+    expect(shownOn('edot_hamizrach', 'shacharit', tzomGedaliah)).toMatch(threeFastsAneinu);
+    expect(shownOn('edot_hamizrach', 'mincha', tammuzFast)).toMatch(threeFastsAneinu);
+    expect(shownOn('edot_hamizrach', 'shacharit', day(13, months.ADAR_II, 5787))).not.toMatch(threeFastsAneinu);
+    expect(shownOn('edot_hamizrach', 'mincha', tishaBav)).not.toMatch(threeFastsAneinu);
   });
 
   it('says Avinu Malkeinu in the Ten Days on days with Tachanun, and on fasts where the nusach does', () => {
@@ -774,7 +788,8 @@ describe('passages only some say', () => {
 
   it('folds Aneinu on the night of Tisha B’Av in Edot HaMizrach, and shows it on no other night', () => {
     const { folded, after } = blockAround(blocksOf('edot_hamizrach', 'maariv', tishaBav, 'תפילת העמידה'), 'בתשעה באב יש אומרים עננו');
-    expect(count(folded.text, /עננו אבינו עננו/)).toBe(2);
+    expect(count(folded.text, /עננו אבינו עננו/)).toBe(1);
+    expect(folded.text).not.toMatch(/סנסן/);
     expect(after.text).toMatch(/^כי אתה שומע תפלת כל ?פה/);
     expect(saidOn('edot_hamizrach', 'maariv', weekday)).not.toMatch(/עננו אבינו עננו/);
   });
@@ -804,6 +819,9 @@ describe('passages only some say', () => {
       expect(labelOf(nusach, 'krias_shma_shacharit', weekday, /^אל מלך נאמן/)).toBe('המתפלל ביחיד אומר');
       expect(labelOf(nusach, 'krias_shma_shacharit', weekday, /^שמע ישראל/)).toBeNull();
     }
+    expect(labelOf('ashkenaz', 'shacharit', monday, /^אשמנו בגדנו/)).toBe('יש נוהגים לומר וידוי וי״ג מידות');
+    expect(labelOf('ashkenaz', 'mincha', monday, /^אשמנו בגדנו/)).toBe('יש נוהגים לומר וידוי וי״ג מידות');
+    expect(labelOf('edot_hamizrach', 'shacharit', monday, /^לדוד \S+ אורי וישעי/)).toBe('יש נוהגים לומר "לדוד ה׳ אורי"');
     const privateFastPrayer = /^רבון העולמים גלוי לפניך בזמן שבית המקדש קים/;
     expect(labelOf('edot_hamizrach', 'mincha', weekday, privateFastPrayer)).toBe('ביום תענית אומרים');
     expect(labelOf('edot_hamizrach', 'mincha', day(10, months.TEVET, 5787), privateFastPrayer)).toBeNull();

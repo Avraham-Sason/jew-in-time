@@ -40,6 +40,14 @@
 - Fold a passage behind an optional label only when the source itself marks it as said by only some ("יש נוהגים / יש אומרים / ויש שמוסיפים / מי שרוצה"), or as said only in a circumstance the date cannot decide ("בבית האבל אומרים", "יחיד אומר", "נשים אומרות", "אם אין כהנים"). The user chose the first rule on 2026-10-05 and added the second on 2026-10-07; kabbalistic additions the source prints as regular text, such as Leshem Yichud, stay regular. Drop the source note a label replaces.
 - A passage a source prints once but says belongs after each of several day-conditioned alternatives (Hoshienu joined to Friday's Song of the Day in Edot HaMizrach) is split out of that day's condition with an inline `<if>`, never left tagged with one day.
 - The 13 Middot carry `SAID_BY.withMinyan`.
+- Where sources or customs disagree, the user decided on 2026-10-07:
+  - Ashkenaz daily Vidui and the 13 Middot fold as "some say", at Shacharit and Mincha.
+  - Edot HaMizrach LeDavid Hashem Ori folds as "some say", all year.
+  - Sefard Hoshienu after the Song of the Day takes the Psalms wording from Torat Emet, as in Edot HaMizrach and Chabad, not Metsudah's Divrei HaYamim wording.
+  - Sefard and Chabad return the Torah after Uva Letzion and before Kaddish Titkabel.
+  - Sefard Mincha says Avinu Malkeinu after Nefilat Apayim, as at Shacharit.
+  - The second Kaddish on Purim night has no Titkabel.
+  - Edot HaMizrach's "three fasts" Aneinu shows only on Tzom Gedaliah, Asara B'Tevet and Tzom Tammuz.
 - Every Kaddish, Barchu, Kedushah, Modim DeRabbanan and Priestly Blessing carries a minyan label; [../../src/data/__tests__/siddur.test.ts](../../src/data/__tests__/siddur.test.ts) fails on one that does not. Kaddish Titkabel and half Kaddish are the chazzan's, and Kaddish Yatom and DeRabbanan are the mourners'. The congregation's answer to the chazzan outside the repetition, such as the answer to Barchu or the Torah-reading responses, sits inside the chazzan's block. The user decided both on 2026-10-05.
 - Drop or edit out a source note once a label says the same thing, such as "בחזרת הש״ץ אומרים כאן קדושה", and keep notes that add information. Weekday Maariv has no repetition, so the Ashkenaz source's Kedushah note in Maariv is dropped.
 - An `insert` is an authored instruction, never authored liturgy. It points at what the weekday text does not carry (the fast-day Torah reading, the erev Yom Kippur vidui, Eichah, disputed Tachanun) and carries its own condition.
