@@ -25,8 +25,11 @@ import {
   openBatteryOptimizationSettings,
   supportsBatteryOptimizationSettings,
 } from '@/services/deviceSettings';
+import { chooseGender, chooseNusach, setTaharahTracking } from '@/stores/taharahOptIn';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { ChipRow } from '@/components/ChipRow';
+import { SettingsSection } from '@/components/SettingsSection';
 import { useQuietBlock } from '@/components/ShabbatScreen';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
@@ -37,6 +40,8 @@ const NUSACHAOT: Nusach[] = ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'];
 const THEMES = ['system', 'light', 'dark'] as const;
 const LANGS = ['he', 'en'] as const;
 const OPINIONS = ['GRA', 'MA'] as const;
+const GENDERS = ['male', 'female'] as const;
+const CITY_INDEXES = CITIES.map((_, index) => index);
 
 export default function SettingsScreen() {
   const { colors } = useTheme();
@@ -62,8 +67,6 @@ export default function SettingsScreen() {
       setResetting(false);
     }
   };
-
-  const cityOptions = CITIES;
 
   const [locating, setLocating] = useState(false);
 
@@ -118,7 +121,7 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[typography.title, { color: colors.text, marginBottom: 12 }]}>{t('settings.title')}</Text>
 
-        <Section title={t('settings.profile')}>
+        <SettingsSection title={t('settings.profile')}>
           <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>
             {t('settings.profileName')}
           </Text>
@@ -161,9 +164,9 @@ export default function SettingsScreen() {
               },
             ]}
           />
-        </Section>
+        </SettingsSection>
 
-        <Section title={t('settings.notifications')}>
+        <SettingsSection title={t('settings.notifications')}>
           <View style={styles.switchRow}>
             <View style={{ flex: 1, paddingEnd: 12 }}>
               <Text style={[typography.bodyBold, { color: colors.text }]}>
@@ -203,12 +206,12 @@ export default function SettingsScreen() {
           <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>
             {Platform.OS === 'ios' ? t('settings.iosHint') : t('settings.androidHint')}
           </Text>
-        </Section>
+        </SettingsSection>
 
         {/* Exact alarms are declared in the manifest, but OEM battery managers can still defer
             them. Exempting the app is the one part only the user can do. */}
         {supportsBatteryOptimizationSettings() ? (
-          <Section title={t('settings.batteryTitle')}>
+          <SettingsSection title={t('settings.batteryTitle')}>
             <Text style={[typography.small, { color: colors.textMuted }]}>{t('settings.batteryHint')}</Text>
             <Pressable
               onPress={() => openBatteryOptimizationSettings()}
@@ -217,14 +220,46 @@ export default function SettingsScreen() {
             >
               <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.batteryAction')}</Text>
             </Pressable>
-          </Section>
+          </SettingsSection>
         ) : null}
 
-        <Section title={t('settings.nusach')}>
-          <ChipRow values={NUSACHAOT} selected={user.nusach} onSelect={(value) => user.setNusach(value)} renderLabel={(value) => t(`nusach.${value}`)} />
-        </Section>
+        <SettingsSection title={t('settings.nusach')}>
+          <ChipRow values={NUSACHAOT} selected={user.nusach} onSelect={chooseNusach} renderLabel={(value) => t(`nusach.${value}`)} />
+        </SettingsSection>
 
-        <Section title={t('settings.location')}>
+        <SettingsSection title={t('settings.taharah')}>
+          <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 8 }]}>{t('profile.gender')}</Text>
+          <ChipRow values={GENDERS} selected={user.gender} onSelect={chooseGender} renderLabel={(value) => t(`profile.gender.${value}`)} />
+          <View style={[styles.switchRow, { marginTop: 14 }]}>
+            <View style={{ flex: 1, paddingEnd: 12 }}>
+              <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.taharahEnabled')}</Text>
+              {user.gender ? (
+                <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
+                  {t(user.gender === 'female' ? 'taharah.optIn.woman.body' : 'taharah.optIn.husband.body')}
+                </Text>
+              ) : null}
+            </View>
+            <Switch
+              value={user.taharahEnabled}
+              onValueChange={setTaharahTracking}
+              disabled={!user.gender}
+              thumbColor="#fff"
+              trackColor={{ false: colors.border, true: colors.gold }}
+            />
+          </View>
+          {user.taharahEnabled ? (
+            <Pressable
+              onPress={() => router.push('/taharah/settings')}
+              accessibilityRole="button"
+              style={[styles.primaryBtn, { backgroundColor: colors.gold }]}
+            >
+              <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.taharahOpen')}</Text>
+            </Pressable>
+          ) : null}
+          <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>{t('taharah.disclaimer')}</Text>
+        </SettingsSection>
+
+        <SettingsSection title={t('settings.location')}>
           <Text style={[typography.bodyBold, { color: colors.text }]}>{getLocationName(user.location, language)}</Text>
           <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
             {t(`settings.locationStatus.${user.locationStatus}`)}
@@ -234,53 +269,40 @@ export default function SettingsScreen() {
           </Pressable>
           {statusText ? <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>{statusText}</Text> : null}
           <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 14, marginBottom: 8 }]}>{t('settings.pickCity')}</Text>
-          <View style={styles.wrapRow}>
-            {cityOptions.map((city) => {
-              const selected = city.name === user.location.name;
-              return (
-                <Pressable
-                  key={city.name}
-                  onPress={() => user.setLocationState(city, 'ready', 'manual')}
-                  style={[
-                    styles.pill,
-                    {
-                      backgroundColor: selected ? colors.gold : colors.surface2,
-                    },
-                  ]}
-                >
-                  <Text style={[typography.small, { color: selected ? colors.onGold : colors.textSub }]}>{getLocationName(city, language)}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Section>
+          <ChipRow
+            values={CITY_INDEXES}
+            selected={CITIES.findIndex((city) => city.name === user.location.name)}
+            onSelect={(index) => user.setLocationState(CITIES[index], 'ready', 'manual')}
+            renderLabel={(index) => getLocationName(CITIES[index], language)}
+          />
+        </SettingsSection>
 
-        <Section title={t('settings.theme')}>
+        <SettingsSection title={t('settings.theme')}>
           <ChipRow
             values={THEMES}
             selected={user.theme}
             onSelect={(value) => user.setTheme(value)}
             renderLabel={(value) => t(`settings.theme.${value}`)}
           />
-        </Section>
+        </SettingsSection>
 
-        <Section title={t('settings.language')}>
+        <SettingsSection title={t('settings.language')}>
           <ChipRow
             values={LANGS}
             selected={user.language}
             onSelect={(value) => user.setLanguage(value)}
             renderLabel={(value) => t(`settings.language.${value}`)}
           />
-        </Section>
+        </SettingsSection>
 
-        <Section title={t('settings.opinion')}>
+        <SettingsSection title={t('settings.opinion')}>
           <ChipRow
             values={OPINIONS}
             selected={user.halachicOpinions.ksSofZman}
             onSelect={(value) => user.setKsOpinion(value)}
             renderLabel={(value) => t(`settings.opinion.${value}`)}
           />
-        </Section>
+        </SettingsSection>
 
         <Pressable
           onPress={() => setResetVisible(true)}
@@ -327,57 +349,12 @@ export default function SettingsScreen() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  const { colors } = useTheme();
-  return (
-    <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Text style={[typography.subheading, { color: colors.text, marginBottom: 12 }]}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-
 function Row({ label, value }: { label: string; value: string }) {
   const { colors } = useTheme();
   return (
     <View style={[styles.row, { marginTop: 12 }]}>
       <Text style={[typography.bodyBold, { color: colors.text }]}>{label}</Text>
       <Text style={[typography.body, { color: colors.gold }]}>{value}</Text>
-    </View>
-  );
-}
-
-function ChipRow<T extends string>({
-  values,
-  selected,
-  onSelect,
-  renderLabel,
-}: {
-  values: readonly T[];
-  selected: T;
-  onSelect: (value: T) => void;
-  renderLabel: (value: T) => string;
-}) {
-  const { colors } = useTheme();
-  return (
-    <View style={styles.wrapRow}>
-      {values.map((value) => {
-        const active = selected === value;
-        return (
-          <Pressable
-            key={value}
-            onPress={() => onSelect(value)}
-            style={[
-              styles.pill,
-              {
-                backgroundColor: active ? colors.gold : colors.surface2,
-              },
-            ]}
-          >
-            <Text style={[typography.small, { color: active ? colors.onGold : colors.textSub }]}>{renderLabel(value)}</Text>
-          </Pressable>
-        );
-      })}
     </View>
   );
 }
@@ -390,28 +367,12 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 28,
   },
-  section: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 12,
-  },
   primaryBtn: {
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 12,
-  },
-  wrapRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  pill: {
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
   },
   row: {
     flexDirection: 'row',

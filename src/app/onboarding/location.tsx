@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
+import { ONBOARDING_STEPS, OnboardingDots } from '@/components/OnboardingDots';
 import { LocationService } from '@/services/LocationService';
 import { requestNotificationPermissions } from '@/services/NotificationScheduler';
 import { useUserStore } from '@/stores/useUserStore';
@@ -77,7 +78,7 @@ export default function OnboardingLocationScreen() {
         </Pressable>
       </View>
 
-      <Dots step={2} />
+      <OnboardingDots step={3} total={ONBOARDING_STEPS} style={styles.dots} />
       <Pressable onPress={() => router.push('/onboarding/ready')} style={[styles.cta, { backgroundColor: colors.gold }]}>
         <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.continue')}</Text>
       </Pressable>
@@ -85,17 +86,6 @@ export default function OnboardingLocationScreen() {
         <Text style={[typography.small, { color: colors.textSub }]}>{t('common.back')}</Text>
       </Pressable>
     </SafeAreaView>
-  );
-}
-
-function Dots({ step }: { step: number }) {
-  const { colors } = useTheme();
-  return (
-    <View style={styles.dots}>
-      {Array.from({ length: 4 }).map((_, index) => (
-        <View key={index} style={[styles.dot, { width: index === step ? 22 : 7, backgroundColor: index === step ? colors.gold : colors.border }]} />
-      ))}
-    </View>
   );
 }
 
@@ -130,15 +120,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   dots: {
-    flexDirection: 'row',
-    gap: 5,
-    alignSelf: 'center',
     marginTop: 'auto',
     marginBottom: 10,
-  },
-  dot: {
-    height: 7,
-    borderRadius: 4,
   },
   cta: {
     alignItems: 'center',

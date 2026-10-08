@@ -9,6 +9,7 @@
 - [app/AGENTS.md](app/AGENTS.md) owns Expo Router screens and route-level behavior.
 - [components/AGENTS.md](components/AGENTS.md) owns reusable UI components.
 - [data/AGENTS.md](data/AGENTS.md) owns static registries and adapters.
+- [hooks/AGENTS.md](hooks/AGENTS.md) owns React hooks shared by more than one screen, such as the clock tick.
 - [i18n/AGENTS.md](i18n/AGENTS.md) owns translation dictionaries and locale helpers.
 - [services/AGENTS.md](services/AGENTS.md) owns non-React logic, native wrappers, notifications, location, storage, and reset behavior.
 - [stores/AGENTS.md](stores/AGENTS.md) owns persisted Zustand stores.
@@ -41,6 +42,7 @@
 - [app/AGENTS.md](app/AGENTS.md) - Expo Router routes, navigation, layouts, onboarding, tabs, and route tests.
 - [components/AGENTS.md](components/AGENTS.md) - Reusable React Native UI components.
 - [data/AGENTS.md](data/AGENTS.md) - Mitzvah registry, city/nusach data, and custom-mitzvah adapters.
+- [hooks/AGENTS.md](hooks/AGENTS.md) - Shared React hooks.
 - [i18n/AGENTS.md](i18n/AGENTS.md) - Hebrew and English dictionaries and locale wrappers.
 - [services/AGENTS.md](services/AGENTS.md) - Zmanim, Hebcal, location, storage, notifications, completions, and reset services.
 - [stores/AGENTS.md](stores/AGENTS.md) - Persisted Zustand stores and middleware.

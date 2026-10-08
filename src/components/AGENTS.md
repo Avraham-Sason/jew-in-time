@@ -6,9 +6,15 @@
 
 ## Ownership
 
-- Components include [MitzvahCard.tsx](MitzvahCard.tsx), [CompletedRow.tsx](CompletedRow.tsx), [ReminderEditor.tsx](ReminderEditor.tsx), [TimeRibbon.tsx](TimeRibbon.tsx), [BottomTabs.tsx](BottomTabs.tsx), [NavBar.tsx](NavBar.tsx), [HebrewDate.tsx](HebrewDate.tsx), [AppLogo.tsx](AppLogo.tsx), and [ShabbatScreen.tsx](ShabbatScreen.tsx).
+- Components include [MitzvahCard.tsx](MitzvahCard.tsx), [CompletedRow.tsx](CompletedRow.tsx), [ReminderEditor.tsx](ReminderEditor.tsx), [TimeRibbon.tsx](TimeRibbon.tsx), [BottomTabs.tsx](BottomTabs.tsx), [NavBar.tsx](NavBar.tsx), [HebrewDate.tsx](HebrewDate.tsx), [AppLogo.tsx](AppLogo.tsx), [OnboardingDots.tsx](OnboardingDots.tsx), [SettingsSection.tsx](SettingsSection.tsx), [TaharahLock.tsx](TaharahLock.tsx), and [ShabbatScreen.tsx](ShabbatScreen.tsx).
 - [ShabbatScreen.tsx](ShabbatScreen.tsx) renders an in-tree overlay above the navigator, never a native `Modal`, which on iOS cannot present over another one. Android back exits the app. The caller decides when it shows. The file also owns `QuietBlockContext` and `useQuietBlock()`.
 - A component that renders a `Modal` gates it with `!useQuietBlock()`, as [ReminderEditor.tsx](ReminderEditor.tsx) does.
+- [DayStepper.tsx](DayStepper.tsx) steps a device calendar day by one with arrows that follow the language direction, a civil date line over the Hebrew date, and disables a step past `min` / `max`. It also exports `formatDayLine()`, the civil date line the taharah screens share.
+- [ChipRow.tsx](ChipRow.tsx) draws a wrapping row of selectable pills for any `string | number` value list: `values`, the `selected` value (or `null`), `onSelect`, `renderLabel`, and a `style` for the row. The active pill is gold; settings, the taharah screens and the city picker all use it, so a pill never gets a local copy.
+- [OnboardingDots.tsx](OnboardingDots.tsx) draws the onboarding progress dots for `step` of `total`; `ONBOARDING_STEPS` is the one count every onboarding screen passes, and the caller's `style` places it.
+- [SettingsSection.tsx](SettingsSection.tsx) is the titled, bordered card both settings screens group their rows in (`title`, `children`); a screen never declares its own section.
+- [BottomTabs.tsx](BottomTabs.tsx) draws the tabs in the order the layout registers them and singles out the `home` route: a 44-point disc lifted above the bar's top edge, gold when focused and `goldLight` otherwise, ringed in the bar color. Every other tab keeps the plain icon and label.
+- [TaharahLock.tsx](TaharahLock.tsx) wraps the taharah navigator and covers it while `lockStatusFor()` says locked; the unlock flow and the session rules are in [../app/taharah/AGENTS.md](../app/taharah/AGENTS.md).
 - Component tests live in [__tests__/](__tests__/).
 
 ## Local Contracts

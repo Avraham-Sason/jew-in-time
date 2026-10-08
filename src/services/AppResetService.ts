@@ -1,9 +1,11 @@
 import { Platform } from 'react-native';
 import { storage } from '@/services/StorageService';
+import { clearTaharahStorage } from '@/services/TaharahStorage';
 import { useUserStore } from '@/stores/useUserStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useCompletionsStore } from '@/stores/useCompletionsStore';
 import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
+import { useTaharahStore } from '@/stores/useTaharahStore';
 import { NotificationScheduler, setSchedulingSuspended } from '@/services/NotificationScheduler';
 
 export const AppResetService = {
@@ -17,12 +19,16 @@ export const AppResetService = {
       useMitzvotStore.getState().reset();
       useCompletionsStore.getState().reset();
       useCustomMitzvotStore.getState().reset();
+      useTaharahStore.getState().reset();
       try {
         await NotificationScheduler.cancelAll();
       } catch {}
       if (Platform.OS !== 'web') {
         try {
           storage.clearAll();
+        } catch {}
+        try {
+          clearTaharahStorage();
         } catch {}
       }
     } finally {

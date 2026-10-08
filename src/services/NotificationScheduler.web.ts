@@ -1,9 +1,12 @@
+import type { OnahKind, TaharahTaskKind } from '@/types/taharah';
 import { useUserStore } from '@/stores/useUserStore';
 
 const DAILY_REBUILD_TASK = 'jew-in-time-daily-rebuild';
 const NOTIFICATION_ACTION_TASK = 'jew-in-time-notification-actions';
 const MITZVAH_REMINDER_CATEGORY = 'mitzvah_reminder';
 const MITZVAH_TEXT_CATEGORY = 'mitzvah_reminder_text';
+const TAHARAH_KIND = 'taharah';
+const TAHARAH_BEDIKA_CATEGORY = 'taharah_bedika';
 const MARK_DONE_ACTION = 'MARK_DONE';
 const OPEN_TEXT_ACTION = 'OPEN_TEXT';
 const PENDING_LIMIT = 60;
@@ -12,7 +15,8 @@ const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
 const SCHEDULE_FORMAT_KEY = 'notifications:schedule-format';
 
 export type PendingNotificationMeta = {
-  kind?: 'blockNotice' | 'checkin';
+  kind?: 'blockNotice' | 'checkin' | typeof TAHARAH_KIND;
+  taharah?: { task: TaharahTaskKind | 'tevilaPrep' | 'postBlock' | 'preBlock'; day: number; onah?: OnahKind };
   blockId?: string;
   mitzvahId?: string;
   dateKey?: string;
@@ -84,6 +88,10 @@ export function shouldSuppressForCompletion(): boolean {
   return false;
 }
 
+export function taharahNotificationSettled(_data?: unknown): boolean {
+  return false;
+}
+
 export function initNotificationHandlers(): () => void {
   useUserStore.getState().setNotificationPermission('unknown');
   return () => {};
@@ -98,6 +106,8 @@ export {
   SCHEDULE_FORMAT_KEY,
   MITZVAH_REMINDER_CATEGORY,
   MITZVAH_TEXT_CATEGORY,
+  TAHARAH_KIND,
+  TAHARAH_BEDIKA_CATEGORY,
   MARK_DONE_ACTION,
   OPEN_TEXT_ACTION,
 };

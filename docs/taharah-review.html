@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>מעקב טהרת המשפחה — כללים לאישור הרב</title>
+<meta name="description" content="כללי החישוב ההלכתיים שמיישמת תכונת מעקב טהרת המשפחה באפליקציית יהודי בזמן, לעיון ולאישור הרב.">
+<link rel="stylesheet" href="style.css">
+<style>
+:root {
+  --gold-ink: #8a5d00;
+  --note-bg: #f1e6cf;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --gold-ink: #e0ad46;
+    --note-bg: #2b261a;
+  }
+}
+
+header,
+main {
+  max-width: 900px;
+}
+
+main > p,
+main > ul,
+main > ol {
+  max-width: 40rem;
+}
+
+main li {
+  margin-bottom: 14px;
+}
+
+h1 {
+  line-height: 1.35;
+}
+
+h2 {
+  margin-top: 40px;
+  scroll-margin-top: 12px;
+}
+
+h3 {
+  font-size: 19px;
+  margin: 0 0 10px;
+}
+
+.source {
+  color: var(--text-sub);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+span.source {
+  display: block;
+  margin: 4px 0 0;
+}
+
+.verify {
+  display: inline-block;
+  padding: 0 11px;
+  border: 1.5px solid var(--gold);
+  border-radius: 999px;
+  color: var(--gold-ink);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.6;
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.vnote {
+  display: block;
+  margin: 6px 0 0;
+}
+
+.howto {
+  margin: 24px 0 8px;
+  padding: 16px 18px;
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  background: var(--note-bg);
+}
+
+.howto p {
+  margin: 0;
+}
+
+.howto strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.cards {
+  display: grid;
+  gap: 16px;
+}
+
+.card {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.card p {
+  margin: 0;
+}
+
+.card dl {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.card dt {
+  color: var(--gold-ink);
+  font-weight: 700;
+}
+
+.card dd {
+  margin: 0;
+}
+
+.card .vnote,
+.card .source {
+  margin-top: 14px;
+}
+
+.rules {
+  width: 100%;
+  margin: 16px 0 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  table-layout: fixed;
+}
+
+.rules thead th {
+  width: 16%;
+}
+
+.rules thead th:first-child {
+  width: 20%;
+}
+
+.rules caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.rules th,
+.rules td {
+  padding: 10px 12px;
+  text-align: start;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+
+.rules thead th {
+  background: var(--note-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.rules tbody tr:last-child > * {
+  border-bottom: 1px solid var(--border);
+}
+
+.rules tbody:last-child tr:last-child > * {
+  border-bottom: none;
+}
+
+.rules tr.note td,
+.rules tr.src td {
+  padding-top: 0;
+}
+
+.rules tr.note td .verify {
+  margin-inline-end: 6px;
+}
+
+.verify-list li {
+  padding-inline-start: 4px;
+}
+
+.verify-list .back {
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.sources a {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  body {
+    padding: 24px 14px 56px;
+  }
+
+  main {
+    padding: 28px 20px;
+  }
+}
+
+@media (max-width: 599.98px) {
+  body {
+    padding: 16px 10px 48px;
+  }
+
+  main {
+    padding: 22px 16px;
+  }
+
+  h1 {
+    font-size: 25px;
+  }
+
+  .card dl {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .card dd {
+    margin-bottom: 10px;
+  }
+
+  .card dd:last-child {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 759.98px) {
+  .rules,
+  .rules tbody,
+  .rules tr,
+  .rules th,
+  .rules td {
+    display: block;
+  }
+
+  .rules {
+    margin-top: 12px;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .rules thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .rules tbody {
+    margin: 0 0 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  .rules tbody tr:last-child > *,
+  .rules tbody:last-child tr:last-child > * {
+    border-bottom: none;
+  }
+
+  .rules tr.data th {
+    padding: 12px 16px;
+    background: var(--note-bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 18px;
+  }
+
+  .rules tr.data td {
+    display: grid;
+    grid-template-columns: 46% 1fr;
+    gap: 12px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .rules tr.data td::before {
+    content: attr(data-label);
+    color: var(--text-sub);
+    font-weight: 700;
+  }
+
+  .rules tr.note td,
+  .rules tr.src td {
+    padding: 10px 16px 0;
+  }
+
+  .rules tr.src td {
+    padding-bottom: 12px;
+  }
+}
+
+@media print {
+  :root {
+    --bg: #fff;
+    --surface: #fff;
+    --text: #000;
+    --text-sub: #333;
+    --gold: #000;
+    --gold-ink: #000;
+    --border: #999;
+    --note-bg: #fff;
+  }
+
+  body {
+    padding: 0;
+    background: #fff;
+    color: #000;
+    font-size: 12pt;
+  }
+
+  header a,
+  .verify-list .back {
+    display: none;
+  }
+
+  main {
+    max-width: none;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: #fff;
+  }
+
+  main > p,
+  main > ul,
+  main > ol {
+    max-width: none;
+  }
+
+  a {
+    color: #000;
+    text-decoration: none;
+  }
+
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-size: 10pt;
+    overflow-wrap: anywhere;
+  }
+
+  .verify {
+    border-color: #000;
+  }
+
+  .card,
+  .howto,
+  .rules tbody,
+  main li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  h2,
+  h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+}
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">יהודי בזמן</span>
+  <a href="./">דף התמיכה</a>
+</header>
+
+<main>
+  <h1>מעקב טהרת המשפחה — כללי החישוב לאישור הרב</h1>
+  <p class="meta">אפליקציית ״יהודי בזמן״ · גרסת כללים 1 · 8 באוקטובר 2026 (כ״ז בתשרי תשפ״ז)</p>
+
+  <p class="lead">האפליקציה אינה פוסקת הלכה. היא עוזרת לאישה (ולבעלה) לעקוב אחרי המחזור, סופרת ימים לפי זמני ההלכה במיקום שלה, ומזכירה מה לעשות ומתי. בכל ספק היא עוצרת ומפנה לשאלת רב. הדף הזה מפרט בדיוק את הכללים שהיא מיישמת, לפי מנהג, כדי שהרב יאשר או יתקן לפני שהתכונה יוצאת למשתמשות.</p>
+
+  <aside class="howto">
+    <p><strong>איך לענות</strong>ליד כל פריט המסומן ״לאימות״ (הרשימה המרוכזת ב<a href="#s8">סעיף 8</a>) נשמח לתשובה: מאשר / לתקן, ובמה. אפשר גם להעיר על כל כלל אחר. תשובות במייל <a href="mailto:avisason9314@gmail.com">avisason9314@gmail.com</a> או בוואטסאפ לאברהם.</p>
+  </aside>
+
+  <h2 id="s1">1. הגדרות יסוד</h2>
+  <ul>
+    <li>היום העברי מתחיל בשקיעה. ראייה אחרי השקיעה שייכת ליום העברי הבא.</li>
+    <li>עונה: עונת יום מהזריחה עד השקיעה, עונת לילה מהשקיעה עד הזריחה.
+      <span class="vnote"><a class="verify" id="r1" href="#v1">לאימות 1</a> יש הסוברים שעונת היום מתחילה מעלות השחר; האפליקציה מחשבת מהזריחה.</span>
+      <span class="source">מקור: שו״ע יו״ד קפד ד-ה; פניני הלכה טהרת המשפחה ו, ד.</span>
+    </li>
+    <li>ראייה בין השמשות (בין השקיעה לצאת הכוכבים, 7.083 מעלות): בספירת ימי ההמתנה היא נספרת מהיום הבא (לחומרא), ובעונות הפרישה חוששים לשתי העונות, זו שהסתיימה וזו שהתחילה. <a class="verify" id="r2" href="#v2">לאימות 2</a></li>
+    <li>יום הראייה הוא יום 1 לכל ספירה.</li>
+    <li>כל הזמנים (זריחה, שקיעה, צאת הכוכבים) מחושבים לפי המיקום שבחרה המשתמשת, לא לפי שעון המכשיר.</li>
+  </ul>
+
+  <h2 id="s2">2. טבלת המנהגים</h2>
+  <p>המשתמשת בוחרת מנהג, ובכל פרמטר יכולה לשנות לפי הוראת רבה. ברירת המחדל נגזרת מנוסח התפילה שבחרה: אשכנז ← אשכנז, ספרד ← חסידים, חב״ד ← חב״ד, עדות המזרח ← לפי הרב עובדיה יוסף.</p>
+
+  <table class="rules">
+    <caption>טבלת המנהגים והפרמטרים של כל מנהג</caption>
+    <thead>
+      <tr>
+        <th scope="col">פרמטר</th>
+        <th scope="col">אשכנז</th>
+        <th scope="col">חסידים</th>
+        <th scope="col">חב״ד</th>
+        <th scope="col">ספרדים ע״פ הרב עובדיה יוסף</th>
+        <th scope="col">ספרדים ע״פ הרב מרדכי אליהו</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr class="data">
+        <th scope="row">המתנה לפני הפסק טהרה (יום הראייה = 1)</th>
+        <td data-label="אשכנז">5 ימים</td>
+        <td data-label="חסידים">5 ימים</td>
+        <td data-label="חב״ד">5 ימים</td>
+        <td data-label="ספרדים ע״פ הרב עובדיה יוסף">הפסק מהיום הרביעי</td>
+        <td data-label="ספרדים ע״פ הרב מרדכי אליהו">5 ימים</td>
+      </tr>
+      <tr class="note">
+        <td colspan="6"><a class="verify" id="r3" href="#v3">לאימות 3</a> בתא של הרב עובדיה: האם 4 ימים מתחילת הראייה או ממועד התשמיש האחרון?</td>
+      </tr>
+      <tr class="src">
+        <td colspan="6" class="source">מקור: רמ״א יו״ד קצו, יא (גם ללא תשמיש); פניני הלכה ד, ו; טהרת הבית (שי לש״י, ״מהיום הרביעי מתחילת הראייה״); דרכי טהרה פי״ד סעיף כא.</td>
+      </tr>
+    </tbody>
+
+    <tbody>
+      <tr class="data">
+        <th scope="row">מוך דחוק</th>
+        <td data-label="אשכנז">מומלץ (הידור)</td>
+        <td data-label="חסידים">נדרש</td>
+        <td data-label="חב״ד">נדרש</td>
+        <td data-label="ספרדים ע״פ הרב עובדיה יוסף">רשות</td>
+        <td data-label="ספרדים ע״פ הרב מרדכי אליהו">מומלץ</td>
+      </tr>
+      <tr class="note">
+        <td colspan="6"><a class="verify" id="r4" href="#v4">לאימות 4</a> סטטוס המוך בכל מנהג. דרכי טהרה מתנה את ההפסק במוך בראייה של יום אחד.</td>
+      </tr>
+      <tr class="src">
+        <td colspan="6" class="source">מקור: פניני הלכה ד, ד; טהרת הבית ח״ג יג, ג; דרכי טהרה פי״ד.</td>
+      </tr>
+    </tbody>
+
+    <tbody>
+      <tr class="data">
+        <th scope="row">עונה בינונית</th>
+        <td data-label="אשכנז">יום 30 ו-31</td>
+        <td data-label="חסידים">יום 30 ו-31</td>
+        <td data-label="חב״ד">יום 30 בלבד</td>
+        <td data-label="ספרדים ע״פ הרב עובדיה יוסף">יום 30 בלבד</td>
+        <td data-label="ספרדים ע״פ הרב מרדכי אליהו">יום 30 בלבד</td>
+      </tr>
+      <tr class="note">
+        <td colspan="6"><a class="verify" id="r5" href="#v5">לאימות 5</a> בתא של הרב מרדכי אליהו: האם יום 30 בלבד?</td>
+      </tr>
+      <tr class="src">
+        <td colspan="6" class="source">מקור: שו״ע יו״ד קפט, א (30); חוות דעת וקיצור שו״ע קנה, ג (31); שו״ע הרב וחב״ד (30); טהרת הבית (30 בלבד, אין לחוש ל-31).</td>
+      </tr>
+    </tbody>
+
+    <tbody>
+      <tr class="data">
+        <th scope="row">היקף העונה הבינונית</th>
+        <td data-label="אשכנז">עונה אחת (כעונת הראייה)</td>
+        <td data-label="חסידים">עונה אחת</td>
+        <td data-label="חב״ד">כל היממה (לילה ויום)</td>
+        <td data-label="ספרדים ע״פ הרב עובדיה יוסף">עונה אחת</td>
+        <td data-label="ספרדים ע״פ הרב מרדכי אליהו">עונה אחת</td>
+      </tr>
+      <tr class="note">
+        <td colspan="6"><a class="verify" id="r6" href="#v6">לאימות 6</a> בתאים של אשכנז ושל הרב מרדכי אליהו: יש נוהגים יממה שלמה.</td>
+      </tr>
+      <tr class="src">
+        <td colspan="6" class="source">מקור: mikvah.org (חב״ד: כל יום 30); טהרת הבית (עונה אחת); יועצות הלכה.</td>
+      </tr>
+    </tbody>
+
+    <tbody>
+      <tr class="data">
+        <th scope="row">עונת אור זרוע (העונה שלפני)</th>
+        <td data-label="אשכנז">לא (ניתן להפעיל)</td>
+        <td data-label="חסידים">כן</td>
+        <td data-label="חב״ד">כן</td>
+        <td data-label="ספרדים ע״פ הרב עובדיה יוסף">לא</td>
+        <td data-label="ספרדים ע״פ הרב מרדכי אליהו">לא</td>
+      </tr>
+      <tr class="note">
+        <td colspan="6"><a class="verify" id="r7" href="#v7">לאימות 7</a> ברירת המחדל של אשכנז: רבים מחמירים.</td>
+      </tr>
+      <tr class="src">
+        <td colspan="6" class="source">מקור: אור זרוע א, שנח; פניני הלכה ו הערה 6 (רוב הפוסקים לא קיבלו); שו״ע הרב (חומרא); טהרת הבית (אין צורך).</td>
+      </tr>
+    </tbody>
+
+    <tbody>
+      <tr class="data">
+        <th scope="row">שיטת חישוב ההפלגה</th>
+        <td data-label="אשכנז">ימים, מראייה לראייה כולל שני הקצוות</td>
+        <td data-label="חסידים">ימים</td>
+        <td data-label="חב״ד">עונות: מליל היום הראשון של השבעה נקיים עד עונת הראייה, ומוקרן מהפסק הטהרה הבא</td>
+        <td data-label="ספרדים ע״פ הרב עובדיה יוסף">ימים</td>
+        <td data-label="ספרדים ע״פ הרב מרדכי אליהו">ימים</td>
+      </tr>
+      <tr class="src">
+        <td colspan="6" class="source">מקור: שו״ע יו״ד קפט, א; שו״ע הרב וחישובי חב״ד (mikvah.org).</td>
+      </tr>
+    </tbody>
+
+    <tbody>
+      <tr class="data">
+        <th scope="row">בדיקות בשבעה נקיים</th>
+        <td colspan="5" data-label="כל המנהגים">שתיים ביום (בוקר וערב) בכל המנהגים; יום 1 ויום 7 חובה.</td>
+      </tr>
+      <tr class="src">
+        <td colspan="6" class="source">מקור: שו״ע יו״ד קצו, ד; דרכי טהרה פי״ד ג-ד; יועצות הלכה.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="s3">3. מהלך המחזור — מה האפליקציה עושה בכל שלב</h2>
+  <div class="cards">
+    <article class="card">
+      <h3>ראייה</h3>
+      <dl>
+        <dt>מה נרשם</dt>
+        <dd>המשתמשת מזינה תאריך ושעה (או תאריך ועונה).</dd>
+        <dt>מה האפליקציה עושה</dt>
+        <dd>קובעת את העונה והיום העברי, ומציגה מאיזה יום אפשר לעשות הפסק טהרה.</dd>
+      </dl>
+    </article>
+
+    <article class="card">
+      <h3>הפסק טהרה</h3>
+      <dl>
+        <dt>מתי</dt>
+        <dd>ביום, לפני השקיעה (לכתחילה ממנחה קטנה).</dd>
+        <dt>תזכורות</dt>
+        <dd>90 דקות לפני השקיעה, עם שעת השקיעה. ביום שישי התזכורת יוצאת לפני הדלקת נרות, כי האפליקציה שותקת לגמרי בשבת וביום טוב.</dd>
+        <dt>מה האפליקציה עושה</dt>
+        <dd>הפסק שלא נעשה — האפליקציה מציעה אותו שוב למחרת. הפסק שתוצאתו לא נקייה אינו נספר.</dd>
+      </dl>
+      <span class="vnote"><a class="verify" id="r8" href="#v8">לאימות 8</a> הפסק אחרי השקיעה — האפליקציה מחשיבה אותו למחר. לפי הרב עובדיה יש בדיעבד עד 3 דקות אחרי השקיעה; זה לא ממומש.</span>
+    </article>
+
+    <article class="card">
+      <h3>שבעה נקיים</h3>
+      <dl>
+        <dt>בדיקות</dt>
+        <dd>שתי בדיקות ביום, בוקר (אחרי הזריחה) וערב (לפני השקיעה), עם תזכורות. בדיקת יום 1 ויום 7 מסומנות חובה.</dd>
+        <dt>בדיקה חסרה</dt>
+        <dd>חסרה בדיקה ביום 1 או ביום 7 — האפליקציה עוצרת (״לשאול רב״) עד שהמשתמשת מזינה את הוראת הרב: להמשיך או להתחיל מחדש.</dd>
+        <dt>בדיקה לא נקייה</dt>
+        <dd>הספירה מתבטלת ונדרש הפסק טהרה חדש בלי המתנה נוספת; אם מדובר בוסת חדש המשתמשת מסמנת ״ראייה חדשה״ וההמתנה חלה שוב. <a class="verify" id="r9" href="#v9">לאימות 9</a></dd>
+        <dt>בדיקה מסופקת</dt>
+        <dd>״לשאול רב״.</dd>
+      </dl>
+      <span class="source">מקור: שו״ע יו״ד קצו, ד; דרכי טהרה פי״ד ו-ח; פניני הלכה ד, ח.</span>
+    </article>
+
+    <article class="card">
+      <h3>טבילה</h3>
+      <dl>
+        <dt>מתי</dt>
+        <dd>ליל היום השמיני, אחרי צאת הכוכבים (7.083 מעלות).</dd>
+        <dt>תזכורות</dt>
+        <dd>תזכורת הכנה 3 שעות לפני, ותזכורת בצאת הכוכבים. לא טבלה — תזכורת בכל לילה עד שסומנה טבילה. ליל שבת או יום טוב — תזכורת ההכנה יוצאת לפני הדלקת נרות בלבד.</dd>
+        <dt>דחייה</dt>
+        <dd>ליל יום הכיפורים וליל צום תשעה באב — הטבילה נדחית ללילה הבא. בשנה שהצום נדחה ליום ראשון, הלילה החסום הוא ליל י׳ באב; ליל שבת ט׳ באב וליל ח׳ באב פתוחים.</dd>
+      </dl>
+    </article>
+
+    <article class="card">
+      <h3>שבת ויום טוב</h3>
+      <p>אין התראות ואין מסכים. בדיקות והפסק שחלו בשבת מסומנים אחרי השבת במסך ״סיכום״ הקיים באפליקציה.</p>
+    </article>
+
+    <article class="card">
+      <h3>טהורה</h3>
+      <dl>
+        <dt>מה האפליקציה עושה</dt>
+        <dd>מחשבת עונות פרישה (<a href="#s4">סעיף 4</a>) ומזכירה אותן.</dd>
+        <dt>תזכורות</dt>
+        <dd>יום אחרי העונה הבינונית האחרונה היא שואלת ״האם הגיע הוסת?״.</dd>
+      </dl>
+    </article>
+  </div>
+
+  <h2 id="s4">4. עונות פרישה (וסת שאינו קבוע)</h2>
+  <ul>
+    <li><strong>יום החודש:</strong> אותו תאריך עברי בחודש הבא, באותה עונה. ראתה ב-ל׳ בחודש והחודש הבא חסר (כ״ט יום) — האפליקציה מסמנת את היום שאחרי כ״ט (א׳ בחודש שאחריו) ומציינת שהדבר במחלוקת. <a class="verify" id="r10" href="#v10">לאימות 10</a>
+      <span class="source">מקור: שו״ע יו״ד קפט, ב; בדי השולחן קפט; halachipedia.</span>
+    </li>
+    <li><strong>הפלגה:</strong> המרווח בין שתי הראיות האחרונות (כולל שני הקצוות), מוקרן מהראייה האחרונה באותה עונה. רק ההפלגה האחרונה נשמרת.
+      <span class="vnote"><a class="verify" id="r11" href="#v11">לאימות 11</a> האם לשמור גם הפלגות גדולות קודמות שלא נעקרו.</span>
+      <span class="source">מקור: שו״ע יו״ד קפט, א; ש״ך וט״ז שם.</span>
+    </li>
+    <li><strong>עונה בינונית:</strong> יום 30 (ו-31 לפי המנהג), בעונת הראייה או בכל היממה לפי המנהג. מחושבת מחדש מכל ראייה.</li>
+    <li><strong>אור זרוע:</strong> במנהגים שמחזיקים בו, העונה שלפני כל עונת פרישה. כשמשמרים גם 30 וגם 31, אור זרוע לא מוחל על 31 (יועצות הלכה). <a class="verify" id="r12" href="#v12">לאימות 12</a></li>
+    <li><strong>בדיקה בעונת פרישה:</strong> בעונה בינונית האפליקציה מסמנת בדיקה כחובה; ביום החודש ובהפלגה — כהמלצה; עונה שנשמרת רק כאור זרוע — פרישה בלבד, בלי בדיקה. <a class="verify" id="r13" href="#v13">לאימות 13</a>
+      <span class="source">מקור: שו״ע יו״ד קפט, ד; יועצות הלכה.</span>
+    </li>
+    <li><strong>ראייה חדשה</strong> מבטלת את כל עונות הפרישה הישנות ומחשבת מחדש.</li>
+    <li><strong>וסת קבוע:</strong> האפליקציה אינה מחשבת וסת קבוע. כשהיא מזהה שלוש ראיות באותו תאריך עברי ובאותה עונה, או שלוש הפלגות שוות, היא מודיעה ״ייתכן וסת קבוע — לשאול רב״ וממשיכה לחשב כוסת שאינו קבוע.</li>
+  </ul>
+
+  <h2 id="s5">5. השהיה</h2>
+  <ul>
+    <li>הריון, אחרי לידה, הנקה, גיל מעבר: המשתמשת מעבירה את המעקב ל״השהיה״. בהשהיה אין עונות פרישה ואין תזכורות, עד ״ראייה חדשה״.
+      <span class="vnote"><a class="verify" id="r14" href="#v14">לאימות 14</a> מעוברת עד 90 יום; ספרדים — עונה בינונית ביום 60 ו-90; מניקה 24 חודש. בגרסה זו אין חישוב מיוחד, רק השהיה.</span>
+      <span class="source">מקור: שו״ע יו״ד קפט, לג-לד; halachipedia; דרכי טהרה (מניקה 24 חודש).</span>
+    </li>
+  </ul>
+
+  <h2 id="s6">6. מצב בעל</h2>
+  <p>בעל שמתקין את האפליקציה במכשירו רואה רק: עונות פרישה, ליל טבילה, ו״האם הגיע הוסת?״. הוא אינו רואה פרטי בדיקות. אין סנכרון בין מכשירים; הוא מזין את תאריכי הראייה בעצמו.</p>
+  <p>ליל הטבילה במכשיר הבעל הוא הערכה: הלילה שאחרי שבעה נקיים מהיום המוקדם ביותר להפסק לפי המנהג (ליל יום הכיפורים ותשעה באב נדחים כרגיל), ומוצע במשך שלושה לילות. אם הוא רושם את הטבילה בעצמו — לפי הרישום. עונות הפרישה מוצגות לו מהראייה האחרונה גם בלי רישום טבילה, כי במכשירו אין מידע על הספירה.</p>
+
+  <h2 id="s7">7. מחוץ לתחום בגרסה זו</h2>
+  <ul>
+    <li>כתמים (תמיד ״לשאול רב״)</li>
+    <li>וסת הגוף</li>
+    <li>וסת קבוע</li>
+    <li>גלולות ואמצעי מניעה הורמונליים</li>
+    <li>פטור ממחזורים ארוכים</li>
+    <li>דיני כלה</li>
+    <li>בדיקות בפצעים</li>
+  </ul>
+
+  <h2 id="s8">8. פרטים לאימות — רשימה מרוכזת</h2>
+  <p>אפשר לענות לפי המספר.</p>
+  <ol class="verify-list">
+    <li id="v1">עונת יום: האם להתחיל מעלות השחר ולא מהזריחה? (בגרסה זו: מהזריחה.) <a class="back" href="#r1">ראה בדף</a></li>
+    <li id="v2">ראייה בין השמשות: האם נכון לספור ימי המתנה מהיום הבא, ולחשוש בעונות פרישה לשתי העונות? <a class="back" href="#r2">ראה בדף</a></li>
+    <li id="v3">ספרדים לפי הרב עובדיה, הפסק מהיום הרביעי: האם 4 ימים מתחילת הראייה או ממועד התשמיש האחרון? <a class="back" href="#r3">ראה בדף</a></li>
+    <li id="v4">מוך דחוק: האם הסטטוס בכל מנהג נכון (מומלץ / נדרש / רשות), והאם ההפסק מותנה במוך בראייה של יום אחד, כבדרכי טהרה? <a class="back" href="#r4">ראה בדף</a></li>
+    <li id="v5">עונה בינונית לפי הרב מרדכי אליהו: האם יום 30 בלבד? <a class="back" href="#r5">ראה בדף</a></li>
+    <li id="v6">היקף העונה הבינונית באשכנז ולפי הרב מרדכי אליהו: האם עונה אחת, או יממה שלמה כמו שיש נוהגים? <a class="back" href="#r6">ראה בדף</a></li>
+    <li id="v7">אור זרוע באשכנז: האם להשאיר כבוי (ניתן להפעיל), או להפעיל כברירת מחדל כי רבים מחמירים? <a class="back" href="#r7">ראה בדף</a></li>
+    <li id="v8">הפסק אחרי השקיעה: האם נכון להחשיב אותו למחר, והאם לממש בדיעבד עד 3 דקות אחרי השקיעה לפי הרב עובדיה? <a class="back" href="#r8">ראה בדף</a></li>
+    <li id="v9">בדיקה לא נקייה בשבעה נקיים: האם נכון שנדרש הפסק חדש בלי המתנה, ושרק בוסת חדש ההמתנה חלה שוב? <a class="back" href="#r9">ראה בדף</a></li>
+    <li id="v10">יום החודש כשהחודש הבא חסר: האם נכון לסמן את א׳ שאחרי כ״ט ולציין מחלוקת? <a class="back" href="#r10">ראה בדף</a></li>
+    <li id="v11">הפלגה: האם לשמור גם הפלגות גדולות קודמות שלא נעקרו, ולא רק את האחרונה? <a class="back" href="#r11">ראה בדף</a></li>
+    <li id="v12">אור זרוע ויום 31: האם נכון שכששומרים 30 ו-31, אור זרוע לא מוחל על 31? <a class="back" href="#r12">ראה בדף</a></li>
+    <li id="v13">בדיקה בעונת פרישה: האם נכון לסמן חובה בעונה בינונית והמלצה ביום החודש ובהפלגה? <a class="back" href="#r13">ראה בדף</a></li>
+    <li id="v14">השהיה: האם מספיק, בגרסה זו, רק השהיה בלי חישוב מיוחד למעוברת (עד 90 יום), לספרדים (עונה בינונית ביום 60 ו-90) ולמניקה (24 חודש)? <a class="back" href="#r14">ראה בדף</a></li>
+  </ol>
+
+  <h2 id="s9">9. מקורות</h2>
+  <ul class="sources">
+    <li>פניני הלכה, טהרת המשפחה: <a href="https://ph.yhb.org.il/category/%D7%98%D7%94%D7%A8%D7%AA-%D7%94%D7%9E%D7%A9%D7%A4%D7%97%D7%94/18-04/">פרק ד</a> · <a href="https://ph.yhb.org.il/category/%D7%98%D7%94%D7%A8%D7%AA-%D7%94%D7%9E%D7%A9%D7%A4%D7%97%D7%94/18-06/">פרק ו</a></li>
+    <li><a href="https://harav.org/books/darcitaara-14/">דרכי טהרה, פרק יד</a> — אתר הרב מרדכי אליהו</li>
+    <li><a href="https://shayleshay.co.il/tahara/rav-ovadia">שי לש״י — פסקי הרב עובדיה</a></li>
+    <li>יועצות הלכה (באנגלית): <a href="https://www.yoatzot.org/faq/or-zarua-24-hour-onah-beinonit/">אור זרוע ועונה בינונית</a> · <a href="https://www.yoatzot.org/faq/keeping-days-30-31-as-onah-beinonit/">שמירת ימים 30 ו-31 כעונה בינונית</a></li>
+    <li><a href="https://halachipedia.com/index.php?title=Veset">Halachipedia — Veset</a> (באנגלית)</li>
+    <li><a href="https://shulchanaruchharav.com/halacha/how-does-one-calculate-the-onah-beinonis-day-30-or-31-from-the-period/">שולחן ערוך הרב — עונה בינונית ביום 30 או 31</a> (באנגלית)</li>
+    <li><a href="https://mikvah.org/halachos-of-taharas-hamishpacha-chabad/calendar">mikvah.org — לוח טהרת המשפחה של חב״ד</a> (באנגלית)</li>
+    <li><a href="https://www.hamichlol.org.il/%D7%95%D7%A1%D7%AA_%D7%94%D7%97%D7%95%D7%93%D7%A9">המכלול — וסת החודש</a></li>
+  </ul>
+</main>
+
+<footer>יהודי בזמן · Avraham Sason · <a href="mailto:avisason9314@gmail.com">avisason9314@gmail.com</a></footer>
+</body>
+</html>

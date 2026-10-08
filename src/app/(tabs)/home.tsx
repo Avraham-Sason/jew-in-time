@@ -19,15 +19,18 @@ import { NavBar } from '@/components/NavBar';
 import { MitzvahCard } from '@/components/MitzvahCard';
 import { CompletedRow } from '@/components/CompletedRow';
 import { HebrewDate } from '@/components/HebrewDate';
+import { useNow } from '@/hooks/useNow';
 import { getLocationName } from '@/data/cities';
 import { MITZVOT } from '@/data/mitzvot';
 import { hasSiddurText, siddurPlace } from '@/data/siddur';
 import { customToMitzvah } from '@/data/customMitzvotAdapter';
 import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { HebcalService } from '@/services/HebcalService';
+import { StorageService } from '@/services/StorageService';
 import { CompletionService } from '@/services/CompletionService';
 import { useCompletionsStore } from '@/stores/useCompletionsStore';
 import { enabledSinceOf, useMitzvotStore } from '@/stores/useMitzvotStore';
+import { useTaharahStore } from '@/stores/useTaharahStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -38,6 +41,12 @@ import { durations } from '@/theme/tokens';
 import { isSkippedAt } from '@/utils/skipRules';
 import { checkInLastDay, checkInPhraseKey, latestCheckIn, overlapsBlock } from '@/utils/checkIn';
 import { ComputeContext, Mitzvah, MitzvahWindow } from '@/types/mitzvah';
+import { TaharahEvent, TaharahSettings } from '@/types/taharah';
+import { Location } from '@/types/zmanim';
+import { deriveCycle } from '@/utils/taharah/cycle';
+import { currentOnah } from '@/utils/taharah/onot';
+import { renderHint, stageHint, visibleStage } from '@/utils/taharah/summary';
+import { taharahTasksFor } from '@/utils/taharah/tasks';
 import { ZmanimService } from '@/services/ZmanimService';
 import {
   syncNotificationPermissionStatus,
@@ -58,6 +67,10 @@ type LiveItem = {
 };
 
 const EMPTY_DAY_STATE = Object.freeze({}) as Record<string, number>;
+const TAHARAH_INTRO_KEY = 'taharah:intro-dismissed';
+
+type Translate = (scope: string, options?: Record<string, unknown>) => string;
+type TaharahCardData = { title: string; caption: string; concealed: boolean };
 
 function formatRemaining(ms: number, language: 'he' | 'en'): string {
   const totalMin = Math.max(0, Math.round(ms / 60000));
@@ -67,6 +80,36 @@ function formatRemaining(ms: number, language: 'he' | 'en'): string {
     return `${hours}:${minutes} ${translate('time.unit.hours')}`;
   }
   return `${totalMin} ${translate('time.unit.minutes')}`;
+}
+
+const clockOf = (date: Date) => DateTime.fromJSDate(date).toFormat('HH:mm');
+
+function taharahCardFor(
+  events: readonly TaharahEvent[],
+  settings: TaharahSettings,
+  location: Location,
+  now: Date,
+  language: 'he' | 'en',
+  t: Translate,
+  lockEnabled: boolean,
+): TaharahCardData {
+  // The session is always locked while home is showing, so the stage and tasks must not leak onto it.
+  if (lockEnabled) return { title: t('taharah.home.title'), caption: t('taharah.home.open'), concealed: true };
+  const state = deriveCycle(events, settings.rules, location, now);
+  const task = taharahTasksFor(now, events, settings, location, now).find((item) => !item.done && item.end > now);
+  return {
+    concealed: false,
+    title: t(`taharah.stage.${visibleStage(state, settings.role, currentOnah(now, location), location)}`),
+    caption: task
+      ? `${t(`taharah.task.${task.kind}`)} · ${t('taharah.task.until', { time: clockOf(task.end) })}`
+      : renderHint(
+          stageHint(state, events, settings.rules, settings.role, location, now, {
+            date: (civil) => DateTime.fromJSDate(civil).setLocale(language).toFormat('d LLLL'),
+            clock: clockOf,
+          }),
+          t,
+        ),
+  };
 }
 
 function buildContext(date: Date): ComputeContext | null {
@@ -91,6 +134,12 @@ export default function HomeScreen() {
   );
   const nusach = useUserStore((s) => s.nusach);
   const inIsrael = useUserStore((s) => s.inIsrael);
+  const isOnboarded = useUserStore((s) => s.isOnboarded);
+  const gender = useUserStore((s) => s.gender);
+  const taharahEnabled = useUserStore((s) => s.taharahEnabled);
+  const taharahEvents = useTaharahStore((s) => s.events);
+  const taharahSettings = useTaharahStore((s) => s.settings);
+  const taharahLockEnabled = useTaharahStore((s) => s.lockEnabled);
   const activeMap = useMitzvotStore((s) => s.activeMitzvot);
   const customMap = useCustomMitzvotStore((s) => s.items);
   const todayKey = CompletionService.getDateKey();
@@ -100,11 +149,14 @@ export default function HomeScreen() {
   const checkIns = useCompletionsStore((s) => s.checkIns);
   const skipped = useCompletionsStore((s) => s.skipped);
   const [tick, setTick] = useState(0);
+  // Only a memo dependency: each tick re-runs the memo, which reads the time itself.
+  const tickedAt = useNow();
   const [stampingId, setStampingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [introDismissed, setIntroDismissed] = useState(() => StorageService.get<boolean>(TAHARAH_INTRO_KEY) === true);
   const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { current, missed, completed, nextUp, totalActive, doneCount, hebrewTitle, subtitle, zmanimUnavailable, checkIn } = useMemo(() => {
+  const { current, missed, completed, nextUp, totalActive, doneCount, hebrewTitle, subtitle, zmanimUnavailable, checkIn, taharahCard } = useMemo(() => {
     const now = new Date();
     const ctx = buildContext(now);
     const hebrew = HebcalService.getHebrewDateAt(now, user.location);
@@ -202,8 +254,12 @@ export default function HomeScreen() {
       subtitle: subtitleText,
       zmanimUnavailable: !ctx,
       checkIn: openCheckIn,
+      taharahCard:
+        taharahEnabled && !quiet
+          ? taharahCardFor(taharahEvents, taharahSettings, user.location, now, language, t, taharahLockEnabled)
+          : null,
     };
-  }, [activeMap, customMap, doneMap, skippedMap, completions, skipped, checkIns, language, user.location, tick, stampingId, nusach, inIsrael]);
+  }, [activeMap, customMap, doneMap, skippedMap, completions, skipped, checkIns, language, t, user.location, tick, stampingId, nusach, inIsrael, taharahEnabled, taharahEvents, taharahSettings, taharahLockEnabled, quiet, tickedAt]);
 
   // Persist first — the stamp is decoration. Deferring the write behind the 1.3s animation meant
   // leaving the screen mid-animation silently discarded the completion, and the `stampingId` gate
@@ -228,6 +284,12 @@ export default function HomeScreen() {
   const undoComplete = async (id: string) => {
     Haptics.selectionAsync().catch(() => {});
     await CompletionService.unmark(id).catch(() => {});
+  };
+
+  const openTaharahIntro = () => {
+    StorageService.set(TAHARAH_INTRO_KEY, true);
+    setIntroDismissed(true);
+    router.push('/(tabs)/settings');
   };
 
   const openText = (item: LiveItem) =>
@@ -272,21 +334,6 @@ export default function HomeScreen() {
       }
     });
     return () => sub.remove();
-  }, []);
-
-  // Without this the whole screen is frozen at mount: countdowns never move, nothing crosses into
-  // "missed", and at midnight the day never rolls over. Aligned to the next minute so the rollover
-  // lands on time rather than up to a tick late.
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
-    const align = setTimeout(() => {
-      setTick((value) => value + 1);
-      interval = setInterval(() => setTick((value) => value + 1), 30_000);
-    }, 60_000 - (Date.now() % 60_000));
-    return () => {
-      clearTimeout(align);
-      if (interval) clearInterval(interval);
-    };
   }, []);
 
   return (
@@ -344,6 +391,34 @@ export default function HomeScreen() {
             background={`${colors.safe}18`}
             onPress={() => Updates.reloadAsync().catch(() => {})}
           />
+        ) : null}
+        {isOnboarded && gender === null && !introDismissed ? (
+          <Banner
+            text={t('taharah.home.intro')}
+            color={colors.gold}
+            background={colors.goldLight}
+            onPress={openTaharahIntro}
+          />
+        ) : null}
+
+        {taharahCard ? (
+          <Pressable
+            onPress={() => router.push('/taharah')}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.nextCard,
+              { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+              shadowStyle(colors.shadow, shadowPresets.cardSoft),
+            ]}
+          >
+            {taharahCard.concealed ? null : (
+              <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>{t('taharah.home.title')}</Text>
+            )}
+            <Text style={[typography.heading, { color: colors.text }]}>{taharahCard.title}</Text>
+            {taharahCard.caption ? (
+              <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>{taharahCard.caption}</Text>
+            ) : null}
+          </Pressable>
         ) : null}
 
         {nextUp ? (

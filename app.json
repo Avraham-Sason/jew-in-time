@@ -31,6 +31,7 @@
         "backgroundColor": "#F5EFE4"
       },
       "package": "com.jewintime.app",
+      "allowBackup": false,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
@@ -66,7 +67,14 @@
       "./scripts/withExactAlarmPermissions",
       "expo-task-manager",
       "expo-background-fetch",
-      "expo-asset"
+      "expo-asset",
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "זיהוי הפנים משמש לנעילת מסכי הטהרה בלבד"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

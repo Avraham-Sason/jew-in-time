@@ -9,11 +9,12 @@
 - [index.html](index.html) is the support and marketing page. Apple's Support URL and Marketing URL point here.
 - [privacy/index.html](privacy/index.html) is the Hebrew privacy policy, the canonical text.
 - [privacy/en/index.html](privacy/en/index.html) is the English privacy policy and must stay a faithful equivalent of the Hebrew one.
-- [style.css](style.css) is shared by all three pages.
+- [taharah-review.html](taharah-review.html) is the Hebrew review document for the rav who approves the halachic rules of the family-purity tracker. It is reached by direct URL only (nothing links to it, and it is `noindex`). It must match [../src/data/taharahPresets.ts](../src/data/taharahPresets.ts) exactly: a changed preset value, rule or `TAHARAH_RULES_VERSION` changes the table, the rules version in its meta line and the numbered list of items to verify in the same edit. It is a review document, not a user-facing policy, and not a claim about shipped behavior.
+- [style.css](style.css) is shared by every page here.
 
 ## Local Contracts
 
-- These pages are public and legally binding. Every claim must be provable from the shipped code, not from intent.
+- The support page and the privacy policies are public and legally binding. Every claim must be provable from the shipped code, not from intent.
 - The policy currently states that the app makes no network requests of its own and that only EAS Update contacts a remote server. Adding any analytics, crash reporting, ad SDK, or backend call breaks that claim and requires editing both language versions in the same change.
 - Contact details and store URLs are real values. Never write a placeholder here.
 - Both language versions change together. A section added to one and missing from the other is a compliance gap.
@@ -29,6 +30,7 @@
 ## Verification
 
 - Open both policy pages in a browser and confirm the Hebrew renders right-to-left and the language switch links resolve.
+- Open [taharah-review.html](taharah-review.html) at phone width (375px) and at desktop width: confirm the Hebrew renders right-to-left, nothing scrolls horizontally, the rules table collapses into stacked cards with a label on every value, and each `לאימות` badge jumps to its numbered item in section 8.
 - Run [pnpm check:dox](../scripts/check-dox.js) after adding or moving a file here.
 - Confirm the live URLs resolve after publishing: `https://avraham-sason.github.io/jew-in-time/` and `https://avraham-sason.github.io/jew-in-time/privacy/`.
 

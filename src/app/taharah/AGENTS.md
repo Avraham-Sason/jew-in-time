@@ -1,0 +1,49 @@
+# AGENTS.md
+
+## Purpose
+
+- Own the taharat hamishpacha routes: the dashboard, the logging form, the month calendar and the settings screen, and the biometric lock around all four.
+
+## Ownership
+
+- [_layout.tsx](_layout.tsx) owns the `Stack` of the four screens and the lock around it: the navigator renders inside [TaharahLock](../../components/TaharahLock.tsx), and its `AppState` subscription relocks the session and asks `TaharahLock` to re-check through the `recheck` prop.
+- [index.tsx](index.tsx) owns the dashboard: the stage card and its hint, the safek banner with the two rulings, the kavua hints, today's tasks, the clean-days grid with its bedika sheet, the upcoming perisha onot, the action bar and the last eight entries with an undo for the newest.
+- [log.tsx](log.tsx) owns recording an onset, hefsek, tevila or pause for a day picked with [DayStepper](../../components/DayStepper.tsx). The `type` query param picks the form among the types the role may log (a husband: onset and tevila only), defaulting to the onset.
+- [calendar.tsx](calendar.tsx) owns the month grid of onset days, clean days, tevila nights and perisha onot, and the sheet listing what a tapped cell holds.
+- [settings.tsx](settings.tsx) owns the preset, rule, role, reminder and data-deletion settings, opened from the dashboard, including the switch for `useTaharahStore.lockEnabled`.
+- Every screen reads state through [useTaharahStore](../../stores/useTaharahStore.ts) and writes only `addEvent` / `removeEvent`.
+
+## Local Contracts
+
+- The lock is [TaharahLock](../../components/TaharahLock.tsx) over [biometricLock.ts](../../services/biometricLock.ts), wrapping the `Stack` in [_layout.tsx](_layout.tsx). `lockStatusFor(lockEnabled, available, unlocked)` decides: lock off renders the screens; no biometric hardware or enrollment (`biometricsAvailable()`, always false on web) renders them under a muted `taharah.locked.unavailable` banner; otherwise the screens render only while `isSessionUnlocked()`, and no screen is ever mounted while locked.
+- The session is module state in `biometricLock.ts`: `markUnlocked()` after a successful `authenticate()`, `relock()` when `AppState` leaves `active` and when the layout unmounts, so every entry into the taharah routes from outside asks again. An `AppState` change while a prompt is open is ignored (`isAuthenticating()`): iOS reports `inactive` for the Face ID sheet, and relocking then would loop. The prompt opens only while `AppState` is `active`; the cover's unlock button re-prompts and its back link leaves the routes.
+- A screen here never reads the session or prompts itself. `expo-local-authentication` is a native module: the `faceIDPermission` text lives in the plugin entry in [../../../app.json](../../../app.json) and shipping the lock needs a build, not an update.
+- No screen derives cycle state itself: the stage comes from `deriveCycle()`, tasks from `taharahTasksFor()`, onot from `perishaOnot()` and `kavuaHints()` in [../../utils/taharah/](../../utils/taharah/). A recorded event is raw input only.
+- Days are Hebrew day numbers (`abs`). A device calendar day becomes one with `civilHebrewDayAt(locationNoon(date, location), location).abs()`; a civil date comes back with `hebrewDay(abs).greg()`.
+- A night onah of Hebrew day `A` opens at the shkia of `A - 1`, so every surface shows it on the evening before: the perisha list, the history, the calendar badge and the onset dot all use `A - 1` for a night onah.
+- The log's onset without a time: a night chosen for civil date `D` is the night that follows `D`'s daytime, so its `abs` is `D`'s Hebrew day plus one. With a time, `onahAt()` resolves it in the location's zone and a doubtful result is saved with `doubtful: true`.
+- A tevila event stores the night's Hebrew day, `dayAbs + 1`; the date picked in the log is the evening of the immersion, and the history shows that evening.
+- The log disables Save, with a notice, for an entry the engine would ignore or the clock has not reached. Hefsek: `hefsekOutcome()` from [cycle.ts](../../utils/taharah/cycle.ts) is the one rule (no onset, after the tevila, before the custom's earliest day, during the count; a bedika that is not clean only warns), plus the after-shkia check for today, repeated on save. Tevila: a woman not before `earliestTevilaNight()`, either role not before tzeit tonight. Onset: a typed time not in the future, and with an unknown time not an onah that has not begun (`onahAt()`, a doubtful result counting the next onah as begun). The hefsek form shows the preset's moch dachuk rule under the moch switch; the switch starts off, since it records what was placed, and a warning (`taharah.log.mochRequired`) shows while the rule is `required` and the switch is off. It never blocks Save.
+- The lock switch in [settings.tsx](settings.tsx) calls `markUnlocked()` before `setLockEnabled(true)`: [TaharahLock](../../components/TaharahLock.tsx) reacts to the store write, and a still-locked session would unmount the stack the user is standing in.
+- The husband role hides every bedika and hefsek detail: the dashboard maps every stage except unknown, tevilaNight, awaitingTevila, tahor and paused to niddah, with no day counts, no clean-days grid, no safek banner, only onsets in the history and only the onset button on the dashboard; the log offers onset and tevila; the calendar drops the clean-day marks. The dashboard passes `currentOnah()` and the location to `visibleStage()`, so his estimated mikveh night reads as `tevilaNight` / `awaitingTevila`.
+- Every `Modal` is gated with `visible={… && !useQuietBlock()}`; the sheets live in their screens, never in a shared component.
+- Screens tick `now` every 30 seconds, as home does, so a stage, a task window and the sunset guard follow the clock.
+
+## Work Guidance
+
+- Compose [DayStepper](../../components/DayStepper.tsx) and `formatDayLine()` for any day picker or civil date line; do not hand-roll a second copy.
+- Every `Pressable` carries an `accessibilityRole`; the calendar's month arrows and day cells also carry an `accessibilityLabel`.
+- The settings sections are [SettingsSection](../../components/SettingsSection.tsx), shared with the Settings tab; never a local copy.
+- New copy goes through both dictionaries in [../../i18n/](../../i18n/); use theme tokens, never hard-coded colours except the white on a badge.
+- A new route here is registered in [_layout.tsx](_layout.tsx) and in [../__tests__/routes.test.ts](../__tests__/routes.test.ts); the root [../_layout.tsx](../_layout.tsx) registers the group once, as `taharah`.
+
+## Verification
+
+- Run `pnpm typecheck` and `pnpm test -- src/app/__tests__/routes.test.ts src/i18n/__tests__/i18n.test.ts` after any change here.
+- Run `pnpm test -- src/services/__tests__/biometricLock.test.ts` after any change to the lock.
+- Run `pnpm check:dox` after editing this file.
+- Check a change in the web preview at the mobile preset: record an onset for yesterday on `/taharah`, then open the calendar. The web preview has no biometrics, so it shows the unavailable banner while `lockEnabled` is on and nothing once it is off; the prompt and the cover need a dev client or native build.
+
+## Child DOX Index
+
+- No child AGENTS.md files.

@@ -91,6 +91,11 @@ export function handleNotificationResponse(response: Notifications.NotificationR
     return;
   }
 
+  if (data.kind === 'taharah') {
+    if (response.actionIdentifier === DEFAULT_NOTIFICATION_ACTION) navigate(() => router.navigate('/taharah'));
+    return;
+  }
+
   if (response.actionIdentifier === OPEN_TEXT_ACTION) {
     openSiddur(data, response.notification.request.identifier);
     return;

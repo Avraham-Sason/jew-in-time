@@ -5,25 +5,32 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import { DateTime } from 'luxon';
 import { ComputeContext, ContentBlock, Mitzvah, Reminder, UserSettings } from '@/types/mitzvah';
 import { HolyBlock, Location } from '@/types/zmanim';
+import type { CycleState, OnahKind, TaharahTask, TaharahTaskKind } from '@/types/taharah';
 import { getAllMitzvot } from '@/data/customMitzvotAdapter';
 import { omerDayFor } from '@/data/mitzvot';
 import { hasSiddurText, siddurPlace } from '@/data/siddur';
 import { HebcalService } from '@/services/HebcalService';
 import { ZmanimService } from '@/services/ZmanimService';
 import { StorageService } from '@/services/StorageService';
-import { holyBlockLabelKeys, isQuietAt, isSkippedAt, opensQuietBlock, reminderFires } from '@/utils/skipRules';
+import { holyBlockLabelKeys, isQuietAt, isSkippedAt, opensQuietBlock, quietBlockAt, reminderFires } from '@/utils/skipRules';
 import { CheckInInput, blockForDay, blockOfCheckIn, checkInFor, checkInPhraseKey } from '@/utils/checkIn';
 import { locationNoon } from '@/utils/locationDay';
+import { deriveCycle } from '@/utils/taharah/cycle';
+import { civilHebrewDayAt, hebrewDay } from '@/utils/taharah/onot';
+import { taharahTasksFor } from '@/utils/taharah/tasks';
+import { activeOnsets } from '@/utils/taharah/vestot';
 import { t } from '@/i18n';
 import { enabledSinceOf, useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
+import { TaharahLeads, useTaharahStore } from '@/stores/useTaharahStore';
 
 const DAILY_REBUILD_TASK = 'jew-in-time-daily-rebuild';
 const NOTIFICATION_ACTION_TASK = 'jew-in-time-notification-actions';
 const MITZVAH_REMINDER_CATEGORY = 'mitzvah_reminder';
 const MITZVAH_TEXT_CATEGORY = 'mitzvah_reminder_text';
+const TAHARAH_BEDIKA_CATEGORY = 'taharah_bedika';
 const MARK_DONE_ACTION = 'MARK_DONE';
 const OPEN_TEXT_ACTION = 'OPEN_TEXT';
 const ANDROID_CHANNEL_ID = 'default';
@@ -32,13 +39,19 @@ const IOS_MAX = 64;
 const IOS_HEADROOM = 4;
 const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
 const SCHEDULE_FORMAT_KEY = 'notifications:schedule-format';
-const SCHEDULE_FORMAT = 4;
+const SCHEDULE_FORMAT = 5;
 const BLOCK_NOTICE_KIND = 'blockNotice';
 const BLOCK_NOTICE_LEAD_MIN = 60;
 const CHECK_IN_KIND = 'checkin';
 const CHECK_IN_SECOND_NUDGE_MIN = 120;
 const CHECK_IN_LAST_CALL_HOUR = 20;
 const CHECK_IN_LAST_CALL_LEAD_MIN = 30;
+const TAHARAH_KIND = 'taharah';
+const TAHARAH_BEDIKA_MORNING_DELAY_MIN = 30;
+const TAHARAH_BEDIKA_VESET_LEAD_MIN = 60;
+const TAHARAH_EXPECT_ONSET_HOUR = 10;
+const TAHARAH_BEFORE_QUIET_MIN = 10;
+const TAHARAH_POST_BLOCK_DELAY_MIN = 15;
 const REBUILD_HOUR = 0;
 const REBUILD_MINUTE = 15;
 const BACKGROUND_NOTIFICATION_RESULT = {
@@ -58,7 +71,8 @@ function parseId(id: string): { mitzvahId: string; date: string; idx: number } |
 }
 
 export type PendingNotificationMeta = {
-  kind?: typeof BLOCK_NOTICE_KIND | typeof CHECK_IN_KIND;
+  kind?: typeof BLOCK_NOTICE_KIND | typeof CHECK_IN_KIND | typeof TAHARAH_KIND;
+  taharah?: { task: TaharahTaskKind | 'tevilaPrep' | 'postBlock' | 'preBlock'; day: number; onah?: OnahKind };
   blockId?: string;
   mitzvahId?: string;
   dateKey?: string;
@@ -160,6 +174,9 @@ async function ensureNotificationCategory(): Promise<void> {
         options: { opensAppToForeground: true },
       },
       markDone,
+    ]);
+    await Notifications.setNotificationCategoryAsync(TAHARAH_BEDIKA_CATEGORY, [
+      { ...markDone, buttonTitle: t('taharah.notify.markDone') },
     ]);
   } catch (err) {
     if (__DEV__) {
@@ -356,8 +373,49 @@ function isFinishedCheckIn(data: PendingNotificationMeta): boolean {
   return data.kind === CHECK_IN_KIND && Boolean(data.blockId) && checkInSettled(data.blockId!);
 }
 
+// Whether a clean day of the cycle that falls inside the block still lacks a bedika slot.
+function bedikotMissingIn(state: CycleState, block: HolyBlock): boolean {
+  return state.cleanDays.some(
+    (day) => block.days.includes(dateKey(hebrewDay(day.day).greg())) && (day.morning === null || day.evening === null),
+  );
+}
+
+// A taharah notification is settled once the cycle no longer waits for what it asks: read from the
+// events as they are now, so a mark made in the app and one made from a notification agree.
+export function taharahNotificationSettled(data: PendingNotificationMeta): boolean {
+  const info = data.kind === TAHARAH_KIND ? data.taharah : undefined;
+  if (!info) return false;
+  const { events, settings } = useTaharahStore.getState();
+  const { location } = useUserStore.getState();
+  const state = deriveCycle(events, settings.rules, location, new Date());
+  switch (info.task) {
+    case 'bedikaMorning':
+    case 'bedikaEvening': {
+      const cleanDay = state.cleanDays.find((day) => day.day === info.day);
+      return !cleanDay || cleanDay[info.task === 'bedikaMorning' ? 'morning' : 'evening'] !== null;
+    }
+    case 'hefsek':
+      return state.stage !== 'niddah' && state.stage !== 'awaitingHefsek';
+    case 'tevila':
+    case 'tevilaPrep':
+      return state.stage === 'tahor';
+    case 'postBlock': {
+      const block = blockOfCheckIn(dateKey(hebrewDay(info.day).greg()), location);
+      return !block || !bedikotMissingIn(state, block);
+    }
+    case 'expectOnset': {
+      const onsets = activeOnsets(events);
+      const latest = onsets[onsets.length - 1];
+      return latest !== undefined && latest.onah.abs >= info.day;
+    }
+    default:
+      return false;
+  }
+}
+
 function shouldSuppressForCompletion(data: PendingNotificationMeta, notificationId?: string): boolean {
   if (isFinishedCheckIn(data)) return true;
+  if (data.kind === TAHARAH_KIND) return taharahNotificationSettled(data);
   if (!data.skipIfDone) return false;
   const target = notificationTargetFromData(data, notificationId);
   if (!target) return false;
@@ -378,15 +436,34 @@ export async function dismissCompletedPresentedNotifications(): Promise<void> {
     if (target && (completions.isDone(target.mitzvahId, target.date) || completions.isSkipped(target.mitzvahId, target.date))) {
       ids.push(id);
     }
-    if (isFinishedCheckIn(data)) ids.push(id);
+    if (isFinishedCheckIn(data) || taharahNotificationSettled(data)) ids.push(id);
   }
   await dismissNotificationIds(ids);
+}
+
+// Only a bedika can be marked from the notification: "done" on a hefsek or an immersion must be a
+// conscious entry in the app. A slot the cycle no longer waits for is left alone, so a stale
+// notification can never overwrite a result the user recorded in the app.
+async function markTaharahBedikaDone(data: PendingNotificationMeta, notificationId?: string): Promise<boolean> {
+  const info = data.taharah;
+  if (info?.task !== 'bedikaMorning' && info?.task !== 'bedikaEvening') return false;
+  if (!taharahNotificationSettled(data)) {
+    useTaharahStore.getState().addEvent({
+      type: 'bedika',
+      day: info.day,
+      slot: info.task === 'bedikaMorning' ? 'morning' : 'evening',
+      result: 'clean',
+    });
+  }
+  await dismissNotificationIds(notificationId ? [notificationId] : []);
+  return true;
 }
 
 export async function markDoneFromNotificationData(
   data: PendingNotificationMeta,
   notificationId?: string,
 ): Promise<boolean> {
+  if (data.kind === TAHARAH_KIND) return markTaharahBedikaDone(data, notificationId);
   const target = notificationTargetFromData(data, notificationId);
   if (!target) return false;
   useCompletionsStore.getState().markDone(target.mitzvahId, target.date);
@@ -541,6 +618,235 @@ function checkInCandidates(block: HolyBlock, input: CheckInInput, now: Date): Sc
   });
 }
 
+// A block that ended a day or two ago may still owe its last check-in nudge.
+function recentDaysBefore(days: Date[]): Date[] {
+  return [3, 2, 1].map((back) => new Date(days[0].getFullYear(), days[0].getMonth(), days[0].getDate() - back));
+}
+
+type TaharahNotificationTask = NonNullable<PendingNotificationMeta['taharah']>['task'];
+
+type TaharahDraft = {
+  identifier: string;
+  task: TaharahNotificationTask;
+  day: number;
+  onah?: OnahKind;
+  trigger: Date;
+  end: Date;
+  params: { time?: string; day?: number; reasons?: string; in?: string };
+  bodyKey?: string;
+  disputed?: boolean;
+  category?: string;
+};
+
+function shifted(instant: Date, minutes: number): Date {
+  return new Date(instant.getTime() + minutes * 60_000);
+}
+
+// Nothing fires strictly inside a holy block, so a taharah reminder that would land there goes out
+// ten minutes before candle lighting instead, while it can still be acted on — unless the task
+// outlasts the block (a perisha night opening at motzaei Shabbat's shkia), when it waits for tzeit.
+function beforeQuiet(trigger: Date, end: Date, location: Location): Date {
+  const block = quietBlockAt(trigger, location);
+  if (!block) return trigger;
+  return end.getTime() > block.end.getTime() ? block.end : shifted(block.start, -TAHARAH_BEFORE_QUIET_MIN);
+}
+
+function firstDayAbs(block: HolyBlock, location: Location): number {
+  const firstDay = DateTime.fromISO(block.days[0], { zone: location.tz }).set({ hour: 12 }).toJSDate();
+  return civilHebrewDayAt(firstDay, location).abs();
+}
+
+function expectedOnsetCheck(netz: Date, location: Location): Date {
+  return DateTime.fromJSDate(netz)
+    .setZone(location.tz)
+    .set({ hour: TAHARAH_EXPECT_ONSET_HOUR, minute: 0, second: 0, millisecond: 0 })
+    .toJSDate();
+}
+
+function taharahDraftsFor(task: TaharahTask, civilAbs: number, location: Location, leads: TaharahLeads): TaharahDraft[] {
+  const onah: OnahKind | undefined =
+    task.kind === 'perisha' || task.kind === 'bedikaVeset' ? (task.day === civilAbs ? 'day' : 'night') : undefined;
+  const reasons = task.reasons?.map((reason) => t(`taharah.reason.${reason}`)).join(' · ');
+  const draft = (
+    notification: TaharahNotificationTask,
+    trigger: Date,
+    time: string | undefined,
+    extra: Partial<TaharahDraft> = {},
+  ): TaharahDraft => ({
+    identifier: `${TAHARAH_KIND}:${notification}:${task.day}${onah ? `:${onah}` : ''}`,
+    task: notification,
+    day: task.day,
+    onah,
+    trigger,
+    end: notification === 'tevilaPrep' ? task.start : task.end,
+    params: { time, day: task.cleanDayIndex, reasons },
+    disputed: task.disputed,
+    ...extra,
+  });
+  const until = formatClock(task.end);
+
+  switch (task.kind) {
+    case 'hefsek':
+      return [draft('hefsek', shifted(task.end, -leads.hefsekLeadMin), until)];
+    case 'bedikaMorning':
+      return task.done
+        ? []
+        : [draft('bedikaMorning', shifted(task.start, TAHARAH_BEDIKA_MORNING_DELAY_MIN), until, { category: TAHARAH_BEDIKA_CATEGORY })];
+    case 'bedikaEvening':
+      return task.done
+        ? []
+        : [draft('bedikaEvening', shifted(task.end, -leads.bedikaEveningLeadMin), until, { category: TAHARAH_BEDIKA_CATEGORY })];
+    case 'tevila': {
+      const prep = shifted(task.start, -leads.tevilaPrepLeadMin);
+      const block = quietBlockAt(task.start, location);
+      if (block) {
+        return [draft('tevilaPrep', prep, formatClock(block.start), { bodyKey: 'taharah.notify.body.tevilaPrepShabbat' })];
+      }
+      return [draft('tevilaPrep', prep, formatClock(task.start)), draft('tevila', task.start, formatClock(task.start))];
+    }
+    case 'perisha':
+      return [draft('perisha', task.start, until)];
+    case 'bedikaVeset':
+      return task.required ? [draft('bedikaVeset', shifted(task.end, -TAHARAH_BEDIKA_VESET_LEAD_MIN), until)] : [];
+    case 'expectOnset':
+      return [draft('expectOnset', expectedOnsetCheck(task.start, location), undefined)];
+  }
+}
+
+// The nudge to mark the bedikot a woman could not mark inside Shabbat / Yom Tov, once it ends.
+function postBlockDrafts(blocks: HolyBlock[], state: CycleState, location: Location, now: Date): TaharahDraft[] {
+  if (state.stage !== 'shivaNekiim' && state.stage !== 'safek') return [];
+  return blocks
+    .filter((block) => block.end.getTime() > now.getTime() && bedikotMissingIn(state, block))
+    .map((block): TaharahDraft => ({
+      identifier: `${TAHARAH_KIND}:postBlock:${block.days[0]}`,
+      task: 'postBlock',
+      day: firstDayAbs(block, location),
+      trigger: shifted(block.end, TAHARAH_POST_BLOCK_DELAY_MIN),
+      end: shifted(block.end, TAHARAH_POST_BLOCK_DELAY_MIN),
+      params: { in: t(checkInPhraseKey(block)) },
+    }));
+}
+
+function taharahText(draft: TaharahDraft, discreet: boolean): { title: string; body: string } {
+  if (discreet) {
+    return {
+      title: t('taharah.notify.discreetTitle'),
+      body: draft.params.time
+        ? t('taharah.notify.discreet.untilBody', { time: draft.params.time })
+        : t('taharah.notify.discreet.body'),
+    };
+  }
+  const body = t(draft.bodyKey ?? `taharah.notify.body.${draft.task}`, draft.params);
+  return {
+    title: t(`taharah.notify.title.${draft.task}`, draft.params),
+    body: draft.disputed ? `${body}\n${t('taharah.disputed')}` : body,
+  };
+}
+
+function taharahCandidate(draft: TaharahDraft, trigger: Date, discreet: boolean): ScheduleCandidate {
+  const { title, body } = taharahText(draft, discreet);
+  const { task, day, onah } = draft;
+  return {
+    trigger,
+    input: {
+      identifier: draft.identifier,
+      content: {
+        title,
+        body,
+        data: { kind: TAHARAH_KIND, taharah: { task, day, ...(onah && { onah }) } },
+        ...(draft.category && { categoryIdentifier: draft.category }),
+        autoDismiss: true,
+        sticky: false,
+        sound: 'default',
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: trigger,
+        channelId: ANDROID_CHANNEL_ID,
+      },
+    },
+  };
+}
+
+type ShiftedTaharahGroup = { block: HolyBlock; trigger: Date; drafts: TaharahDraft[] };
+
+// What a holy block pushed onto one instant reads as a single reminder: the tasks it left for
+// before candle lighting, in the order they were due.
+function preBlockCandidate(
+  { block, trigger, drafts }: ShiftedTaharahGroup,
+  location: Location,
+  discreet: boolean,
+): ScheduleCandidate {
+  const phrase = { in: t(checkInPhraseKey(block)) };
+  const lines = [...new Set(drafts.map((draft) => taharahText(draft, false).title))];
+  if (drafts.some((draft) => draft.disputed)) lines.push(t('taharah.disputed'));
+  const title = discreet ? t('taharah.notify.discreetTitle') : t('taharah.notify.title.preBlock', phrase);
+  const body = discreet ? t('taharah.notify.discreet.preBlock', phrase) : lines.join('\n');
+  return {
+    trigger,
+    input: {
+      identifier: `${TAHARAH_KIND}:preBlock:${block.days[0]}`,
+      content: {
+        title,
+        body,
+        data: { kind: TAHARAH_KIND, taharah: { task: 'preBlock', day: firstDayAbs(block, location) } },
+        autoDismiss: true,
+        sticky: false,
+        sound: 'default',
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: trigger,
+        channelId: ANDROID_CHANNEL_ID,
+      },
+    },
+  };
+}
+
+// Nothing here exists unless the user opted into the taharah feature.
+function taharahCandidates(days: Date[], location: Location, now: Date): ScheduleCandidate[] {
+  if (!useUserStore.getState().taharahEnabled) return [];
+  const { events, settings, discreetNotifications, hefsekLeadMin, bedikaEveningLeadMin, tevilaPrepLeadMin } =
+    useTaharahStore.getState();
+  const leads = { hefsekLeadMin, bedikaEveningLeadMin, tevilaPrepLeadMin };
+  const drafts = days.flatMap((day) => {
+    const civilAbs = civilHebrewDayAt(locationNoon(day, location), location).abs();
+    return taharahTasksFor(day, events, settings, location, now).flatMap((task) =>
+      taharahDraftsFor(task, civilAbs, location, leads),
+    );
+  });
+  if (settings.role === 'woman') {
+    const blocks = holyBlocksWithin([...recentDaysBefore(days), ...days], location);
+    drafts.push(...postBlockDrafts(blocks, deriveCycle(events, settings.rules, location, now), location, now));
+  }
+  const scheduled = new Set<string>();
+  const unshifted: ScheduleCandidate[] = [];
+  const shiftedGroups = new Map<string, ShiftedTaharahGroup>();
+  for (const draft of drafts) {
+    const trigger = beforeQuiet(draft.trigger, draft.end, location);
+    if (trigger.getTime() <= now.getTime() || scheduled.has(draft.identifier)) continue;
+    scheduled.add(draft.identifier);
+    // Only a reminder pulled ahead of the block joins the merged pre-block notice; one deferred to
+    // the block's end is its own reminder, at the first instant it can be acted on.
+    if (trigger.getTime() >= draft.trigger.getTime()) {
+      unshifted.push(taharahCandidate(draft, trigger, discreetNotifications));
+      continue;
+    }
+    const block = quietBlockAt(draft.trigger, location)!;
+    const group = shiftedGroups.get(block.days[0]) ?? { block, trigger, drafts: [] };
+    group.drafts.push(draft);
+    shiftedGroups.set(block.days[0], group);
+  }
+  // A lone pulled-ahead reminder is also sent as the pre-block notice: its own text would name a
+  // deadline inside the block, where nothing can be done about it.
+  const fromShifted = [...shiftedGroups.values()].map((group) => {
+    group.drafts.sort((a, b) => a.trigger.getTime() - b.trigger.getTime());
+    return preBlockCandidate(group, location, discreetNotifications);
+  });
+  return [...unshifted, ...fromShifted];
+}
+
 async function scheduleAllImpl(
   fromDate: Date,
   activeMitzvot: Mitzvah[],
@@ -552,8 +858,7 @@ async function scheduleAllImpl(
   const days = horizonDays(fromDate, location);
   const now = new Date();
   const checkInInput = checkInInputFor(activeMitzvot, location, settings);
-  // A block that ended a day or two ago may still owe its last check-in nudge.
-  const recentDays = [3, 2, 1].map((back) => new Date(days[0].getFullYear(), days[0].getMonth(), days[0].getDate() - back));
+  const recentDays = recentDaysBefore(days);
 
   const candidates: ScheduleCandidate[] = [];
   const countsOmer = activeMitzvot.some((m) => m.id === 'sefirat_haomer');
@@ -571,6 +876,11 @@ async function scheduleAllImpl(
     } catch (err) {
       if (__DEV__) console.warn('[notifications] check-in reminders failed', block.days[0], err);
     }
+  }
+  try {
+    candidates.push(...taharahCandidates(days, location, now));
+  } catch (err) {
+    if (__DEV__) console.warn('[notifications] taharah reminders failed', err);
   }
   for (const d of days) {
     for (const m of activeMitzvot) {
@@ -842,7 +1152,8 @@ export function initNotificationHandlers(): () => void {
       state.location !== prev.location ||
       state.nusach !== prev.nusach ||
       state.halachicOpinions !== prev.halachicOpinions ||
-      state.inIsrael !== prev.inIsrael
+      state.inIsrael !== prev.inIsrael ||
+      state.taharahEnabled !== prev.taharahEnabled
     ) {
       NotificationScheduler.rebuild().catch(() => {});
     }
@@ -855,6 +1166,19 @@ export function initNotificationHandlers(): () => void {
   }),
   useCustomMitzvotStore.subscribe((state, prev) => {
     if (state.items !== prev.items) {
+      NotificationScheduler.rebuild().catch(() => {});
+    }
+  }),
+  useTaharahStore.subscribe((state, prev) => {
+    if (!useUserStore.getState().taharahEnabled) return;
+    if (
+      state.events !== prev.events ||
+      state.settings !== prev.settings ||
+      state.discreetNotifications !== prev.discreetNotifications ||
+      state.hefsekLeadMin !== prev.hefsekLeadMin ||
+      state.bedikaEveningLeadMin !== prev.bedikaEveningLeadMin ||
+      state.tevilaPrepLeadMin !== prev.tevilaPrepLeadMin
+    ) {
       NotificationScheduler.rebuild().catch(() => {});
     }
   }),
@@ -901,6 +1225,8 @@ export {
   SCHEDULE_FORMAT_KEY,
   MITZVAH_REMINDER_CATEGORY,
   MITZVAH_TEXT_CATEGORY,
+  TAHARAH_KIND,
+  TAHARAH_BEDIKA_CATEGORY,
   MARK_DONE_ACTION,
   OPEN_TEXT_ACTION,
   shouldSuppressForCompletion,

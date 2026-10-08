@@ -10,10 +10,13 @@
 - [zmanim.ts](zmanim.ts) owns zmanim-related shared types.
 - [siddur.ts](siddur.ts) owns siddur text, section, segment, run, condition, day-flag and passage-label shapes (`optional` and `minyan`), and the `SegmentBlock` the reader renders. The generated text assets follow it, so a change here needs `pnpm siddur:build`.
 
+- [taharah.ts](taharah.ts) owns the niddah-cycle shapes: `Onah` (a hebcal absolute day number plus night or day), `TaharahRules`, `TaharahSettings` and the preset ids, the raw `TaharahEvent` union, and the derived `CycleState`, `PerishaOnah`, `KavuaHint` and `TaharahTask`. The engine that produces the derived shapes is [../utils/taharah/](../utils/taharah/).
+
 ## Local Contracts
 
 - Type changes must be coordinated with all consumers in [../data/AGENTS.md](../data/AGENTS.md), [../services/AGENTS.md](../services/AGENTS.md), [../stores/AGENTS.md](../stores/AGENTS.md), and [../app/AGENTS.md](../app/AGENTS.md).
 - Keep optional fields backward-compatible when persisted data or custom mitzvot may already exist.
+- In [taharah.ts](taharah.ts) only `TaharahEvent` and the settings are persisted input. `CycleState`, `PerishaOnah`, `KavuaHint` and `TaharahTask` are derived by replay and never stored, so a new event field is optional and a rule change needs no migration.
 
 ## Work Guidance
 

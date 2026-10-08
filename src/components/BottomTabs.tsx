@@ -8,10 +8,12 @@ import { useI18n } from '@/i18n';
 
 type TabOptionsWithHref = BottomTabNavigationOptions & { href?: string | null };
 
+const HOME_TAB = 'home';
+
 function HomeIcon({ color }: { color: string }) {
   return (
-    <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
-      <Path d="M3 12L12 3L21 12V21H15V15H9V21H3V12Z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path d="M3 12L12 3L21 12V21H15V15H9V21H3V12Z" stroke={color} strokeWidth={2.2} strokeLinejoin="round" />
     </Svg>
   );
 }
@@ -93,6 +95,7 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
         };
         const label = labels[route.name] ?? descriptors[route.key].options.title ?? route.name;
         const icon = icons[route.name];
+        const home = route.name === HOME_TAB;
 
         return (
           <Pressable
@@ -103,7 +106,21 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
             onPress={onPress}
             style={styles.tab}
           >
-            {icon?.(color)}
+            {home ? (
+              <View
+                style={[
+                  styles.homeBadge,
+                  {
+                    backgroundColor: focused ? colors.gold : colors.goldLight,
+                    borderColor: colors.tabBg,
+                  },
+                ]}
+              >
+                {icon?.(focused ? colors.onGold : colors.gold)}
+              </View>
+            ) : (
+              icon?.(color)
+            )}
             <Text
               numberOfLines={1}
               maxFontSizeMultiplier={1.4}
@@ -132,6 +149,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
+  },
+  // The home tab's raised disc: lifted above the bar's top edge, with a bar-colored ring so it
+  // reads as sitting on top of the border rather than cut by it.
+  homeBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 3,
+    marginTop: -14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   indicator: {
     width: 18,

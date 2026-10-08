@@ -6,18 +6,23 @@
 
 ## Ownership
 
-- [useUserStore.ts](useUserStore.ts) owns user profile, location, language, theme, permission, settings, onboarding state, and the reader text size.
+- [useUserStore.ts](useUserStore.ts) owns user profile, location, language, theme, permission, settings, onboarding state, the reader text size, `gender` (`null` until answered) and the `taharahEnabled` opt-in.
 - [useMitzvotStore.ts](useMitzvotStore.ts) owns enabled mitzvot and custom reminders, and `enabledAt`, the moment each was last switched on (`enabledSinceOf()`), so switching a mitzvah on never turns earlier days into misses. A missing `enabledAt` means since before it was recorded.
 - [useCompletionsStore.ts](useCompletionsStore.ts) owns completions and skipped maps, finished check-ins (`checkIns`, keyed by a block's first holy day) and `archivedDays`, the runs of kept days that retention dropped.
 - [useCustomMitzvotStore.ts](useCustomMitzvotStore.ts) owns user-created mitzvah definitions.
+- [useTaharahStore.ts](useTaharahStore.ts) owns the taharah log (raw `TaharahEvent`s), the minhag settings (preset, per-rule overrides, role), the reminder lead times and the discreet-notification and lock switches. Everything shown about a cycle is derived from the events by [../utils/taharah/](../utils/taharah).
+- [taharahOptIn.ts](taharahOptIn.ts) owns the cross-store opt-in calls: `chooseGender()`, `setTaharahTracking()` and `chooseNusach()` write the user store, then apply the taharah store rule. The onboarding steps and the Settings tab call only these.
 - [zustandMiddleware.ts](zustandMiddleware.ts) owns Zustand middleware interop.
 - Store tests live in [__tests__/](__tests__/).
 
 ## Local Contracts
 
-- Stores persist through MMKV using [../services/StorageService.ts](../services/StorageService.ts).
+- Stores persist through MMKV using [../services/StorageService.ts](../services/StorageService.ts). The one exception is `useTaharahStore`, which persists to its own encrypted instance through [../services/TaharahStorage.ts](../services/TaharahStorage.ts). Taharah data never goes into a plain store, and nothing outside this store and its reset path imports `taharahStorage`.
 - Keep persisted defaults, reset behavior, and migrations/backward compatibility in sync when adding fields.
-- Every `persist()` passes `version` and `onRehydrateStorage` from [persistOptions.ts](persistOptions.ts). A store whose state is a keyed map also needs a `merge` that unions the current defaults back in, or entries added in a later release never reach existing users.
+- Every `persist()` passes `version` and `onRehydrateStorage` from [persistOptions.ts](persistOptions.ts). A store that persists somewhere other than the plain MMKV instance passes that storage as the second argument, or a corrupt payload is dropped from the wrong place and fails again next launch. A store whose state is a keyed map also needs a `merge` that unions the current defaults back in, or entries added in a later release never reach existing users; `useTaharahStore` does that for `settings.rules`, filling a missing rule from the saved preset; a saved preset id this build does not know (a rollback) falls back to the current preset label while the saved rules, events and leads are kept, because a throw inside `merge` drops the whole store.
+- A new top-level field on a store merges in through zustand's default shallow merge, so adding one (`gender`, `taharahEnabled`) needs a default and a `reset()` entry but no `STORE_VERSION` bump.
+- `useTaharahStore` is the only place a gender or a nusach becomes a taharah role and preset: `startTracking(gender, nusach)` (tracking switched on), `setRoleForGender(gender)` (gender changed while tracking) and `adoptPresetFor(nusach)` (nusach picked in onboarding). A preset is adopted only while the store is untouched, meaning no events and rules identical to the current preset's own, so a hand-edited rule or a recorded cycle is never overwritten; the guard exists once, here, and no screen repeats it. Screens reach these actions only through [taharahOptIn.ts](taharahOptIn.ts), so the gender, tracking and nusach rules cannot drift between onboarding and Settings.
+- `AppResetService` resets `useTaharahStore` and then wipes its storage and replaces its key with `clearTaharahStorage()`; a new taharah field needs a default in `initialData()` so that reset covers it.
 - Completion maps are pruned to `RETENTION_DAYS` on hydrate and must never write empty day buckets. The days pruned away are folded into `archivedDays` first (`archiveMarkedDays()`), and finished check-ins are pruned with the same cutoff.
 - `finishCheckIn()` is idempotent and withdraws the block's check-in reminders through the same queued `require()` the completion actions use. `markDone` and `markSkipped` also call `settleCheckIn()`, so the mark that empties a check-in withdraws its reminders too.
 - `useCompletionsStore.markDone`, `markSkipped`, and `unmark` must preserve notification cancellation/rebuild side effects.
@@ -31,6 +36,7 @@
 ## Verification
 
 - Run `pnpm test -- src/stores/__tests__/stores.test.ts src/stores/__tests__/completions.extra.test.ts` after store behavior changes.
+- Run `pnpm test -- src/stores/__tests__/taharahStore.test.ts src/stores/__tests__/taharahOptIn.test.ts src/services/__tests__/TaharahStorage.test.ts src/services/__tests__/AppResetService.test.ts` after taharah store, opt-in, storage or reset changes.
 - Run notification scheduler tests after completion/skipped state changes that affect reminders.
 - Run `pnpm typecheck` after store type changes.
 

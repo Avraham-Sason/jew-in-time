@@ -10,6 +10,7 @@ import type { LocationSource, LocationStatus } from '@/services/LocationService'
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type Language = 'he' | 'en';
 export type NotificationPermissionStatus = 'unknown' | 'granted' | 'denied';
+export type Gender = 'male' | 'female';
 
 export const SIDDUR_FONT_SIZES = [18, 20, 22, 25, 28, 32] as const;
 const DEFAULT_SIDDUR_FONT_SIZE = 22;
@@ -29,6 +30,8 @@ type UserState = {
   inIsrael: boolean;
   isOnboarded: boolean;
   siddurFontSize: number;
+  gender: Gender | null;
+  taharahEnabled: boolean;
   setNusach: (n: Nusach) => void;
   setLocation: (l: Location) => void;
   setLocationState: (l: Location, status: LocationStatus, source: LocationSource) => void;
@@ -43,6 +46,8 @@ type UserState = {
   setInIsrael: (v: boolean) => void;
   setOnboarded: (v: boolean) => void;
   setSiddurFontSize: (size: number) => void;
+  setGender: (g: Gender | null) => void;
+  setTaharahEnabled: (v: boolean) => void;
   reset: () => void;
 };
 
@@ -65,6 +70,8 @@ export const useUserStore = create<UserState>()(
       inIsrael: true,
       isOnboarded: false,
       siddurFontSize: DEFAULT_SIDDUR_FONT_SIZE,
+      gender: null,
+      taharahEnabled: false,
       setNusach: (n) => set({ nusach: n }),
       setLocation: (l) => set({ location: l, inIsrael: l.inIsrael }),
       setLocationState: (l, status, source) =>
@@ -81,6 +88,8 @@ export const useUserStore = create<UserState>()(
       setInIsrael: (v) => set({ inIsrael: v }),
       setOnboarded: (v) => set({ isOnboarded: v }),
       setSiddurFontSize: (size) => set({ siddurFontSize: size }),
+      setGender: (g) => set({ gender: g }),
+      setTaharahEnabled: (v) => set({ taharahEnabled: v }),
       reset: () =>
         set({
           nusach: 'ashkenaz',
@@ -97,6 +106,8 @@ export const useUserStore = create<UserState>()(
           inIsrael: true,
           isOnboarded: false,
           siddurFontSize: DEFAULT_SIDDUR_FONT_SIZE,
+          gender: null,
+          taharahEnabled: false,
         }),
     }),
     {

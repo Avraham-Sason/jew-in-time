@@ -2,6 +2,8 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
+import { ONBOARDING_STEPS, OnboardingDots } from '@/components/OnboardingDots';
+import { chooseNusach } from '@/stores/taharahOptIn';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
@@ -14,7 +16,6 @@ export default function NusachScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const selected = useUserStore((s) => s.nusach);
-  const setNusach = useUserStore((s) => s.setNusach);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
@@ -27,7 +28,7 @@ export default function NusachScreen() {
           return (
             <Pressable
               key={option}
-              onPress={() => setNusach(option)}
+              onPress={() => chooseNusach(option)}
               style={[
                 styles.option,
                 {
@@ -46,7 +47,7 @@ export default function NusachScreen() {
           );
         })}
       </ScrollView>
-      <Dots step={1} />
+      <OnboardingDots step={2} total={ONBOARDING_STEPS} style={styles.dots} />
       <Pressable onPress={() => router.push('/onboarding/location')} style={[styles.cta, { backgroundColor: colors.gold }]}>
         <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.continue')}</Text>
       </Pressable>
@@ -54,17 +55,6 @@ export default function NusachScreen() {
         <Text style={[typography.small, { color: colors.textSub }]}>{t('common.back')}</Text>
       </Pressable>
     </SafeAreaView>
-  );
-}
-
-function Dots({ step }: { step: number }) {
-  const { colors } = useTheme();
-  return (
-    <View style={styles.dots}>
-      {Array.from({ length: 4 }).map((_, index) => (
-        <View key={index} style={[styles.dot, { width: index === step ? 22 : 7, backgroundColor: index === step ? colors.gold : colors.border }]} />
-      ))}
-    </View>
   );
 }
 
@@ -95,14 +85,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dots: {
-    flexDirection: 'row',
-    gap: 5,
-    alignSelf: 'center',
     marginBottom: 10,
-  },
-  dot: {
-    height: 7,
-    borderRadius: 4,
   },
   cta: {
     alignItems: 'center',

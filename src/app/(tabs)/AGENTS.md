@@ -13,10 +13,14 @@
 ## Local Contracts
 
 - Tab labels and normal UI copy must stay in [../../i18n/AGENTS.md](../../i18n/AGENTS.md).
+- The tab order in [_layout.tsx](_layout.tsx) is schedule, history, home, library, settings: home stays the initial route and sits in the middle of the bar, where [BottomTabs](../../components/BottomTabs.tsx) draws it as a raised gold disc (the user's choice, 2026-10-08). Keep it third when adding a tab.
 - Schedule and history views should reuse pure helpers from [../../utils/AGENTS.md](../../utils/AGENTS.md) instead of duplicating day computation.
 - Day navigation should route to [../day/AGENTS.md](../day/AGENTS.md) for drilldown behavior.
 - Home shows a banner into `/checkin` while a check-in is open, and keeps the mitzvot waiting in it out of "missed". The schedule's day view labels them waiting.
 - Home calls `downloadNewUpdate()` on every return to the foreground and shows a reload banner while `useUpdates().isUpdatePending` holds. Settings shows `appVersionLabel()`. Both come from [../../services/appUpdates.ts](../../services/appUpdates.ts).
+- Settings has a taharah section after nusach: gender, the tracking switch (disabled until a gender is chosen) and, while tracking is on, a button to `/taharah/settings`. The gender chips, the switch and the nusach chips call [taharahOptIn.ts](../../stores/taharahOptIn.ts), the same functions the onboarding steps use. Every section is [SettingsSection](../../components/SettingsSection.tsx).
+- Home shows the taharah card right after the banners while `taharahEnabled` holds and no quiet block does: the cycle stage, then the first unfinished task of today, else the stage's hint. While `useTaharahStore.lockEnabled` holds it shows only the `taharah.home.title` heading and the `taharah.home.open` caption, because the session is always locked while home is showing. It opens `/taharah`. Its cycle, task and perisha data come from [../../utils/AGENTS.md](../../utils/AGENTS.md); home adds only the wording.
+- Home offers a gold intro banner into settings while onboarded with no gender set. Pressing it writes the MMKV key `taharah:intro-dismissed`, read once into state at mount, so it appears once.
 - Home's current and missed cards offer the open-text button only when `hasSiddurText()` holds for today, and open `/siddur/[id]` with today's `dateKey`, the key the cards and notifications already use.
 
 ## Work Guidance

@@ -181,6 +181,30 @@ describe('notificationResponseHandler', () => {
     expect(mockRouterPush).not.toHaveBeenCalled();
   });
 
+  it('opens the taharah screen from a taharah reminder, never a mitzvah lookup', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+    listener(
+      response(DEFAULT_NOTIFICATION_ACTION, { kind: 'taharah', taharah: { task: 'hefsek', day: 739931 } }, 'taharah:hefsek:739931'),
+    );
+
+    expect(mockRouterNavigate).toHaveBeenCalledWith('/taharah');
+    expect(mockRouterPush).not.toHaveBeenCalled();
+    expect(mockMarkDoneFromNotificationData).not.toHaveBeenCalled();
+  });
+
+  it('hands the mark-done button of a bedika reminder to the scheduler with its taharah payload', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+    const data = { kind: 'taharah', taharah: { task: 'bedikaMorning', day: 739931 } };
+
+    listener(response(MARK_DONE_ACTION, data, 'taharah:bedikaMorning:739931'));
+
+    expect(mockMarkDoneFromNotificationData).toHaveBeenCalledWith(data, 'taharah:bedikaMorning:739931');
+    expect(mockRouterNavigate).not.toHaveBeenCalled();
+  });
+
   describe('inside a Shabbat block', () => {
     const jerusalem = CITIES[0];
     beforeAll(() => {
@@ -205,6 +229,9 @@ describe('notificationResponseHandler', () => {
       listener(response(OPEN_TEXT_ACTION, { mitzvahId: 'candle_lighting', dateKey: '2026-11-13' }, 'candle_lighting__2026-11-13__0'));
       listener(response(DEFAULT_NOTIFICATION_ACTION, { mitzvahId: 'candle_lighting' }, 'candle_lighting__2026-11-13__0'));
       listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'blockNotice' }, 'blockNotice:2026-11-14'));
+      listener(
+        response(DEFAULT_NOTIFICATION_ACTION, { kind: 'taharah', taharah: { task: 'hefsek', day: 739931 } }, 'taharah:hefsek:739931'),
+      );
       expect(mockRouterPush).not.toHaveBeenCalled();
       expect(mockRouterNavigate).not.toHaveBeenCalled();
 

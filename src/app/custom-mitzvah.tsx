@@ -17,6 +17,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { useQuietBlock } from '@/components/ShabbatScreen';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
+import { TIME_PATTERN, timeToMinutes } from '@/utils/clock';
 import {
   ContentBlock,
   CustomMitzvah,
@@ -33,8 +34,6 @@ const CATEGORIES: MitzvahCategory[] = [
   'daily-allday',
   'learning',
 ];
-
-const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function emptyReminder(): Reminder {
   return { anchor: 'start', offsetMin: 0, label: '' };
@@ -529,11 +528,6 @@ function AnchorPick({ value, onChange }: { value: ReminderAnchor; onChange: (v: 
       })}
     </View>
   );
-}
-
-function timeToMinutes(value: string): number {
-  const [h, m] = value.split(':').map(Number);
-  return h * 60 + m;
 }
 
 const styles = StyleSheet.create({

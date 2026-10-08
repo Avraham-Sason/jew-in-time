@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { AppLogo } from '@/components/AppLogo';
+import { ONBOARDING_STEPS, OnboardingDots } from '@/components/OnboardingDots';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
@@ -34,7 +35,7 @@ export default function WelcomeScreen() {
   const submit = () => {
     setProfileName(name.trim());
     setProfilePhone(phone.trim());
-    router.push('/onboarding/nusach');
+    router.push('/onboarding/profile');
   };
 
   const inputStyle = {
@@ -96,33 +97,13 @@ export default function WelcomeScreen() {
           </View>
         </ScrollView>
         <View style={styles.footer}>
-          <Dots step={0} />
+          <OnboardingDots step={0} total={ONBOARDING_STEPS} />
           <Pressable onPress={submit} style={[styles.cta, { backgroundColor: colors.gold }]}>
             <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.continue')}</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
-}
-
-function Dots({ step }: { step: number }) {
-  const { colors } = useTheme();
-  return (
-    <View style={styles.dots}>
-      {Array.from({ length: 4 }).map((_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.dot,
-            {
-              width: index === step ? 22 : 7,
-              backgroundColor: index === step ? colors.gold : colors.border,
-            },
-          ]}
-        />
-      ))}
-    </View>
   );
 }
 
@@ -164,14 +145,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 14,
     paddingVertical: 13,
-  },
-  dots: {
-    flexDirection: 'row',
-    gap: 5,
-    alignSelf: 'center',
-  },
-  dot: {
-    height: 7,
-    borderRadius: 4,
   },
 });

@@ -28,6 +28,13 @@ describe('expo-router routes', () => {
     expect(routes).toContain('checkin');
   });
 
+  it('discovers taharah routes', () => {
+    expect(routes).toContain('taharah/index');
+    expect(routes).toContain('taharah/log');
+    expect(routes).toContain('taharah/settings');
+    expect(routes).toContain('taharah/calendar');
+  });
+
   it('discovers tabs', () => {
     expect(routes).toContain('(tabs)/home');
     expect(routes).toContain('(tabs)/schedule');
