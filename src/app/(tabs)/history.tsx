@@ -17,7 +17,7 @@ import { useI18n } from '@/i18n';
 
 const EMPTY_STATS = {
   streak: 0,
-  daily: [] as Array<{ date: string; doneCount: number; totalCount: number; pendingCount: number }>,
+  daily: [] as { date: string; doneCount: number; totalCount: number; pendingCount: number }[],
   perMitzvah: {} as Record<string, { done: number; eligible: number; percent: number }>,
   missedYesterday: [] as string[],
 };
@@ -50,7 +50,10 @@ export default function HistoryScreen() {
       .map(customToMitzvah);
     return [...MITZVOT, ...customs].filter((m) => m.nuschaotSupported.includes(nusach));
   }, [customMap, nusach]);
-  const enabled = useMemo(() => allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled), [allMitzvot, activeMap]);
+  const enabled = useMemo(
+    () => allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled),
+    [allMitzvot, activeMap],
+  );
   const settings = useMemo(() => ({ nusach, halachicOpinions, inIsrael }), [nusach, halachicOpinions, inIsrael]);
   const [stats, setStats] = useState(EMPTY_STATS);
   const [statsReady, setStatsReady] = useState(false);
@@ -99,38 +102,49 @@ export default function HistoryScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.streakCard, { backgroundColor: colors.headerBg }]}>
           <Text style={[styles.streakNumber, { color: colors.headerAccent }]}>{stats.streak}</Text>
-          <Text style={[typography.subheading, { color: colors.headerText }]}>{t('history.streak', { count: stats.streak })}</Text>
+          <Text style={[typography.subheading, { color: colors.headerText }]}>
+            {t('history.streak', { count: stats.streak })}
+          </Text>
         </View>
 
-        <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>{t('history.gridTitle')}</Text>
+        <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>
+          {t('history.gridTitle')}
+        </Text>
         <View style={styles.grid}>
-          {statsReady ? stats.daily.map((day) => {
-            const decided = day.totalCount - day.pendingCount;
-            const percent = decided > 0 ? Math.round((day.doneCount / decided) * 100) : 0;
-            const date = DateTime.fromISO(day.date);
-            return (
-              <Pressable
-                key={day.date}
-                onPress={() => router.push({ pathname: '/day/[date]', params: { date: day.date } })}
-                style={[
-                  styles.gridCell,
-                  {
-                    backgroundColor: decided ? `${colors.gold}${alphaFor(percent)}` : colors.surface2,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text style={[typography.micro, { color: percent > 65 ? '#fff' : colors.textSub }]}>
-                  {date.isValid ? date.day : ''}
-                </Text>
-              </Pressable>
-            );
-          }) : Array.from({ length: 30 }, (_, index) => (
-            <View key={index} style={[styles.gridCell, { backgroundColor: colors.surface2, borderColor: colors.border }]} />
-          ))}
+          {statsReady
+            ? stats.daily.map((day) => {
+                const decided = day.totalCount - day.pendingCount;
+                const percent = decided > 0 ? Math.round((day.doneCount / decided) * 100) : 0;
+                const date = DateTime.fromISO(day.date);
+                return (
+                  <Pressable
+                    key={day.date}
+                    onPress={() => router.push({ pathname: '/day/[date]', params: { date: day.date } })}
+                    style={[
+                      styles.gridCell,
+                      {
+                        backgroundColor: decided ? `${colors.gold}${alphaFor(percent)}` : colors.surface2,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[typography.micro, { color: percent > 65 ? colors.onGold : colors.textSub }]}>
+                      {date.isValid ? date.day : ''}
+                    </Text>
+                  </Pressable>
+                );
+              })
+            : Array.from({ length: 30 }, (_, index) => (
+                <View
+                  key={index}
+                  style={[styles.gridCell, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+                />
+              ))}
         </View>
 
-        <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>{t('history.perMitzvah')}</Text>
+        <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>
+          {t('history.perMitzvah')}
+        </Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {byMitzvah.map(({ mitzvah, stat }) => (
             <Pressable
@@ -141,7 +155,9 @@ export default function HistoryScreen() {
               <Text style={[typography.bodyBold, { color: colors.text, flex: 1 }]} numberOfLines={1}>
                 {language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he}
               </Text>
-              <Text style={[typography.captionBold, { color: colors.gold }]}>{t('history.percent', { percent: stat.percent })}</Text>
+              <Text style={[typography.captionBold, { color: colors.goldText }]}>
+                {t('history.percent', { percent: stat.percent })}
+              </Text>
             </Pressable>
           ))}
           {!byMitzvah.length ? (
@@ -149,7 +165,9 @@ export default function HistoryScreen() {
           ) : null}
         </View>
 
-        <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>{t('history.missedYesterday')}</Text>
+        <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>
+          {t('history.missedYesterday')}
+        </Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {stats.missedYesterday.map((id) => (
             <Pressable
@@ -161,7 +179,9 @@ export default function HistoryScreen() {
             </Pressable>
           ))}
           {!stats.missedYesterday.length ? (
-            <Text style={[typography.body, { color: colors.textMuted, padding: 14 }]}>{t('history.noMissedYesterday')}</Text>
+            <Text style={[typography.body, { color: colors.textMuted, padding: 14 }]}>
+              {t('history.noMissedYesterday')}
+            </Text>
           ) : null}
         </View>
       </ScrollView>

@@ -86,10 +86,7 @@ export function buildDayTimeline(
       // Bounded on both sides. Unbounded, the comparison stayed true once `remaining` went
       // negative, so mitzvot that closed hours ago kept rendering "ending soon" all day — and it
       // also fired before a short window (candle lighting is 18 minutes) had even opened.
-      urgent:
-        isToday &&
-        window.end.getTime() - Date.now() > 0 &&
-        window.end.getTime() - Date.now() <= 45 * 60 * 1000,
+      urgent: isToday && window.end.getTime() - Date.now() > 0 && window.end.getTime() - Date.now() <= 45 * 60 * 1000,
       expired: isToday && window.end.getTime() <= Date.now(),
       mitzvahId: mitzvah.id,
       windowEnd: window.end,

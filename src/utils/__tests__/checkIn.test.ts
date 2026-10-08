@@ -7,21 +7,32 @@ import { at } from '@/testing/zmanim';
 
 const JERUSALEM = CITIES[0];
 const SETTINGS: UserSettings = { nusach: 'ashkenaz', halachicOpinions: { ksSofZman: 'GRA' }, inIsrael: true };
-const MITZVOT = ['tefillin', 'shacharit', 'mincha', 'maariv', 'candle_lighting', 'havdalah'].map((id) => findMitzvah(id)!);
+const MITZVOT = ['tefillin', 'shacharit', 'mincha', 'maariv', 'candle_lighting', 'havdalah'].map((id) =>
+  findMitzvah(id)!,
+);
 // Shabbat Bereishit 5787 is 2026-10-10; this is Shabbat Noach.
 const SHABBAT = at(JERUSALEM, '2026-11-14T12:00');
 const block = HebcalService.holyBlockAt(SHABBAT, JERUSALEM)!;
-const input = (overrides = {}) => ({ mitzvot: MITZVOT, completions: {}, checkIns: {}, location: JERUSALEM, settings: SETTINGS, ...overrides });
+const input = (overrides = {}) => ({
+  mitzvot: MITZVOT,
+  completions: {},
+  checkIns: {},
+  location: JERUSALEM,
+  settings: SETTINGS,
+  ...overrides,
+});
 const idsOn = (checkIn: ReturnType<typeof checkInFor>, key: string) =>
   checkIn!.days.find((day) => day.key === key)?.items.map((item) => item.mitzvah.id) ?? [];
 
 describe('checkIn', () => {
-  it('asks about everything that could not be marked: the block\'s own day and what the erev ran into it', () => {
+  it("asks about everything that could not be marked: the block's own day and what the erev ran into it", () => {
     const checkIn = checkInFor(block, input(), at(JERUSALEM, '2026-11-14T20:00'))!;
     expect(checkIn.days.map((day) => day.key)).toEqual(['2026-11-13', '2026-11-14']);
     // Friday: mincha runs to shkia and candle lighting starts with the block; shacharit ended long
     // before, and tefillin ends at shkia too, after lighting.
-    expect(idsOn(checkIn, '2026-11-13')).toEqual(expect.arrayContaining(['mincha', 'candle_lighting', 'maariv', 'tefillin']));
+    expect(idsOn(checkIn, '2026-11-13')).toEqual(
+      expect.arrayContaining(['mincha', 'candle_lighting', 'maariv', 'tefillin']),
+    );
     expect(idsOn(checkIn, '2026-11-13')).not.toContain('shacharit');
     // Shabbat: no tefillin (skipOn), and maariv and havdalah open at the block's tzeit — after it.
     expect(idsOn(checkIn, '2026-11-14')).toEqual(expect.arrayContaining(['shacharit', 'mincha']));

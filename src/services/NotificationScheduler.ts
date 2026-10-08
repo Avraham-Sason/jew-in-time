@@ -15,7 +15,14 @@ import { HebcalService } from '@/services/HebcalService';
 import { ZmanimService } from '@/services/ZmanimService';
 import { StorageService } from '@/services/StorageService';
 import { downloadNewUpdate, isUpdateApplied } from '@/services/appUpdates';
-import { holyBlockLabelKeys, isQuietAt, isSkippedAt, opensQuietBlock, quietBlockAt, reminderFires } from '@/utils/skipRules';
+import {
+  holyBlockLabelKeys,
+  isQuietAt,
+  isSkippedAt,
+  opensQuietBlock,
+  quietBlockAt,
+  reminderFires,
+} from '@/utils/skipRules';
 import { CheckInInput, blockForDay, blockOfCheckIn, checkInFor, checkInPhraseKey } from '@/utils/checkIn';
 import { locationNoon } from '@/utils/locationDay';
 import { deriveCycle } from '@/utils/taharah/cycle';
@@ -77,7 +84,8 @@ function parseId(id: string): { mitzvahId: string; date: string; idx: number } |
 }
 
 export type PendingNotificationMeta = {
-  kind?: typeof BLOCK_NOTICE_KIND | typeof CHECK_IN_KIND | typeof TAHARAH_KIND | typeof UPDATE_KIND | typeof HILULA_KIND;
+  kind?:
+    typeof BLOCK_NOTICE_KIND | typeof CHECK_IN_KIND | typeof TAHARAH_KIND | typeof UPDATE_KIND | typeof HILULA_KIND;
   taharah?: { task: TaharahTaskKind | 'tevilaPrep' | 'postBlock' | 'preBlock'; day: number; onah?: OnahKind };
   hilula?: { day: number; when: HilulaWhen };
   blockId?: string;
@@ -218,9 +226,7 @@ export function pickBodyForReminder(reminder: Reminder, mitzvah: Mitzvah, trigge
   const variants = reminder.bodyVariants?.filter((value) => value.trim().length > 0) ?? [];
   const source = variants.length ? variants : [reminder.label];
   const idx = Math.floor(trigger.getTime() / 86_400_000) % source.length;
-  const base = english
-    ? t('notifications.timeFor', { name: mitzvah.name.en })
-    : (source[idx] ?? reminder.label);
+  const base = english ? t('notifications.timeFor', { name: mitzvah.name.en }) : (source[idx] ?? reminder.label);
   if (!reminder.includeContentInBody || !mitzvah.contentBlocks?.length) return base;
   const content = mitzvah.contentBlocks
     .filter((block) => block.type === 'text' || block.type === 'blessing')
@@ -235,12 +241,7 @@ type ScheduleCandidate = {
   input: Notifications.NotificationRequestInput;
 };
 
-function candidatesFor(
-  mitzvah: Mitzvah,
-  date: Date,
-  location: Location,
-  settings: UserSettings,
-): ScheduleCandidate[] {
+function candidatesFor(mitzvah: Mitzvah, date: Date, location: Location, settings: UserSettings): ScheduleCandidate[] {
   const ctx = contextFor(date, location, settings);
   if (!ctx) return [];
   const window = mitzvah.computeWindow(ctx);
@@ -332,9 +333,7 @@ async function getPresentedNotificationsSafe(): Promise<Notifications.Notificati
 
 async function dismissNotificationIds(ids: Iterable<string>): Promise<void> {
   if (typeof Notifications.dismissNotificationAsync !== 'function') return;
-  await Promise.all(
-    [...new Set(ids)].map((id) => Notifications.dismissNotificationAsync(id).catch(() => {})),
-  );
+  await Promise.all([...new Set(ids)].map((id) => Notifications.dismissNotificationAsync(id).catch(() => {})));
 }
 
 async function dismissPresentedNotificationsForMitzvah(
@@ -447,7 +446,10 @@ export async function dismissCompletedPresentedNotifications(): Promise<void> {
     const target = notificationTargetFromData(data, id);
     // Skipped counts as resolved, exactly like scheduleOne and shouldSuppressForCompletion treat
     // it — otherwise a mitzvah the user deliberately skipped keeps nagging from the tray.
-    if (target && (completions.isDone(target.mitzvahId, target.date) || completions.isSkipped(target.mitzvahId, target.date))) {
+    if (
+      target &&
+      (completions.isDone(target.mitzvahId, target.date) || completions.isSkipped(target.mitzvahId, target.date))
+    ) {
       ids.push(id);
     }
     if (isFinishedCheckIn(data) || taharahNotificationSettled(data) || isStaleUpdateNotice(data)) ids.push(id);
@@ -644,7 +646,8 @@ function hilulaLines(block: HolyBlock, location: Location, inIsrael: boolean): s
   const swallowed = new Map<number, HilulaNotice>();
   for (const evening of evenings) {
     for (const notice of hilulaNoticesOn(new Date(evening.year, evening.month - 1, evening.day), location, inIsrael)) {
-      if (isQuietAt(notice.trigger, location) && !swallowed.has(notice.day.abs())) swallowed.set(notice.day.abs(), notice);
+      if (isQuietAt(notice.trigger, location) && !swallowed.has(notice.day.abs()))
+        swallowed.set(notice.day.abs(), notice);
     }
   }
   const locale = isEnglish() ? 'en' : 'he';
@@ -661,7 +664,9 @@ function blockNoticeCandidate(block: HolyBlock, location: Location, countsOmer: 
   const trigger = new Date(block.start.getTime() - BLOCK_NOTICE_LEAD_MIN * 60_000);
   if (trigger.getTime() <= Date.now()) return null;
   const labels = holyBlockLabelKeys(block);
-  const lines = [t('holyBlock.notice.body', { start: formatClock(block.start), exit: t(labels.exit), end: formatClock(block.end) })];
+  const lines = [
+    t('holyBlock.notice.body', { start: formatClock(block.start), exit: t(labels.exit), end: formatClock(block.end) }),
+  ];
   const omer = countsOmer ? omerLine(block, omerNightsWithin(block, location)) : null;
   if (omer) lines.push(omer);
   const { hilulotEnabled, inIsrael } = useUserStore.getState();
@@ -715,25 +720,27 @@ function checkInCandidates(block: HolyBlock, input: CheckInInput, now: Date): Sc
     if (!trigger || trigger.getTime() <= now.getTime() || trigger.getTime() >= checkIn.deadline.getTime()) return [];
     if (isQuietAt(trigger, input.location)) return [];
     const identifier = checkInNotificationId(checkIn.id, index);
-    return [{
-      trigger,
-      input: {
-        identifier,
-        content: {
-          title,
-          body: t(`checkin.notify.${index}`),
-          data: { kind: CHECK_IN_KIND, blockId: checkIn.id },
-          autoDismiss: true,
-          sticky: false,
-          sound: 'default',
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: trigger,
-          channelId: ANDROID_CHANNEL_ID,
+    return [
+      {
+        trigger,
+        input: {
+          identifier,
+          content: {
+            title,
+            body: t(`checkin.notify.${index}`),
+            data: { kind: CHECK_IN_KIND, blockId: checkIn.id },
+            autoDismiss: true,
+            sticky: false,
+            sound: 'default',
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: trigger,
+            channelId: ANDROID_CHANNEL_ID,
+          },
         },
       },
-    }];
+    ];
   });
 }
 
@@ -782,7 +789,12 @@ function expectedOnsetCheck(netz: Date, location: Location): Date {
     .toJSDate();
 }
 
-function taharahDraftsFor(task: TaharahTask, civilAbs: number, location: Location, leads: TaharahLeads): TaharahDraft[] {
+function taharahDraftsFor(
+  task: TaharahTask,
+  civilAbs: number,
+  location: Location,
+  leads: TaharahLeads,
+): TaharahDraft[] {
   const onah: OnahKind | undefined =
     task.kind === 'perisha' || task.kind === 'bedikaVeset' ? (task.day === civilAbs ? 'day' : 'night') : undefined;
   const reasons = task.reasons?.map((reason) => t(`taharah.reason.${reason}`)).join(' · ');
@@ -810,16 +822,26 @@ function taharahDraftsFor(task: TaharahTask, civilAbs: number, location: Locatio
     case 'bedikaMorning':
       return task.done
         ? []
-        : [draft('bedikaMorning', shifted(task.start, TAHARAH_BEDIKA_MORNING_DELAY_MIN), until, { category: TAHARAH_BEDIKA_CATEGORY })];
+        : [
+            draft('bedikaMorning', shifted(task.start, TAHARAH_BEDIKA_MORNING_DELAY_MIN), until, {
+              category: TAHARAH_BEDIKA_CATEGORY,
+            }),
+          ];
     case 'bedikaEvening':
       return task.done
         ? []
-        : [draft('bedikaEvening', shifted(task.end, -leads.bedikaEveningLeadMin), until, { category: TAHARAH_BEDIKA_CATEGORY })];
+        : [
+            draft('bedikaEvening', shifted(task.end, -leads.bedikaEveningLeadMin), until, {
+              category: TAHARAH_BEDIKA_CATEGORY,
+            }),
+          ];
     case 'tevila': {
       const prep = shifted(task.start, -leads.tevilaPrepLeadMin);
       const block = quietBlockAt(task.start, location);
       if (block) {
-        return [draft('tevilaPrep', prep, formatClock(block.start), { bodyKey: 'taharah.notify.body.tevilaPrepShabbat' })];
+        return [
+          draft('tevilaPrep', prep, formatClock(block.start), { bodyKey: 'taharah.notify.body.tevilaPrepShabbat' }),
+        ];
       }
       return [draft('tevilaPrep', prep, formatClock(task.start)), draft('tevila', task.start, formatClock(task.start))];
     }
@@ -1024,7 +1046,9 @@ async function scheduleAllImpl(
   candidates.sort((a, b) => a.trigger.getTime() - b.trigger.getTime());
   const cap = Platform.OS === 'ios' ? IOS_MAX - IOS_HEADROOM : PENDING_LIMIT;
   if (candidates.length > cap) {
-    console.warn(`[notifications] ${candidates.length - cap} reminder(s) beyond the ${cap} slot cap were not scheduled`);
+    console.warn(
+      `[notifications] ${candidates.length - cap} reminder(s) beyond the ${cap} slot cap were not scheduled`,
+    );
   }
 
   for (const candidate of candidates.slice(0, cap)) {
@@ -1071,7 +1095,9 @@ export const NotificationScheduler = {
     fromDate: Date = new Date(),
     activeMitzvot: Mitzvah[] = enabledMitzvot(),
     location: Location = useUserStore.getState().location,
-    settings: UserSettings = (({ nusach, halachicOpinions, inIsrael }) => ({ nusach, halachicOpinions, inIsrael }))(useUserStore.getState()),
+    settings: UserSettings = (({ nusach, halachicOpinions, inIsrael }) => ({ nusach, halachicOpinions, inIsrael }))(
+      useUserStore.getState(),
+    ),
   ): Promise<void> {
     return this.withLock(() => scheduleAllImpl(fromDate, activeMitzvot, location, settings));
   },
@@ -1086,9 +1112,7 @@ export const NotificationScheduler = {
     for (const p of pending) {
       const rawData = pendingNotificationMetaFromContent(p.content as NotificationContentLike);
       const parsed =
-        (p.identifier ? parseId(p.identifier) : null) ??
-        (rawData.customId ? parseId(rawData.customId) : null) ??
-        null;
+        (p.identifier ? parseId(p.identifier) : null) ?? (rawData.customId ? parseId(rawData.customId) : null) ?? null;
       const parsedMitzvahId = parsed?.mitzvahId ?? rawData.mitzvahId;
       const parsedDate = parsed?.date ?? rawData.dateKey;
       if (parsedMitzvahId !== mitzvahId) continue;
@@ -1266,51 +1290,51 @@ export function initNotificationHandlers(): () => void {
   dismissCompletedPresentedNotifications().catch(() => {});
   refreshSchedulingOnForeground().catch(() => {});
   const unsubscribers = [
-  useUserStore.subscribe((state, prev) => {
-    if (state.notificationsEnabled !== prev.notificationsEnabled) {
-      if (state.notificationsEnabled) {
-        NotificationScheduler.rebuild().catch(() => {});
-      } else {
-        NotificationScheduler.cancelAll().catch(() => {});
+    useUserStore.subscribe((state, prev) => {
+      if (state.notificationsEnabled !== prev.notificationsEnabled) {
+        if (state.notificationsEnabled) {
+          NotificationScheduler.rebuild().catch(() => {});
+        } else {
+          NotificationScheduler.cancelAll().catch(() => {});
+        }
+        return;
       }
-      return;
-    }
-    if (
-      state.language !== prev.language ||
-      state.location !== prev.location ||
-      state.nusach !== prev.nusach ||
-      state.halachicOpinions !== prev.halachicOpinions ||
-      state.inIsrael !== prev.inIsrael ||
-      state.taharahEnabled !== prev.taharahEnabled ||
-      state.hilulotEnabled !== prev.hilulotEnabled
-    ) {
-      NotificationScheduler.rebuild().catch(() => {});
-    }
-  }),
-  useMitzvotStore.subscribe((state, prev) => {
-    if (state.activeMitzvot === prev.activeMitzvot) return;
-    if (mitzvotConfigChanged(state.activeMitzvot, prev.activeMitzvot)) {
-      NotificationScheduler.rebuild().catch(() => {});
-    }
-  }),
-  useCustomMitzvotStore.subscribe((state, prev) => {
-    if (state.items !== prev.items) {
-      NotificationScheduler.rebuild().catch(() => {});
-    }
-  }),
-  useTaharahStore.subscribe((state, prev) => {
-    if (!useUserStore.getState().taharahEnabled) return;
-    if (
-      state.events !== prev.events ||
-      state.settings !== prev.settings ||
-      state.discreetNotifications !== prev.discreetNotifications ||
-      state.hefsekLeadMin !== prev.hefsekLeadMin ||
-      state.bedikaEveningLeadMin !== prev.bedikaEveningLeadMin ||
-      state.tevilaPrepLeadMin !== prev.tevilaPrepLeadMin
-    ) {
-      NotificationScheduler.rebuild().catch(() => {});
-    }
-  }),
+      if (
+        state.language !== prev.language ||
+        state.location !== prev.location ||
+        state.nusach !== prev.nusach ||
+        state.halachicOpinions !== prev.halachicOpinions ||
+        state.inIsrael !== prev.inIsrael ||
+        state.taharahEnabled !== prev.taharahEnabled ||
+        state.hilulotEnabled !== prev.hilulotEnabled
+      ) {
+        NotificationScheduler.rebuild().catch(() => {});
+      }
+    }),
+    useMitzvotStore.subscribe((state, prev) => {
+      if (state.activeMitzvot === prev.activeMitzvot) return;
+      if (mitzvotConfigChanged(state.activeMitzvot, prev.activeMitzvot)) {
+        NotificationScheduler.rebuild().catch(() => {});
+      }
+    }),
+    useCustomMitzvotStore.subscribe((state, prev) => {
+      if (state.items !== prev.items) {
+        NotificationScheduler.rebuild().catch(() => {});
+      }
+    }),
+    useTaharahStore.subscribe((state, prev) => {
+      if (!useUserStore.getState().taharahEnabled) return;
+      if (
+        state.events !== prev.events ||
+        state.settings !== prev.settings ||
+        state.discreetNotifications !== prev.discreetNotifications ||
+        state.hefsekLeadMin !== prev.hefsekLeadMin ||
+        state.bedikaEveningLeadMin !== prev.bedikaEveningLeadMin ||
+        state.tevilaPrepLeadMin !== prev.tevilaPrepLeadMin
+      ) {
+        NotificationScheduler.rebuild().catch(() => {});
+      }
+    }),
   ];
   registerDailyRebuildTask().catch(() => {});
   teardownHandlers = () => {

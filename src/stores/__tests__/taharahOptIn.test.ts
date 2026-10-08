@@ -3,18 +3,28 @@ jest.mock('react-native-mmkv', () => {
   return { MMKV: jest.fn(() => createMockMMKV()) };
 });
 
-import { chooseGender, chooseMaritalStatus, chooseNusach, setTaharahTracking, taharahOffered } from '../taharahOptIn';
+import {
+  MENS_MITZVOT,
+  chooseGender,
+  chooseMaritalStatus,
+  chooseNusach,
+  setTaharahTracking,
+  taharahOffered,
+} from '../taharahOptIn';
+import { useMitzvotStore } from '../useMitzvotStore';
 import { useTaharahStore } from '../useTaharahStore';
 import { useUserStore } from '../useUserStore';
 import { rulesFor } from '@/data/taharahPresets';
 
 const taharah = () => useTaharahStore.getState();
 const user = () => useUserStore.getState();
+const enabled = (id: string) => Boolean(useMitzvotStore.getState().activeMitzvot[id]?.enabled);
 
 describe('taharahOptIn', () => {
   beforeEach(() => {
     user().reset();
     taharah().reset();
+    useMitzvotStore.getState().reset();
   });
 
   describe('chooseGender', () => {
@@ -37,6 +47,33 @@ describe('taharahOptIn', () => {
 
       expect(user().gender).toBe('female');
       expect(taharah().settings.role).toBe('husband');
+    });
+
+    it('switches tefillin and tzitzit off for a woman and leaves the prayers on', () => {
+      expect(MENS_MITZVOT).toEqual(['tefillin', 'tzitzit']);
+      chooseGender('female');
+      expect(MENS_MITZVOT.map(enabled)).toEqual([false, false]);
+      expect(['shacharit', 'mincha', 'maariv', 'krias_shma_shacharit'].map(enabled)).toEqual([true, true, true, true]);
+    });
+
+    it('keeps the defaults for a man answering for the first time', () => {
+      useMitzvotStore.getState().setEnabled('tzitzit', false);
+      chooseGender('male');
+      expect(enabled('tefillin')).toBe(true);
+      expect(enabled('tzitzit')).toBe(false);
+    });
+
+    it('restores tefillin and tzitzit when the answer changes from woman to man', () => {
+      chooseGender('female');
+      chooseGender('male');
+      expect(MENS_MITZVOT.map(enabled)).toEqual([true, true]);
+    });
+
+    it('re-choosing the same gender never touches the library', () => {
+      chooseGender('female');
+      useMitzvotStore.getState().setEnabled('tzitzit', true);
+      chooseGender('female');
+      expect(enabled('tzitzit')).toBe(true);
     });
   });
 

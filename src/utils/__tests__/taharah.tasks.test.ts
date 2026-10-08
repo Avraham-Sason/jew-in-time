@@ -43,13 +43,7 @@ const tasksOn = (
 const kinds = (tasks: ReturnType<typeof taharahTasksFor>) => tasks.map((task) => task.kind);
 
 const tahor = () =>
-  log(
-    onset(P),
-    onset(L),
-    hefsek(L + 4),
-    ...Array.from({ length: 7 }, (_, i) => morning(L + 5 + i)),
-    tevila(L + 12),
-  );
+  log(onset(P), onset(L), hefsek(L + 4), ...Array.from({ length: 7 }, (_, i) => morning(L + 5 + i)), tevila(L + 12));
 
 describe('taharahTasksFor', () => {
   it('anchors the fixtures on their calendar dates', () => {
@@ -91,8 +85,20 @@ describe('taharahTasksFor', () => {
     it('requires both bedikot on the first day and shows what is done', () => {
       const tasks = tasksOn(new Date(2026, 9, 25), events, now);
       expect(tasks).toHaveLength(2);
-      expect(tasks[0]).toMatchObject({ kind: 'bedikaMorning', day: O + 5, done: true, required: true, cleanDayIndex: 1 });
-      expect(tasks[1]).toMatchObject({ kind: 'bedikaEvening', day: O + 5, done: false, required: true, cleanDayIndex: 1 });
+      expect(tasks[0]).toMatchObject({
+        kind: 'bedikaMorning',
+        day: O + 5,
+        done: true,
+        required: true,
+        cleanDayIndex: 1,
+      });
+      expect(tasks[1]).toMatchObject({
+        kind: 'bedikaEvening',
+        day: O + 5,
+        done: false,
+        required: true,
+        cleanDayIndex: 1,
+      });
       const day = zmanim('2026-10-25');
       expect([time(tasks[0].start), time(tasks[0].end)]).toEqual([time(day.netzHaChama), time(day.chatzot)]);
       expect([time(tasks[1].start), time(tasks[1].end)]).toEqual([time(day.chatzot), time(day.shkia)]);
@@ -129,7 +135,6 @@ describe('taharahTasksFor', () => {
       expect(tasks).toHaveLength(1);
       expect(tasks[0]).toMatchObject({ kind: 'tevila', day: O + 13 });
     });
-
   });
 
   describe('immersion around Yom Kippur', () => {
@@ -206,7 +211,9 @@ describe('taharahTasksFor', () => {
 
     it('lays the ohr zarua of the yom hachodesh on the evening before it', () => {
       const tasks = tasksOn(new Date(2026, 9, 28), tahor(), now, CHABAD);
-      const night = tasks.find((t) => t.kind === 'perisha' && t.day === L + 30 && t.start.getTime() === time(zmanim('2026-10-28').shkia));
+      const night = tasks.find(
+        (t) => t.kind === 'perisha' && t.day === L + 30 && t.start.getTime() === time(zmanim('2026-10-28').shkia),
+      );
       expect(night).toBeDefined();
       expect(night!.reasons).toEqual(['ohrZarua']);
       expect(time(night!.end)).toBe(time(zmanim('2026-10-29').netzHaChama));
@@ -229,7 +236,15 @@ describe('taharahTasksFor', () => {
 
     it('leaves the woman every kind', () => {
       expect(taskKindsForRole('woman')).toEqual(
-        expect.arrayContaining(['hefsek', 'bedikaMorning', 'bedikaEvening', 'tevila', 'perisha', 'bedikaVeset', 'expectOnset']),
+        expect.arrayContaining([
+          'hefsek',
+          'bedikaMorning',
+          'bedikaEvening',
+          'tevila',
+          'perisha',
+          'bedikaVeset',
+          'expectOnset',
+        ]),
       );
     });
   });
@@ -248,7 +263,7 @@ describe('taharahTasksFor', () => {
   });
 
   describe('at another location', () => {
-    it('takes the day\'s times from the location', () => {
+    it("takes the day's times from the location", () => {
       const tasks = tasksOn(new Date(2026, 9, 24), log(onset(O)), '2026-10-24T09:00', WOMAN, NEW_YORK);
       expect(kinds(tasks)).toEqual(['hefsek']);
       const day = zmanim('2026-10-24', NEW_YORK);
@@ -275,7 +290,7 @@ describe('taharahTasksFor', () => {
     });
   });
 
-  describe('the husband\'s estimated mikveh night', () => {
+  describe("the husband's estimated mikveh night", () => {
     // Onset O, five days to the hefsek, seven clean days: the estimate opens on O+12.
     it('offers the tevila on the estimated night and the two after it, then lets go', () => {
       const events = log(onset(O));

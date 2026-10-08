@@ -53,16 +53,39 @@ export function taharahTasksFor(
   if (cleanDay) {
     const required = cleanDay.index === 1 || cleanDay.index === state.cleanDays.length;
     const base = { day: abs, required, cleanDayIndex: cleanDay.index };
-    tasks.push({ kind: 'bedikaMorning', start: zmanim.netzHaChama, end: zmanim.chatzot, done: cleanDay.morning !== null, ...base });
-    tasks.push({ kind: 'bedikaEvening', start: zmanim.chatzot, end: zmanim.shkia, done: cleanDay.evening !== null, ...base });
+    tasks.push({
+      kind: 'bedikaMorning',
+      start: zmanim.netzHaChama,
+      end: zmanim.chatzot,
+      done: cleanDay.morning !== null,
+      ...base,
+    });
+    tasks.push({
+      kind: 'bedikaEvening',
+      start: zmanim.chatzot,
+      end: zmanim.shkia,
+      done: cleanDay.evening !== null,
+      ...base,
+    });
   }
 
-  const awaitsTevila = state.stage === 'shivaNekiim' || state.stage === 'tevilaNight' || state.stage === 'awaitingTevila';
+  const awaitsTevila =
+    state.stage === 'shivaNekiim' || state.stage === 'tevilaNight' || state.stage === 'awaitingTevila';
   const tevilaTonight =
-    (awaitsTevila && state.tevilaDay !== null && abs + 1 >= state.tevilaDay && nextTevilaNight(abs + 1, location) === abs + 1) ||
+    (awaitsTevila &&
+      state.tevilaDay !== null &&
+      abs + 1 >= state.tevilaDay &&
+      nextTevilaNight(abs + 1, location) === abs + 1) ||
     (settings.role === 'husband' && husbandTevilaOn(state, abs + 1, location));
   if (tevilaTonight) {
-    tasks.push({ kind: 'tevila', start: zmanim.tzeitHakochavim, end: nightEnd, day: abs + 1, done: false, required: true });
+    tasks.push({
+      kind: 'tevila',
+      start: zmanim.tzeitHakochavim,
+      end: nightEnd,
+      day: abs + 1,
+      done: false,
+      required: true,
+    });
   }
 
   if (perishaApplies(state, settings.role)) {
@@ -74,7 +97,13 @@ export function taharahTasksFor(
             ? night
             : null;
       if (!window) continue;
-      const shared = { ...window, day: perisha.onah.abs, done: false, reasons: perisha.reasons, disputed: perisha.disputed };
+      const shared = {
+        ...window,
+        day: perisha.onah.abs,
+        done: false,
+        reasons: perisha.reasons,
+        disputed: perisha.disputed,
+      };
       tasks.push({ kind: 'perisha', required: true, ...shared });
       // An onah kept only as ohr zarua asks for separation, not for a bedika.
       if (perisha.reasons.some((reason) => reason !== 'ohrZarua')) {
@@ -86,7 +115,8 @@ export function taharahTasksFor(
     if (last) {
       const furthest = Math.max(...settings.rules.onahBeinonitDays);
       const expected = onsetCandidates(last.onah, Boolean(last.doubtful)).map((c) => c.abs + furthest);
-      if (expected.includes(abs)) tasks.push({ kind: 'expectOnset', ...daytime, day: abs, done: false, required: false });
+      if (expected.includes(abs))
+        tasks.push({ kind: 'expectOnset', ...daytime, day: abs, done: false, required: false });
     }
   }
 

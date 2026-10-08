@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer, useState } from 'react';
+import React, { useCallback, useEffect, useReducer, useState } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -24,11 +24,11 @@ export function TaharahLock({ children, recheck = 0 }: Props) {
   const [available, setAvailable] = useState<boolean | null>(null);
   const [, refresh] = useReducer((n: number) => n + 1, 0);
 
-  const unlock = async () => {
+  const unlock = useCallback(async () => {
     if (!(await authenticate(t('taharah.locked.prompt')))) return;
     markUnlocked();
     refresh();
-  };
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,7 +40,7 @@ export function TaharahLock({ children, recheck = 0 }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [lockEnabled, recheck]);
+  }, [lockEnabled, recheck, unlock]);
 
   const goBack = () => {
     if (router.canGoBack()) router.back();

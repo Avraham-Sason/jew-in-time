@@ -101,13 +101,7 @@ export type PerishaOnah = {
 export type KavuaHint = { kind: 'date'; dayOfMonth: number } | { kind: 'interval'; days: number };
 
 export type TaharahTaskKind =
-  | 'hefsek'
-  | 'bedikaMorning'
-  | 'bedikaEvening'
-  | 'tevila'
-  | 'perisha'
-  | 'bedikaVeset'
-  | 'expectOnset';
+  'hefsek' | 'bedikaMorning' | 'bedikaEvening' | 'tevila' | 'perisha' | 'bedikaVeset' | 'expectOnset';
 
 export type TaharahTask = {
   kind: TaharahTaskKind;

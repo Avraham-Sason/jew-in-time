@@ -30,7 +30,12 @@ function CalIcon({ color }: { color: string }) {
 function ListIcon({ color }: { color: string }) {
   return (
     <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
-      <Path d="M9 6H20M9 12H20M9 18H20M4 6H4.01M4 12H4.01M4 18H4.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path
+        d="M9 6H20M9 12H20M9 18H20M4 6H4.01M4 12H4.01M4 18H4.01"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
     </Svg>
   );
 }
@@ -128,7 +133,11 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
             >
               {label}
             </Text>
-            {focused ? <View style={[styles.indicator, { backgroundColor: colors.gold }]} /> : <View style={styles.indicatorPlaceholder} />}
+            {focused ? (
+              <View style={[styles.indicator, { backgroundColor: colors.gold }]} />
+            ) : (
+              <View style={styles.indicatorPlaceholder} />
+            )}
           </Pressable>
         );
       })}

@@ -99,7 +99,9 @@ function flagsOf(segment: SiddurSegment): string[] {
 
 function isAddedForToday(segment: SiddurSegment, section: SiddurSection): boolean {
   if (segment.when?.omerDay !== undefined) return true;
-  const sharedFlags = section.segments.map(flagsOf).reduce((shared, flags) => shared.filter((flag) => flags.includes(flag)));
+  const sharedFlags = section.segments
+    .map(flagsOf)
+    .reduce((shared, flags) => shared.filter((flag) => flags.includes(flag)));
   return flagsOf(segment).some((flag) => !sharedFlags.includes(flag));
 }
 
@@ -252,7 +254,9 @@ export default function SiddurScreen() {
   const windowDate = useMemo(() => requestedDate ?? new Date(), [requestedDate]);
   const mitzvahText = mitzvah && !mitzvah.isCustom ? mitzvahTextId(mitzvah.id) : null;
   const textId = mitzvahText ?? standalone;
-  const evening = mitzvahText ? SIDDUR_TEXTS[mitzvahText].evening : Boolean(standalone && STANDALONE_TEXTS[standalone].evening);
+  const evening = mitzvahText
+    ? SIDDUR_TEXTS[mitzvahText].evening
+    : Boolean(standalone && STANDALONE_TEXTS[standalone].evening);
   // A standalone text with no date follows the clock (`standaloneTextDay()`). Keyed by the day
   // number so the 30-second tick re-resolves the text only when the day turns.
   const now = useNow();
@@ -315,7 +319,9 @@ export default function SiddurScreen() {
   // always answers that one is on, so only native asks.
   useEffect(() => {
     if (Platform.OS === 'web') return undefined;
-    AccessibilityInfo.isScreenReaderEnabled().then(setScreenReader).catch(() => {});
+    AccessibilityInfo.isScreenReaderEnabled()
+      .then(setScreenReader)
+      .catch(() => {});
     const subscription = AccessibilityInfo.addEventListener('screenReaderChanged', setScreenReader);
     return () => subscription.remove();
   }, []);
@@ -361,8 +367,13 @@ export default function SiddurScreen() {
   const hebrewDateLabel = language === 'he' ? hebrewDay.renderGematriya() : hebrewDay.render('en');
   const occasions = HebcalService.getHolidays(hebrewDay.greg(), location, language);
   const dated = Boolean(requestedDate || standalone);
-  const subtitle = (dated ? [t(`nusach.${nusach}`), hebrewDateLabel, ...occasions] : [t(`nusach.${nusach}`)]).join(' · ');
-  const listExtraData = useMemo(() => ({ fontSize, language, colors, openedOptional }), [fontSize, language, colors, openedOptional]);
+  const subtitle = (dated ? [t(`nusach.${nusach}`), hebrewDateLabel, ...occasions] : [t(`nusach.${nusach}`)]).join(
+    ' · ',
+  );
+  const listExtraData = useMemo(
+    () => ({ fontSize, language, colors, openedOptional }),
+    [fontSize, language, colors, openedOptional],
+  );
   const titleOf = (section: SiddurSection) => (language === 'en' ? section.title.en : section.title.he);
   const labelOf = (label: PassageLabel) => (language === 'en' ? label.en : label.he);
   const labeledEdge = (language === 'he') === I18nManager.isRTL ? styles.labeledLeftEdge : styles.labeledRightEdge;
@@ -376,12 +387,23 @@ export default function SiddurScreen() {
     });
     return runs.flatMap((run) => {
       const views = run.segments.map((segment, offset) => (
-        <SegmentView key={run.start + offset} segment={segment} fontSize={fontSize} showEnglish={language === 'en'} color={color} />
+        <SegmentView
+          key={run.start + offset}
+          segment={segment}
+          fontSize={fontSize}
+          showEnglish={language === 'en'}
+          color={color}
+        />
       ));
       if (!run.added) return views;
       return [
-        <View key={`added#${run.start}`} style={[styles.addedToday, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}>
-          <Text style={[typography.micro, styles.addedTodayLabel, { color: colors.gold }]}>{t('siddur.addedToday')}</Text>
+        <View
+          key={`added#${run.start}`}
+          style={[styles.addedToday, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}
+        >
+          <Text style={[typography.micro, styles.addedTodayLabel, { color: colors.goldText }]}>
+            {t('siddur.addedToday')}
+          </Text>
           {views}
         </View>,
       ];
@@ -391,8 +413,13 @@ export default function SiddurScreen() {
     segmentBlocks(block.segments, 'minyan', block.start).flatMap((inner) =>
       inner.label
         ? [
-            <View key={`minyan#${inner.start}`} style={[styles.labeledBody, labeledEdge, { borderColor: colors.minyan }]}>
-              <Text style={[typography.captionBold, styles.minyanLabel, { color: colors.minyan }]}>{labelOf(inner.label)}</Text>
+            <View
+              key={`minyan#${inner.start}`}
+              style={[styles.labeledBody, labeledEdge, { borderColor: colors.minyan }]}
+            >
+              <Text style={[typography.captionBold, styles.minyanLabel, { color: colors.minyan }]}>
+                {labelOf(inner.label)}
+              </Text>
               {segmentViews(section, inner.segments, inner.start, colors.minyan)}
             </View>,
           ]
@@ -407,7 +434,9 @@ export default function SiddurScreen() {
         <View key={key}>
           <OptionalToggle label={labelOf(block.label)} expanded={expanded} onPress={() => toggleOptional(key)} />
           {expanded ? (
-            <View style={[styles.labeledBody, labeledEdge, { borderColor: colors.optional }]}>{minyanViews(section, block, colors.optional)}</View>
+            <View style={[styles.labeledBody, labeledEdge, { borderColor: colors.optional }]}>
+              {minyanViews(section, block, colors.optional)}
+            </View>
           ) : null}
         </View>,
       ];
@@ -557,7 +586,13 @@ export default function SiddurScreen() {
               {titleOf(currentSection)}
             </Text>
             <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-              <Path d="M6 9l6 6 6-6" stroke={colors.headerText} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+              <Path
+                d="M6 9l6 6 6-6"
+                stroke={colors.headerText}
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </Svg>
           </Pressable>
         ) : null}
@@ -586,7 +621,13 @@ export default function SiddurScreen() {
           renderItem={({ item: section }) => {
             const expanded = openedOptional.has(section.title.he);
             return (
-              <View style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}>
+              <View
+                style={[
+                  styles.card,
+                  { backgroundColor: colors.surface },
+                  shadowStyle(colors.shadow, shadowPresets.cardSoft),
+                ]}
+              >
                 {section.optional ? (
                   <>
                     <OptionalToggle
@@ -596,12 +637,16 @@ export default function SiddurScreen() {
                       onPress={() => toggleOptional(section.title.he)}
                     />
                     {expanded ? (
-                      <View style={[styles.labeledBody, labeledEdge, { borderColor: colors.optional }]}>{sectionBody(section)}</View>
+                      <View style={[styles.labeledBody, labeledEdge, { borderColor: colors.optional }]}>
+                        {sectionBody(section)}
+                      </View>
                     ) : null}
                   </>
                 ) : (
                   <>
-                    <Text style={[typography.heading, { color: colors.gold, marginBottom: 8 }]}>{titleOf(section)}</Text>
+                    <Text style={[typography.heading, { color: colors.goldText, marginBottom: 8 }]}>
+                      {titleOf(section)}
+                    </Text>
                     {sectionBody(section)}
                   </>
                 )}
@@ -612,12 +657,17 @@ export default function SiddurScreen() {
             <>
               {mitzvah ? (
                 done ? (
-                  <Text style={[typography.bodyBold, styles.doneText, { color: colors.safe }]}>{t('siddur.doneAlready')}</Text>
+                  <Text style={[typography.bodyBold, styles.doneText, { color: colors.safe }]}>
+                    {t('siddur.doneAlready')}
+                  </Text>
                 ) : (
                   <Pressable
                     onPress={() => finish(mitzvah.id)}
                     accessibilityRole="button"
-                    style={({ pressed }) => [styles.doneBtn, { backgroundColor: colors.gold, opacity: pressed ? 0.85 : 1 }]}
+                    style={({ pressed }) => [
+                      styles.doneBtn,
+                      { backgroundColor: colors.gold, opacity: pressed ? 0.85 : 1 },
+                    ]}
                   >
                     <Text style={[typography.heading, { color: colors.onGold }]}>{t('siddur.done')}</Text>
                   </Pressable>
@@ -627,9 +677,15 @@ export default function SiddurScreen() {
               {load.status === 'ready' && load.text.credits.length ? (
                 <View style={styles.credits}>
                   <Text style={[typography.captionBold, { color: colors.textSub }]}>{t('siddur.sources')}</Text>
-                  <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>{t('siddur.adapted')}</Text>
+                  <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
+                    {t('siddur.adapted')}
+                  </Text>
                   {load.text.credits.map((credit) => (
-                    <Pressable key={credit.title} onPress={() => Linking.openURL(credit.url).catch(() => {})} accessibilityRole="link">
+                    <Pressable
+                      key={credit.title}
+                      onPress={() => Linking.openURL(credit.url).catch(() => {})}
+                      accessibilityRole="link"
+                    >
                       <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>
                         {credit.title} · {credit.license}
                       </Text>
@@ -642,7 +698,12 @@ export default function SiddurScreen() {
         />
       )}
 
-      <Modal animationType="slide" transparent visible={pickerOpen && !quiet} onRequestClose={() => setPickerOpen(false)}>
+      <Modal
+        animationType="slide"
+        transparent
+        visible={pickerOpen && !quiet}
+        onRequestClose={() => setPickerOpen(false)}
+      >
         <View style={styles.modalBackdrop}>
           <Pressable
             style={StyleSheet.absoluteFill}
@@ -664,22 +725,34 @@ export default function SiddurScreen() {
                     }}
                     onLayout={
                       selected
-                        ? (event) => pickerRef.current?.scrollTo({ y: Math.max(0, event.nativeEvent.layout.y - 96), animated: false })
+                        ? (event) =>
+                            pickerRef.current?.scrollTo({
+                              y: Math.max(0, event.nativeEvent.layout.y - 96),
+                              animated: false,
+                            })
                         : undefined
                     }
                     accessibilityRole="button"
                     accessibilityState={{ selected }}
                     style={[
                       styles.sheetAction,
-                      { borderBottomColor: colors.border, backgroundColor: selected ? colors.goldLight : 'transparent' },
+                      {
+                        borderBottomColor: colors.border,
+                        backgroundColor: selected ? colors.goldLight : 'transparent',
+                      },
                     ]}
                   >
-                    <Text style={[typography.subheading, { color: selected ? colors.gold : colors.text }]}>{titleOf(section)}</Text>
+                    <Text style={[typography.subheading, { color: selected ? colors.gold : colors.text }]}>
+                      {titleOf(section)}
+                    </Text>
                   </Pressable>
                 );
               })}
             </ScrollView>
-            <Pressable onPress={() => setPickerOpen(false)} style={[styles.closeBtn, { backgroundColor: colors.surface2 }]}>
+            <Pressable
+              onPress={() => setPickerOpen(false)}
+              style={[styles.closeBtn, { backgroundColor: colors.surface2 }]}
+            >
               <Text style={[typography.bodyBold, { color: colors.textSub }]}>{t('common.close')}</Text>
             </Pressable>
           </View>
@@ -742,9 +815,16 @@ function OptionalToggle({
       onPress={onPress}
       accessibilityRole="button"
       aria-expanded={expanded}
-      style={({ pressed }) => [styles.optionalToggle, { backgroundColor: colors.optionalBg, opacity: pressed ? 0.75 : 1 }]}
+      style={({ pressed }) => [
+        styles.optionalToggle,
+        { backgroundColor: colors.optionalBg, opacity: pressed ? 0.75 : 1 },
+      ]}
     >
-      <Text style={[large ? typography.heading : typography.bodyBold, styles.optionalLabel, { color: colors.optional }]}>{label}</Text>
+      <Text
+        style={[large ? typography.heading : typography.bodyBold, styles.optionalLabel, { color: colors.optional }]}
+      >
+        {label}
+      </Text>
       <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
         <Path
           d={expanded ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}

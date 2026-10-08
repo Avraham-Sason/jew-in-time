@@ -1,4 +1,13 @@
-import { BedikaResult, CleanDay, CycleState, Onah, PauseReason, SafekReason, TaharahEvent, TaharahRules } from '@/types/taharah';
+import {
+  BedikaResult,
+  CleanDay,
+  CycleState,
+  Onah,
+  PauseReason,
+  SafekReason,
+  TaharahEvent,
+  TaharahRules,
+} from '@/types/taharah';
 import { Location } from '@/types/zmanim';
 import { currentOnah, nextTevilaNight, tevilaBlockedOnNight } from './onot';
 
@@ -138,7 +147,12 @@ function replay(events: readonly TaharahEvent[], rules: TaharahRules): Replay {
         break;
       case 'hefsek': {
         const context: HefsekContext = cycle
-          ? { hasCycle: true, tahor: cycle.tevilaDay !== null, earliest: earliestHefsekDay(cycle, rules), hefsekDay: cycle.hefsekDay }
+          ? {
+              hasCycle: true,
+              tahor: cycle.tevilaDay !== null,
+              earliest: earliestHefsekDay(cycle, rules),
+              hefsekDay: cycle.hefsekDay,
+            }
           : { hasCycle: false, tahor: false, earliest: null, hefsekDay: null };
         if (!cycle || judgeHefsek(context, event.day, event.result) !== 'accepted') break;
         cycle.hefsekDay = event.day;
@@ -235,7 +249,8 @@ export function deriveCycle(
   const settledByRuling = (day: CleanDay) => ruled !== null && day.day < ruled;
   if (cycle.safek === null) {
     if (today.abs > first.day && !hasBedika(first) && !settledByRuling(first)) cycle.safek = 'missedFirstDayBedika';
-    else if (today.abs > seventh.day && !hasBedika(seventh) && !settledByRuling(seventh)) cycle.safek = 'missedSeventhDayBedika';
+    else if (today.abs > seventh.day && !hasBedika(seventh) && !settledByRuling(seventh))
+      cycle.safek = 'missedSeventhDayBedika';
   }
   if (cycle.safek) return { ...base, stage: 'safek', safekReason: cycle.safek };
 
@@ -269,7 +284,11 @@ export function husbandTevilaNight(state: CycleState, today: Onah, location: Loc
 export function husbandTevilaOn(state: CycleState, nightAbs: number, location: Location): boolean {
   const estimate = state.tevilaEstimatedDay;
   if (estimate === null || state.tevilaDay !== null) return false;
-  return nightAbs >= estimate && nightAbs < estimate + HUSBAND_TEVILA_WINDOW_NIGHTS && !tevilaBlockedOnNight(nightAbs, location);
+  return (
+    nightAbs >= estimate &&
+    nightAbs < estimate + HUSBAND_TEVILA_WINDOW_NIGHTS &&
+    !tevilaBlockedOnNight(nightAbs, location)
+  );
 }
 
 export function cleanDayIndex(state: CycleState, abs: number): number | null {

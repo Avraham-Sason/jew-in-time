@@ -1,14 +1,14 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from './zustandMiddleware';
 import { createZustandStorage } from '@/services/StorageService';
-import { STORE_VERSION, onRehydrateStorage } from './persistOptions';
+import { STORE_VERSION, migrate, onRehydrateStorage } from './persistOptions';
 
 export type Completions = Record<string, Record<string, number>>;
 // A finished check-in per Shabbat / Yom Tov block, keyed by the block's first holy day.
 export type CheckIns = Record<string, number>;
 // Runs of consecutive days, [first, last] date keys, that had a completion when retention pruned
 // them. The detail is gone, but the streak still knows those days were kept.
-export type ArchivedDays = Array<[string, string]>;
+export type ArchivedDays = [string, string][];
 
 type CompletionsState = {
   completions: Completions;
@@ -32,21 +32,14 @@ export const RETENTION_DAYS = 400;
 // Returns the ORIGINAL map when nothing changes. The old version returned `{}` for a missing day,
 // which made every markDone write an empty `"YYYY-MM-DD": {}` bucket into the sibling map — pure
 // noise that still had to be serialised on every tap.
-function withoutMark(
-  source: Record<string, number> | undefined,
-  id: string,
-): Record<string, number> | undefined {
+function withoutMark(source: Record<string, number> | undefined, id: string): Record<string, number> | undefined {
   if (!source?.[id]) return source;
   const next = { ...source };
   delete next[id];
   return Object.keys(next).length ? next : undefined;
 }
 
-function setDay(
-  map: Completions,
-  key: string,
-  value: Record<string, number> | undefined,
-): Completions {
+function setDay(map: Completions, key: string, value: Record<string, number> | undefined): Completions {
   if (!value) {
     if (!(key in map)) return map;
     const next = { ...map };
@@ -82,13 +75,19 @@ function nextDayKey(key: string): string {
 }
 
 // Folds the days retention is about to drop into the archive's runs, merging touching runs.
-export function archiveMarkedDays(archive: ArchivedDays, completions: Completions, today: Date = new Date()): ArchivedDays {
+export function archiveMarkedDays(
+  archive: ArchivedDays,
+  completions: Completions,
+  today: Date = new Date(),
+): ArchivedDays {
   const cutoffKey = retentionCutoffKey(today);
   const dropped = Object.entries(completions)
     .filter(([key, value]) => key < cutoffKey && Object.keys(value).length)
     .map(([key]) => key);
   if (!dropped.length) return archive;
-  const runs = [...archive, ...dropped.map((key): [string, string] => [key, key])].sort((a, b) => a[0].localeCompare(b[0]));
+  const runs = [...archive, ...dropped.map((key): [string, string] => [key, key])].sort((a, b) =>
+    a[0].localeCompare(b[0]),
+  );
   const merged: ArchivedDays = [];
   for (const [first, last] of runs) {
     const previous = merged[merged.length - 1];
@@ -127,6 +126,7 @@ export const useCompletionsStore = create<CompletionsState>()(
         }));
         queueMicrotask(() => {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: the scheduler imports this store
             const { NotificationScheduler } = require('@/services/NotificationScheduler');
             NotificationScheduler.cancelForMitzvah(id, date).catch(() => {});
             NotificationScheduler.settleCheckIn(date).catch(() => {});
@@ -141,6 +141,7 @@ export const useCompletionsStore = create<CompletionsState>()(
         }));
         queueMicrotask(() => {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: the scheduler imports this store
             const { NotificationScheduler } = require('@/services/NotificationScheduler');
             NotificationScheduler.cancelForMitzvah(id, date).catch(() => {});
             NotificationScheduler.settleCheckIn(date).catch(() => {});
@@ -155,6 +156,7 @@ export const useCompletionsStore = create<CompletionsState>()(
         }));
         queueMicrotask(() => {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: the scheduler imports this store
             const { NotificationScheduler } = require('@/services/NotificationScheduler');
             NotificationScheduler.rebuild().catch(() => {});
           } catch {}
@@ -165,6 +167,7 @@ export const useCompletionsStore = create<CompletionsState>()(
         set((s) => ({ checkIns: { ...s.checkIns, [blockId]: Date.now() } }));
         queueMicrotask(() => {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: the scheduler imports this store
             const { NotificationScheduler } = require('@/services/NotificationScheduler');
             NotificationScheduler.cancelCheckIn(blockId).catch(() => {});
           } catch {}
@@ -196,6 +199,7 @@ export const useCompletionsStore = create<CompletionsState>()(
       name: 'completions-store',
       storage: createJSONStorage(() => createZustandStorage()),
       version: STORE_VERSION,
+      migrate,
       onRehydrateStorage: onRehydrateStorage('completions-store'),
       merge: (persisted: unknown, current: CompletionsState): CompletionsState => {
         const saved = persisted as Partial<CompletionsState> | undefined;

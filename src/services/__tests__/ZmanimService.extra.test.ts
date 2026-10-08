@@ -2,7 +2,14 @@ import { ZmanimService } from '../ZmanimService';
 import { zmanimFor } from '@/testing/zmanim';
 import { Location } from '@/types/zmanim';
 
-const JERUSALEM: Location = { name: 'JLM', lat: 31.7683, lng: 35.2137, tz: 'Asia/Jerusalem', inIsrael: true, elevation: 754 };
+const JERUSALEM: Location = {
+  name: 'JLM',
+  lat: 31.7683,
+  lng: 35.2137,
+  tz: 'Asia/Jerusalem',
+  inIsrael: true,
+  elevation: 754,
+};
 const TEL_AVIV: Location = { name: 'TLV', lat: 32.0853, lng: 34.7818, tz: 'Asia/Jerusalem', inIsrael: true };
 const NY: Location = { name: 'NY', lat: 40.7128, lng: -74.006, tz: 'America/New_York', inIsrael: false };
 const POLAR: Location = { name: 'Tromso', lat: 69.6492, lng: 18.9553, tz: 'Europe/Oslo', inIsrael: false };

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from './zustandMiddleware';
 import { createZustandStorage } from '@/services/StorageService';
-import { STORE_VERSION, onRehydrateStorage } from './persistOptions';
+import { STORE_VERSION, migrate, onRehydrateStorage } from './persistOptions';
 import { MITZVOT } from '@/data/mitzvot';
 import { Reminder } from '@/types/mitzvah';
 
@@ -17,6 +17,15 @@ function switchedTo(current: ActiveMitzvahState | undefined, enabled: boolean): 
   const turnedOn = enabled && !current?.enabled;
   return { ...(current ?? {}), enabled, ...(turnedOn ? { enabledAt: Date.now() } : {}) };
 }
+
+// A missing entry reads as switched off. One frozen object, because a zustand selector that returns a
+// fresh `{ enabled: false }` on every snapshot makes useSyncExternalStore re-render without end.
+export const INACTIVE: ActiveMitzvahState = Object.freeze({ enabled: false });
+
+export const selectActive =
+  (id: string) =>
+  (state: { activeMitzvot: Record<string, ActiveMitzvahState> }): ActiveMitzvahState =>
+    state.activeMitzvot[id] ?? INACTIVE;
 
 // The switch-on time of every mitzvah that has one, for the history and the check-in.
 export function enabledSinceOf(active: Record<string, ActiveMitzvahState>): Record<string, number> {
@@ -37,8 +46,9 @@ type MitzvotState = {
 };
 
 const DEFAULT_ACTIVE: Record<string, ActiveMitzvahState> = Object.fromEntries(
-  MITZVOT.filter((m) => ['tefillin', 'tzitzit', 'krias_shma_shacharit', 'shacharit', 'mincha', 'maariv'].includes(m.id))
-    .map((m) => [m.id, { enabled: true }]),
+  MITZVOT.filter((m) =>
+    ['tefillin', 'tzitzit', 'krias_shma_shacharit', 'shacharit', 'mincha', 'maariv'].includes(m.id),
+  ).map((m) => [m.id, { enabled: true }]),
 );
 
 for (const m of MITZVOT) {
@@ -92,6 +102,7 @@ export const useMitzvotStore = create<MitzvotState>()(
       name: 'mitzvot-store',
       storage: createJSONStorage(() => createZustandStorage()),
       version: STORE_VERSION,
+      migrate,
       onRehydrateStorage: onRehydrateStorage('mitzvot-store'),
       // A mitzvah shipped in a later release has no key in a persisted map, so `active[id]?.enabled`
       // is undefined forever and the mitzvah is invisible. Union the defaults back in on hydrate.

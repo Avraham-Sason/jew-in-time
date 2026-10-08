@@ -16,7 +16,7 @@
 - [NotificationScheduler.web.ts](NotificationScheduler.web.ts) owns web shim parity for scheduler exports.
 - [notificationResponseHandler.ts](notificationResponseHandler.ts) owns notification tap/action responses.
 - [SiddurService.ts](SiddurService.ts) owns loading a nusach text asset from disk (fetch on web), cached per nusach and text.
-- [CompletionService.ts](CompletionService.ts) and [AppResetService.ts](AppResetService.ts) own completion/reset service behavior.
+- [CompletionService.ts](CompletionService.ts) and [AppResetService.ts](AppResetService.ts) own completion/reset service behavior. `CompletionService` only forwards to the completions store: every scheduler call (cancel, settle, rebuild) is queued by the store action itself, so the service adds none of its own.
 - [deviceSettings.ts](deviceSettings.ts) owns OS-settings deep links (battery optimisation exemption).
 - [appUpdates.ts](appUpdates.ts) owns the version label settings shows (`appVersionLabel()`, `<version>-<n>` with `n` from `EXPO_PUBLIC_UPDATE_NUMBER`, see [../../scripts/publish-update.js](../../scripts/publish-update.js)) and the update helpers: `downloadNewUpdate()` returns the id of the update it downloaded, or null in development, with updates disabled or when nothing newer exists; `reloadIntoUpdate()` (never throws) serves home's reload banner and the tap handler; `isUpdateApplied({ updateId, updateCreatedAt })`, true when the running update is that update or a newer one (`Updates.createdAt` against the announced creation time), serves the tap handler and the scheduler's stale-notice check. expo-updates is already in the shipped binary, so all of it reaches installs over OTA.
 - Service tests live in [__tests__/](__tests__/).

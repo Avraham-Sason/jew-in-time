@@ -1,14 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  AppState,
-  Linking,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { AppState, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
@@ -18,7 +9,6 @@ import * as Updates from 'expo-updates';
 import { NavBar } from '@/components/NavBar';
 import { MitzvahCard } from '@/components/MitzvahCard';
 import { CompletedRow } from '@/components/CompletedRow';
-import { HebrewDate } from '@/components/HebrewDate';
 import { useNow } from '@/hooks/useNow';
 import { getLocationName } from '@/data/cities';
 import { MITZVOT } from '@/data/mitzvot';
@@ -72,7 +62,7 @@ const PROFILE_INTRO_KEY = 'profile:intro-dismissed';
 type Translate = (scope: string, options?: Record<string, unknown>) => string;
 type TaharahCardData = { title: string; caption: string; concealed: boolean };
 
-function formatRemaining(ms: number, language: 'he' | 'en'): string {
+function formatRemaining(ms: number): string {
   const totalMin = Math.max(0, Math.round(ms / 60000));
   if (totalMin >= 60) {
     const hours = Math.floor(totalMin / 60);
@@ -157,11 +147,25 @@ export default function HomeScreen() {
   const [introDismissed, setIntroDismissed] = useState(() => StorageService.get<boolean>(PROFILE_INTRO_KEY) === true);
   const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { current, missed, completed, nextUp, totalActive, doneCount, hebrewTitle, subtitle, zmanimUnavailable, checkIn, taharahCard } = useMemo(() => {
+  const {
+    current,
+    missed,
+    completed,
+    nextUp,
+    totalActive,
+    doneCount,
+    hebrewTitle,
+    subtitle,
+    zmanimUnavailable,
+    checkIn,
+    taharahCard,
+  } = useMemo(() => {
     const now = new Date();
     const ctx = buildContext(now);
     const hebrew = HebcalService.getHebrewDateAt(now, user.location);
-    const greg = DateTime.fromJSDate(now).setLocale(language).toFormat(language === 'he' ? 'cccc · d LLLL' : 'cccc · LLL d');
+    const greg = DateTime.fromJSDate(now)
+      .setLocale(language)
+      .toFormat(language === 'he' ? 'cccc · d LLLL' : 'cccc · LLL d');
     const parasha = HebcalService.getParasha(now, user.location);
     const subtitleText = [greg, getLocationName(user.location, language), parasha].filter(Boolean).join(' · ');
 
@@ -188,20 +192,26 @@ export default function HomeScreen() {
     const currentItems: LiveItem[] = [];
     const upcomingItems: LiveItem[] = [];
     const missedItems: LiveItem[] = [];
-    const completedItems = Object.entries(doneMap)
-      .filter(([mitzvahId]) => mitzvahId !== stampingId)
-      .map(([mitzvahId, ts]) => {
-        const mitzvah = allMitzvot.find((item) => item.id === mitzvahId);
-        if (!mitzvah) return null;
-        return {
-          id: mitzvahId,
-          name: language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he,
-          time: DateTime.fromMillis(ts).toFormat('HH:mm'),
-          timestamp: ts,
-        };
+    // Done and skipped share the list, so a skip is visible and has the same undo as a completion.
+    const completedItems = [
+      ...Object.entries(doneMap).map(([id, ts]) => ({ id, ts, wasSkipped: false })),
+      ...Object.entries(skippedMap).map(([id, ts]) => ({ id, ts, wasSkipped: true })),
+    ]
+      .filter(({ id }) => id !== stampingId)
+      .flatMap(({ id, ts, wasSkipped }) => {
+        const mitzvah = allMitzvot.find((item) => item.id === id);
+        if (!mitzvah) return [];
+        return [
+          {
+            id,
+            name: language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he,
+            time: wasSkipped ? t('state.skipped') : DateTime.fromMillis(ts).toFormat('HH:mm'),
+            timestamp: ts,
+            wasSkipped,
+          },
+        ];
       })
-      .filter(Boolean)
-      .sort((a, b) => (b?.timestamp ?? 0) - (a?.timestamp ?? 0)) as Array<{ id: string; name: string; time: string }>;
+      .sort((a, b) => b.timestamp - a.timestamp);
 
     // Counts what actually applies today: enabled, has a window, and not skipped for Shabbat/Yom
     // Tov. Using `enabled.length` made Shabbat read "5/6" with everything applicable done.
@@ -218,7 +228,7 @@ export default function HomeScreen() {
         mitzvah,
         window,
         pct: totalMs > 0 ? Math.max(0, Math.min(1, remainingMs / totalMs)) : 0,
-        timeLeft: formatRemaining(remainingMs, language),
+        timeLeft: formatRemaining(remainingMs),
         urgent: remainingMs <= 45 * 60 * 1000,
         name,
         hasText: hasSiddurText(mitzvah, nusach, now, place),
@@ -250,7 +260,7 @@ export default function HomeScreen() {
       completed: completedItems,
       nextUp: upcomingItems[0] ?? null,
       totalActive: applicable,
-      doneCount: completedItems.length,
+      doneCount: completedItems.filter((item) => !item.wasSkipped).length,
       hebrewTitle: hebrew.hebrewDateStr,
       subtitle: subtitleText,
       zmanimUnavailable: !ctx,
@@ -260,7 +270,29 @@ export default function HomeScreen() {
           ? taharahCardFor(taharahEvents, taharahSettings, user.location, now, language, t, taharahLockEnabled)
           : null,
     };
-  }, [activeMap, customMap, doneMap, skippedMap, completions, skipped, checkIns, language, t, user.location, tick, stampingId, nusach, inIsrael, taharahEnabled, taharahEvents, taharahSettings, taharahLockEnabled, quiet, tickedAt]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tick and tickedAt re-run the memo on purpose; it reads the clock itself
+  }, [
+    activeMap,
+    customMap,
+    doneMap,
+    skippedMap,
+    completions,
+    skipped,
+    checkIns,
+    language,
+    t,
+    user.location,
+    tick,
+    stampingId,
+    nusach,
+    inIsrael,
+    taharahEnabled,
+    taharahEvents,
+    taharahSettings,
+    taharahLockEnabled,
+    quiet,
+    tickedAt,
+  ]);
 
   // Persist first — the stamp is decoration. Deferring the write behind the 1.3s animation meant
   // leaving the screen mid-animation silently discarded the completion, and the `stampingId` gate
@@ -294,7 +326,9 @@ export default function HomeScreen() {
   };
 
   const openText = (item: LiveItem) =>
-    item.hasText ? () => router.push({ pathname: '/siddur/[id]', params: { id: item.mitzvah.id, date: todayKey } }) : undefined;
+    item.hasText
+      ? () => router.push({ pathname: '/siddur/[id]', params: { id: item.mitzvah.id, date: todayKey } })
+      : undefined;
 
   const openDetail = (id: string) => {
     if (id.startsWith('custom_')) {
@@ -351,18 +385,30 @@ export default function HomeScreen() {
         }
       />
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.topInfo}>
-          <HebrewDate location={user.location} showParasha />
-        </View>
-
         {zmanimUnavailable ? (
-          <Banner text={t('home.zmanimUnavailable')} color={colors.warning} background={`${colors.warning}18`} />
+          <Banner
+            text={t('home.zmanimUnavailable')}
+            color={colors.warning}
+            textColor={colors.text}
+            background={`${colors.warning}18`}
+          />
         ) : null}
         {user.locationStatus === 'missing' ? (
-          <Banner text={t('home.noLocation')} color={colors.warning} background={`${colors.warning}18`} />
+          <Banner
+            text={t('home.noLocation')}
+            color={colors.warning}
+            textColor={colors.text}
+            background={`${colors.warning}18`}
+            onPress={() => router.push('/(tabs)/settings')}
+          />
         ) : null}
         {user.locationStatus === 'timeout' ? (
-          <Banner text={t('home.gpsTimeout')} color={colors.warning} background={`${colors.warning}18`} />
+          <Banner
+            text={t('home.gpsTimeout')}
+            color={colors.warning}
+            textColor={colors.text}
+            background={`${colors.warning}18`}
+          />
         ) : null}
         {checkIn ? (
           <Banner
@@ -373,6 +419,7 @@ export default function HomeScreen() {
               }),
             })}
             color={colors.gold}
+            textColor={colors.goldText}
             background={colors.goldLight}
             onPress={() => router.push('/checkin')}
           />
@@ -389,6 +436,7 @@ export default function HomeScreen() {
           <Banner
             text={t('home.updateReady')}
             color={colors.safe}
+            textColor={colors.text}
             background={`${colors.safe}18`}
             onPress={() => reloadIntoUpdate()}
           />
@@ -397,6 +445,7 @@ export default function HomeScreen() {
           <Banner
             text={t('home.completeProfile')}
             color={colors.gold}
+            textColor={colors.goldText}
             background={colors.goldLight}
             onPress={openProfileIntro}
           />
@@ -435,7 +484,9 @@ export default function HomeScreen() {
             ]}
           >
             {taharahCard.concealed ? null : (
-              <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>{t('taharah.home.title')}</Text>
+              <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>
+                {t('taharah.home.title')}
+              </Text>
             )}
             <Text style={[typography.heading, { color: colors.text }]}>{taharahCard.title}</Text>
             {taharahCard.caption ? (
@@ -458,7 +509,7 @@ export default function HomeScreen() {
             <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>{t('home.nextUp')}</Text>
             <Text style={[typography.heading, { color: colors.text }]}>{nextUp.name}</Text>
             <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>
-              {DateTime.fromJSDate(nextUp.window.start).toFormat('HH:mm')} · {t('detail.timeRange', {
+              {t('detail.timeRange', {
                 start: DateTime.fromJSDate(nextUp.window.start).toFormat('HH:mm'),
                 end: DateTime.fromJSDate(nextUp.window.end).toFormat('HH:mm'),
               })}
@@ -501,9 +552,12 @@ export default function HomeScreen() {
               <Animated.View key={item.mitzvah.id} entering={FadeInDown.delay(index * 30).duration(260)}>
                 <MitzvahCard
                   name={item.name}
-                  timeLeft={item.timeLeft}
+                  timeLeft=""
                   pct={0}
                   urgent
+                  hideProgress
+                  statusText={t('home.passedAt', { time: clockOf(item.window.end) })}
+                  statusTone="urgent"
                   stamping={stampingId === item.mitzvah.id}
                   onComplete={() => complete(item.mitzvah.id)}
                   onOpenText={openText(item)}
@@ -535,7 +589,12 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <Modal animationType="slide" transparent visible={Boolean(selectedMitzvah) && !quiet} onRequestClose={() => setSelectedId(null)}>
+      <Modal
+        animationType="slide"
+        transparent
+        visible={Boolean(selectedMitzvah) && !quiet}
+        onRequestClose={() => setSelectedId(null)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[typography.heading, { color: colors.text, marginBottom: 10 }]}>{t('home.quick.title')}</Text>
@@ -555,15 +614,10 @@ export default function HomeScreen() {
                 skipToday(selectedId);
               }}
             />
-            <SheetAction
-              label={t('home.quick.edit')}
-              onPress={() => {
-                if (!selectedId) return;
-                setSelectedId(null);
-                openDetail(selectedId);
-              }}
-            />
-            <Pressable onPress={() => setSelectedId(null)} style={[styles.closeBtn, { backgroundColor: colors.surface2 }]}>
+            <Pressable
+              onPress={() => setSelectedId(null)}
+              style={[styles.closeBtn, { backgroundColor: colors.surface2 }]}
+            >
               <Text style={[typography.bodyBold, { color: colors.textSub }]}>{t('common.close')}</Text>
             </Pressable>
           </View>
@@ -576,15 +630,17 @@ export default function HomeScreen() {
 function Banner({
   text,
   color,
+  textColor = color,
   background,
   onPress,
 }: {
   text: string;
   color: string;
+  textColor?: string;
   background: string;
   onPress?: () => void;
 }) {
-  const content = <Text style={[typography.captionBold, { color }]}>{text}</Text>;
+  const content = <Text style={[typography.captionBold, { color: textColor }]}>{text}</Text>;
   if (onPress) {
     return (
       <Pressable
@@ -599,11 +655,7 @@ function Banner({
       </Pressable>
     );
   }
-  return (
-    <View style={[styles.banner, { backgroundColor: background, borderColor: color }]}>
-      {content}
-    </View>
-  );
+  return <View style={[styles.banner, { backgroundColor: background, borderColor: color }]}>{content}</View>;
 }
 
 function SectionLabel({ text }: { text: string }) {
@@ -627,10 +679,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 14,
     paddingBottom: 24,
-  },
-  topInfo: {
-    paddingTop: 6,
-    paddingBottom: 12,
   },
   counter: {
     borderRadius: 8,

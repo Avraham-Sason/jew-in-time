@@ -1,12 +1,24 @@
 import 'expo-dev-client';
+// eslint-disable-next-line import/no-duplicates -- must run before anything else; the named import below is the second use
 import 'react-native-gesture-handler';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, DevSettings, I18nManager, View, ActivityIndicator, Platform, Pressable, StyleSheet, Text } from 'react-native';
+import {
+  AppState,
+  DevSettings,
+  I18nManager,
+  View,
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+} from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+// eslint-disable-next-line import/no-duplicates
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   useFonts,

@@ -19,9 +19,7 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "מיקום נדרש לחישוב זמני הלכה מדויקים לפי האזור שלך.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "מיקום נדרש לחישוב זמני הלכה מדויקים ולרענון יומי של התראות.",
-        "UIBackgroundModes": [
-          "fetch"
-        ],
+        "UIBackgroundModes": ["fetch"],
         "ITSAppUsesNonExemptEncryption": false
       }
     },

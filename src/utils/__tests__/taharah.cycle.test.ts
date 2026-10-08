@@ -3,7 +3,15 @@ import { CITIES } from '@/data/cities';
 import { TAHARAH_PRESETS } from '@/data/taharahPresets';
 import { at } from '@/testing/zmanim';
 import { TaharahEvent, TaharahRules } from '@/types/taharah';
-import { earliestTevilaNight, hefsekOutcome, cleanDayIndex, deriveCycle, eventDay, onsetCountDay, sortedEvents } from '@/utils/taharah/cycle';
+import {
+  earliestTevilaNight,
+  hefsekOutcome,
+  cleanDayIndex,
+  deriveCycle,
+  eventDay,
+  onsetCountDay,
+  sortedEvents,
+} from '@/utils/taharah/cycle';
 
 const JERUSALEM = CITIES[0];
 const ASHKENAZ = TAHARAH_PRESETS.ashkenaz;
@@ -23,15 +31,27 @@ const onset = (abs = O, kind: 'night' | 'day' = 'day', doubtful?: boolean): Draf
   onah: { abs, kind },
   ...(doubtful === undefined ? {} : { doubtful }),
 });
-const hefsek = (day: number, result: 'clean' | 'notClean' | 'doubtful' = 'clean'): Draft<TaharahEvent> => ({ type: 'hefsek', day, result });
-const bedika = (day: number, slot: 'morning' | 'evening', result: 'clean' | 'notClean' | 'doubtful' = 'clean'): Draft<TaharahEvent> => ({
+const hefsek = (day: number, result: 'clean' | 'notClean' | 'doubtful' = 'clean'): Draft<TaharahEvent> => ({
+  type: 'hefsek',
+  day,
+  result,
+});
+const bedika = (
+  day: number,
+  slot: 'morning' | 'evening',
+  result: 'clean' | 'notClean' | 'doubtful' = 'clean',
+): Draft<TaharahEvent> => ({
   type: 'bedika',
   day,
   slot,
   result,
 });
 const tevila = (day: number): Draft<TaharahEvent> => ({ type: 'tevila', day });
-const ruling = (day: number, decision: 'continue' | 'restart'): Draft<TaharahEvent> => ({ type: 'ruling', day, decision });
+const ruling = (day: number, decision: 'continue' | 'restart'): Draft<TaharahEvent> => ({
+  type: 'ruling',
+  day,
+  decision,
+});
 
 const state = (events: TaharahEvent[], now: string, rules: TaharahRules = ASHKENAZ) =>
   deriveCycle(events, rules, JERUSALEM, at(JERUSALEM, now));
@@ -140,13 +160,19 @@ describe('deriveCycle', () => {
     });
 
     it('continues the count when the rav rules to continue', () => {
-      const result = state(log(onset(), hefsek(O + 4), bedika(O + 6, 'morning', 'doubtful'), ruling(O + 6, 'continue')), '2026-10-26T12:00');
+      const result = state(
+        log(onset(), hefsek(O + 4), bedika(O + 6, 'morning', 'doubtful'), ruling(O + 6, 'continue')),
+        '2026-10-26T12:00',
+      );
       expect(result.stage).toBe('shivaNekiim');
       expect(result.safekReason).toBeNull();
     });
 
     it('restarts the count when the rav rules to restart', () => {
-      const result = state(log(onset(), hefsek(O + 4), bedika(O + 6, 'morning', 'doubtful'), ruling(O + 6, 'restart')), '2026-10-26T12:00');
+      const result = state(
+        log(onset(), hefsek(O + 4), bedika(O + 6, 'morning', 'doubtful'), ruling(O + 6, 'restart')),
+        '2026-10-26T12:00',
+      );
       expect(result.stage).toBe('awaitingHefsek');
       expect(result.hefsekEarliestDay).toBeNull();
       expect(result.hefsekDay).toBeNull();
@@ -159,7 +185,9 @@ describe('deriveCycle', () => {
     });
 
     it('does not hold the cycle when the first day had its bedika', () => {
-      expect(state(log(onset(), hefsek(O + 4), bedika(O + 5, 'morning')), '2026-10-26T12:00').stage).toBe('shivaNekiim');
+      expect(state(log(onset(), hefsek(O + 4), bedika(O + 5, 'morning')), '2026-10-26T12:00').stage).toBe(
+        'shivaNekiim',
+      );
     });
 
     it('does not hold the cycle while the first day is still running', () => {
@@ -267,7 +295,13 @@ describe('deriveCycle', () => {
     });
 
     it('derives the same state whatever order the events arrive in', () => {
-      const events = log(onset(), hefsek(O + 4), bedika(O + 5, 'morning'), bedika(O + 7, 'evening', 'notClean'), hefsek(O + 7));
+      const events = log(
+        onset(),
+        hefsek(O + 4),
+        bedika(O + 5, 'morning'),
+        bedika(O + 7, 'evening', 'notClean'),
+        hefsek(O + 7),
+      );
       const expected = state(events, '2026-10-28T12:00');
       expect(expected.stage).toBe('shivaNekiim');
       expect(state([...events].reverse(), '2026-10-28T12:00')).toEqual(expected);
@@ -325,17 +359,25 @@ describe('deriveCycle', () => {
   });
 
   describe('hefsekOutcome', () => {
-    const outcome = (events: TaharahEvent[], now: string, day: number, result: 'clean' | 'notClean' | 'doubtful' = 'clean') =>
-      hefsekOutcome(state(events, now), day, result);
+    const outcome = (
+      events: TaharahEvent[],
+      now: string,
+      day: number,
+      result: 'clean' | 'notClean' | 'doubtful' = 'clean',
+    ) => hefsekOutcome(state(events, now), day, result);
 
     it('names why a hefsek would be ignored, exactly as the replay ignores it', () => {
       expect(outcome([], '2026-10-22T12:00', O + 4)).toBe('noCycle');
-      expect(outcome(log(onset(), { type: 'pause', day: O + 1, reason: 'pregnancy' }), '2026-10-22T12:00', O + 4)).toBe('noCycle');
+      expect(outcome(log(onset(), { type: 'pause', day: O + 1, reason: 'pregnancy' }), '2026-10-22T12:00', O + 4)).toBe(
+        'noCycle',
+      );
       expect(outcome(log(onset()), '2026-10-22T12:00', O + 3)).toBe('tooEarly');
       expect(outcome(log(onset()), '2026-10-22T12:00', O + 4, 'notClean')).toBe('notClean');
       expect(outcome(log(onset()), '2026-10-22T12:00', O + 4)).toBe('accepted');
       expect(outcome(log(onset(), hefsek(O + 4)), '2026-10-26T12:00', O + 6)).toBe('restartsCount');
-      expect(outcome(log(onset(), hefsek(O + 4), bedika(O + 5, 'morning', 'notClean')), '2026-10-26T12:00', O + 6)).toBe('accepted');
+      expect(
+        outcome(log(onset(), hefsek(O + 4), bedika(O + 5, 'morning', 'notClean')), '2026-10-26T12:00', O + 6),
+      ).toBe('accepted');
       expect(outcome(log(onset(), tevila(O + 12)), '2026-11-05T12:00', O + 14)).toBe('tahor');
     });
 

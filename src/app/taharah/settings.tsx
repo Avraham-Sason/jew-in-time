@@ -60,6 +60,7 @@ export default function TaharahSettingsScreen() {
         <Pressable
           onPress={close}
           accessibilityRole="button"
+          hitSlop={10}
           style={[styles.backBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
         >
           <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
@@ -74,7 +75,9 @@ export default function TaharahSettingsScreen() {
             onSelect={store.setPreset}
             renderLabel={(value) => t(`taharah.preset.${value}`)}
           />
-          <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>{t('taharah.settings.rulesHint')}</Text>
+          <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>
+            {t('taharah.settings.rulesHint')}
+          </Text>
           <Field label={t('taharah.rule.hefsekEarliestDay')}>
             <ChipRow
               values={HEFSEK_DAYS}
@@ -130,7 +133,9 @@ export default function TaharahSettingsScreen() {
             renderLabel={(value) => t(`taharah.role.${value}`)}
           />
           {store.settings.role === 'husband' ? (
-            <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>{t('taharah.husband.hint')}</Text>
+            <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>
+              {t('taharah.husband.hint')}
+            </Text>
           ) : null}
         </SettingsSection>
 
@@ -176,7 +181,12 @@ export default function TaharahSettingsScreen() {
         </Pressable>
       </ScrollView>
 
-      <Modal animationType="fade" transparent visible={deleteVisible && !quiet} onRequestClose={() => setDeleteVisible(false)}>
+      <Modal
+        animationType="fade"
+        transparent
+        visible={deleteVisible && !quiet}
+        onRequestClose={() => setDeleteVisible(false)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[typography.heading, { color: colors.text, marginBottom: 8 }]}>
@@ -198,7 +208,9 @@ export default function TaharahSettingsScreen() {
                 accessibilityRole="button"
                 style={[styles.modalBtn, { backgroundColor: colors.urgent }]}
               >
-                <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('taharah.settings.deleteAction')}</Text>
+                <Text style={[typography.bodyBold, { color: colors.onGold }]}>
+                  {t('taharah.settings.deleteAction')}
+                </Text>
               </Pressable>
             </View>
           </View>

@@ -38,7 +38,9 @@ export default function ProfileScreen() {
           />
         ))}
 
-        <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 10 }]}>{t('profile.maritalStatus')}</Text>
+        <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 10 }]}>
+          {t('profile.maritalStatus')}
+        </Text>
         {MARITAL_STATUSES.map((option) => (
           <ChoiceRow
             key={option}
@@ -57,7 +59,9 @@ export default function ProfileScreen() {
               {t(gender === 'female' ? 'taharah.optIn.woman.body' : 'taharah.optIn.husband.body')}
             </Text>
             <View style={styles.switchRow}>
-              <Text style={[typography.bodyBold, styles.switchLabel, { color: colors.text }]}>{t('taharah.optIn.toggle')}</Text>
+              <Text style={[typography.bodyBold, styles.switchLabel, { color: colors.text }]}>
+                {t('taharah.optIn.toggle')}
+              </Text>
               <Switch
                 value={taharahEnabled}
                 onValueChange={setTaharahTracking}
@@ -65,7 +69,9 @@ export default function ProfileScreen() {
                 trackColor={{ false: colors.border, true: colors.gold }}
               />
             </View>
-            <Text style={[typography.small, { color: colors.textMuted, marginTop: 10 }]}>{t('taharah.disclaimer')}</Text>
+            <Text style={[typography.small, { color: colors.textMuted, marginTop: 10 }]}>
+              {t('taharah.disclaimer')}
+            </Text>
           </View>
         ) : null}
       </ScrollView>

@@ -24,7 +24,7 @@ export function ChoiceRow({ label, selected, onPress }: Props) {
         },
       ]}
     >
-      <Text style={[typography.bodyBold, { color: selected ? colors.gold : colors.text }]}>{label}</Text>
+      <Text style={[typography.bodyBold, { color: selected ? colors.goldText : colors.text }]}>{label}</Text>
       {selected ? (
         <View style={[styles.tick, { backgroundColor: colors.gold }]}>
           <Text style={[typography.micro, { color: colors.onGold }]}>✓</Text>

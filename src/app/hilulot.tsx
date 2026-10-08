@@ -45,7 +45,10 @@ export default function HilulotScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
           hitSlop={10}
-          style={({ pressed }) => [styles.backBtn, { backgroundColor: pressed ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)' }]}
+          style={({ pressed }) => [
+            styles.backBtn,
+            { backgroundColor: pressed ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)' },
+          ]}
         >
           <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
             <Path
@@ -64,7 +67,9 @@ export default function HilulotScreen() {
       <ScrollView contentContainerStyle={styles.list}>
         <SettingsSection title={t('hilulot.notifications')}>
           <View style={styles.switchRow}>
-            <Text style={[typography.small, styles.switchHint, { color: colors.textMuted }]}>{t('hilulot.notificationsHint')}</Text>
+            <Text style={[typography.small, styles.switchHint, { color: colors.textMuted }]}>
+              {t('hilulot.notificationsHint')}
+            </Text>
             <Switch
               value={enabled}
               onValueChange={setEnabled}
@@ -74,7 +79,9 @@ export default function HilulotScreen() {
             />
           </View>
         </SettingsSection>
-        <Text style={[typography.captionBold, styles.groupLabel, { color: colors.textSub }]}>{t('hilulot.upcoming')}</Text>
+        <Text style={[typography.captionBold, styles.groupLabel, { color: colors.textSub }]}>
+          {t('hilulot.upcoming')}
+        </Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {upcoming.map(({ hilula, day }) => (
             <View key={hilula.id} style={[styles.row, { borderBottomColor: colors.border }]}>
@@ -82,14 +89,16 @@ export default function HilulotScreen() {
                 <Text style={{ fontSize: 17, color: colors.gold }}>✦</Text>
               </View>
               <View style={styles.rowMeta}>
-                <Text style={[typography.bodyBold, { color: colors.text }]}>{language === 'en' ? hilula.name.en : hilula.name.he}</Text>
+                <Text style={[typography.bodyBold, { color: colors.text }]}>
+                  {language === 'en' ? hilula.name.en : hilula.name.he}
+                </Text>
                 <Text style={[typography.small, { color: colors.textMuted, marginTop: 2 }]}>
                   {hilulaDateLabel(day, locale)}
                   {' · '}
                   {DateTime.fromJSDate(day.greg()).setLocale(locale).toFormat('ccc d.M')}
                 </Text>
               </View>
-              <Text style={[typography.captionBold, { color: colors.gold }]}>{whenLabel(day.abs())}</Text>
+              <Text style={[typography.captionBold, { color: colors.goldText }]}>{whenLabel(day.abs())}</Text>
             </View>
           ))}
         </View>

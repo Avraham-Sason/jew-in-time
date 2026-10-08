@@ -12,11 +12,15 @@ describe('nextUpdateNumber', () => {
   });
 
   it('follows the highest number once updates carry one', () => {
-    expect(nextUpdateNumber([listed('1.0.16-6: fix'), listed('1.0.16-5: siddur'), ...['a', 'b', 'c', 'd'].map(listed)])).toBe(7);
+    expect(
+      nextUpdateNumber([listed('1.0.16-6: fix'), listed('1.0.16-5: siddur'), ...['a', 'b', 'c', 'd'].map(listed)]),
+    ).toBe(7);
   });
 
   it('does not skip a number for a republished update, which keeps an older number or none', () => {
-    expect(nextUpdateNumber([listed('Republish "1.0.16-5: siddur"'), listed('1.0.16-6: fix'), listed('1.0.16-5: siddur')])).toBe(7);
+    expect(
+      nextUpdateNumber([listed('Republish "1.0.16-5: siddur"'), listed('1.0.16-6: fix'), listed('1.0.16-5: siddur')]),
+    ).toBe(7);
   });
 
   it('reads the number whether or not the CLI wraps the message in quotes', () => {

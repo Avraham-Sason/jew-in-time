@@ -12,7 +12,7 @@ import {
   SiddurText,
 } from '@/types/siddur';
 
-const SHEHECHEYANU_DAYS: ReadonlyArray<readonly [month: number, day: number]> = [
+const SHEHECHEYANU_DAYS: readonly (readonly [month: number, day: number])[] = [
   [months.TISHREI, 1],
   [months.TISHREI, 2],
   [months.TISHREI, 10],
@@ -21,13 +21,13 @@ const SHEHECHEYANU_DAYS: ReadonlyArray<readonly [month: number, day: number]> = 
   [months.NISAN, 15],
   [months.SIVAN, 6],
 ];
-const DIASPORA_SHEHECHEYANU_DAYS: ReadonlyArray<readonly [month: number, day: number]> = [
+const DIASPORA_SHEHECHEYANU_DAYS: readonly (readonly [month: number, day: number])[] = [
   [months.TISHREI, 16],
   [months.TISHREI, 23],
   [months.NISAN, 16],
   [months.SIVAN, 7],
 ];
-const NAMED_FASTS: ReadonlyArray<readonly [desc: string, flag: DayFlag]> = [
+const NAMED_FASTS: readonly (readonly [desc: string, flag: DayFlag])[] = [
   ['Tzom Gedaliah', 'tzomGedaliah'],
   ["Asara B'Tevet", 'asaraBTevet'],
   ["Ta'anit Esther", 'taanitEsther'],
@@ -38,7 +38,7 @@ const WEEKDAYS: readonly DayFlag[] = ['sunday', 'monday', 'tuesday', 'wednesday'
 const DISPUTED_HALLEL_DAYS = ["Yom HaAtzma'ut", 'Yom Yerushalayim'];
 const SUKKOT_OFFERING_DAYS = [2, 3, 4, 5, 6, 7] as const;
 
-function isOneOf(hd: HDate, days: ReadonlyArray<readonly [number, number]>): boolean {
+function isOneOf(hd: HDate, days: readonly (readonly [number, number])[]): boolean {
   return days.some(([month, day]) => hd.getMonth() === month && hd.getDate() === day);
 }
 
@@ -69,7 +69,9 @@ function observances(hd: HDate, inIsrael: boolean) {
     const mask = event.getFlags();
     return Boolean(mask & hebcalFlags.CHAG) && !(mask & hebcalFlags.CHOL_HAMOED) && event.getDesc() !== 'Yom Kippur';
   });
-  const cholHamoed = events.filter((event) => event.getFlags() & hebcalFlags.CHOL_HAMOED).map((event) => event.getDesc());
+  const cholHamoed = events
+    .filter((event) => event.getFlags() & hebcalFlags.CHOL_HAMOED)
+    .map((event) => event.getDesc());
   return { descs, yomKippur, yomTov, cholHamoed, shabbat: hd.getDay() === 6 };
 }
 
@@ -106,18 +108,33 @@ export function dayFeatures(hd: HDate, place: Place): DayFeatures {
   add('shabbat', today.shabbat);
   add('yomTov', today.yomTov);
   add('yomKippur', today.yomKippur);
-  add('tishaBav', today.descs.some((desc) => desc.startsWith("Tish'a B'Av")));
+  add(
+    'tishaBav',
+    today.descs.some((desc) => desc.startsWith("Tish'a B'Av")),
+  );
   add('shehecheyanu', isOneOf(hd, SHEHECHEYANU_DAYS) || (!place.inIsrael && isOneOf(hd, DIASPORA_SHEHECHEYANU_DAYS)));
-  add('roshChodesh', today.descs.some((desc) => desc.startsWith('Rosh Chodesh')));
-  add('cholHamoedPesach', today.cholHamoed.some((desc) => desc.startsWith('Pesach')));
-  add('cholHamoedSukkot', today.cholHamoed.some((desc) => desc.startsWith('Sukkot')));
+  add(
+    'roshChodesh',
+    today.descs.some((desc) => desc.startsWith('Rosh Chodesh')),
+  );
+  add(
+    'cholHamoedPesach',
+    today.cholHamoed.some((desc) => desc.startsWith('Pesach')),
+  );
+  add(
+    'cholHamoedSukkot',
+    today.cholHamoed.some((desc) => desc.startsWith('Sukkot')),
+  );
   add('inIsrael', place.inIsrael);
   add('omer', omerDayOf(hd) !== null);
   add('winter', within(hd, new HDate(22, months.TISHREI, year), new HDate(14, months.NISAN, year)));
   add('talUmatar', within(hd, rainRequestStart(year, place.inIsrael), new HDate(14, months.NISAN, year)));
   add('aseretYemeiTeshuva', month === months.TISHREI && date <= 10);
   add('erevYomKippur', month === months.TISHREI && date === 9);
-  add('ledavidSeason', month === months.ELUL || (month === months.AV && date === 30) || (month === months.TISHREI && date <= 21));
+  add(
+    'ledavidSeason',
+    month === months.ELUL || (month === months.AV && date === 30) || (month === months.TISHREI && date <= 21),
+  );
   add('chanukah', isChanukah(hd));
   add('chanukahFirstNight', month === months.KISLEV && date === 25);
   add('kiddushLevana', date >= 3 && date <= 15);
@@ -125,14 +142,20 @@ export function dayFeatures(hd: HDate, place: Place): DayFeatures {
   add('purim', today.descs.includes(purimName(place)));
   add('purimOrShushan', today.descs.includes('Purim') || today.descs.includes('Shushan Purim'));
   add('purimKatan', today.descs.includes('Purim Katan') || today.descs.includes('Shushan Purim Katan'));
-  add('publicFast', today.descs.some((desc) => PUBLIC_FASTS.some((fast) => desc.startsWith(fast))));
+  add(
+    'publicFast',
+    today.descs.some((desc) => PUBLIC_FASTS.some((fast) => desc.startsWith(fast))),
+  );
   for (const [desc, flag] of NAMED_FASTS) add(flag, today.descs.includes(desc));
   add('dayAfterYomKippur', month === months.TISHREI && date === 11);
   add('hoshanaRabba', month === months.TISHREI && date === 21);
   add('erevPesach', month === months.NISAN && date === 14);
   add('musaf', flagged('roshChodesh', 'cholHamoedPesach', 'cholHamoedSukkot'));
   add('torahReading', flagged('monday', 'thursday', 'musaf', 'chanukah', 'purim', 'publicFast'));
-  add('ulechaparatPesha', HDate.isLeapYear(year) && (month >= months.CHESHVAN || (month === months.TISHREI && date === 30)));
+  add(
+    'ulechaparatPesha',
+    HDate.isLeapYear(year) && (month >= months.CHESHVAN || (month === months.TISHREI && date === 30)),
+  );
 
   const hallel = HebrewCalendar.hallel(hd, place.inIsrael);
   const disputedHallel = today.descs.some((desc) => DISPUTED_HALLEL_DAYS.includes(desc));
@@ -157,8 +180,14 @@ export function dayFeatures(hd: HDate, place: Place): DayFeatures {
   // but only when today carries no insert of the same kind of its own.
   const noYaalehVeyavoToday = !flagged('roshChodesh', 'cholHamoedPesach', 'cholHamoedSukkot');
   add('roshChodeshYesterday', noYaalehVeyavoToday && yesterday.descs.some((desc) => desc.startsWith('Rosh Chodesh')));
-  add('cholHamoedPesachYesterday', noYaalehVeyavoToday && yesterday.cholHamoed.some((desc) => desc.startsWith('Pesach')));
-  add('cholHamoedSukkotYesterday', noYaalehVeyavoToday && yesterday.cholHamoed.some((desc) => desc.startsWith('Sukkot')));
+  add(
+    'cholHamoedPesachYesterday',
+    noYaalehVeyavoToday && yesterday.cholHamoed.some((desc) => desc.startsWith('Pesach')),
+  );
+  add(
+    'cholHamoedSukkotYesterday',
+    noYaalehVeyavoToday && yesterday.cholHamoed.some((desc) => desc.startsWith('Sukkot')),
+  );
   const noAlHanissimToday = !flagged('chanukah', 'purim');
   add('chanukahYesterday', noAlHanissimToday && isChanukah(hd.prev()));
   add('purimYesterday', noAlHanissimToday && yesterday.descs.includes(purimName(place)));

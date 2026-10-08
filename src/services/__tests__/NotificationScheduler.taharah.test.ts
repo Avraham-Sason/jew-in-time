@@ -19,7 +19,7 @@ type ScheduleInput = {
 
 const mockState: {
   pending: ScheduleInput[];
-  presented: Array<{ request: { identifier: string; content: { data?: Record<string, unknown> } } }>;
+  presented: { request: { identifier: string; content: { data?: Record<string, unknown> } } }[];
 } = { pending: [], presented: [] };
 const mockSchedule = jest.fn(async (input: ScheduleInput) => {
   mockState.pending = mockState.pending.filter((p) => p.identifier !== input.identifier);
@@ -223,7 +223,9 @@ describe('NotificationScheduler taharah reminders', () => {
       expect(triggerOf(merged)).toBe(minutes(block.start, -10));
       expect(merged.content.body).toBe(t('taharah.notify.title.hefsek'));
       expect(pendingOf(`taharah:hefsek:${absOn('2026-11-15')}`)).toBeDefined();
-      expect(taharahPending().filter((p) => triggerOf(p) > block.start.getTime() && triggerOf(p) < block.end.getTime())).toEqual([]);
+      expect(
+        taharahPending().filter((p) => triggerOf(p) > block.start.getTime() && triggerOf(p) < block.end.getTime()),
+      ).toEqual([]);
     });
 
     it('4b keeps the lead when the reminder still falls before candle lighting', async () => {
@@ -251,7 +253,11 @@ describe('NotificationScheduler taharah reminders', () => {
       expect(evening.content.categoryIdentifier).toBe(TAHARAH_BEDIKA_CATEGORY);
       expect(morning.content.data).toEqual({ kind: TAHARAH_KIND, taharah: { task: 'bedikaMorning', day: today } });
       expect(mockSetCategory).toHaveBeenCalledWith(TAHARAH_BEDIKA_CATEGORY, [
-        { identifier: MARK_DONE_ACTION, buttonTitle: t('taharah.notify.markDone'), options: { opensAppToForeground: false } },
+        {
+          identifier: MARK_DONE_ACTION,
+          buttonTitle: t('taharah.notify.markDone'),
+          options: { opensAppToForeground: false },
+        },
       ]);
 
       useTaharahStore.getState().addEvent(bedika('2026-11-11', 'morning'));
@@ -331,7 +337,9 @@ describe('NotificationScheduler taharah reminders', () => {
 
       const prep = pendingOf(`taharah:tevilaPrep:${absOn('2026-11-14')}`)!;
       expect(prep.content.title).toBe(t('taharah.notify.discreetTitle'));
-      expect(prep.content.body).toBe(t('taharah.notify.discreet.untilBody', { time: clock(blockOn('2026-11-14').start) }));
+      expect(prep.content.body).toBe(
+        t('taharah.notify.discreet.untilBody', { time: clock(blockOn('2026-11-14').start) }),
+      );
     });
   });
 
@@ -398,14 +406,20 @@ describe('NotificationScheduler taharah reminders', () => {
       expect(perisha.content.body).toBe(
         t('taharah.notify.body.perisha', { reasons: t('taharah.reason.onahBeinonit'), time: clock(shkia) }),
       );
-      expect(perisha.content.data).toEqual({ kind: TAHARAH_KIND, taharah: { task: 'perisha', day: today, onah: 'day' } });
+      expect(perisha.content.data).toEqual({
+        kind: TAHARAH_KIND,
+        taharah: { task: 'perisha', day: today, onah: 'day' },
+      });
       expect(perisha.content.categoryIdentifier).toBeUndefined();
 
       const veset = pendingOf(`taharah:bedikaVeset:${today}:day`)!;
       expect(triggerOf(veset)).toBe(minutes(shkia, -60));
       expect(veset.content.title).toBe(t('taharah.notify.title.bedikaVeset'));
       expect(veset.content.body).toBe(t('taharah.notify.body.bedikaVeset', { time: clock(shkia) }));
-      expect(veset.content.data).toEqual({ kind: TAHARAH_KIND, taharah: { task: 'bedikaVeset', day: today, onah: 'day' } });
+      expect(veset.content.data).toEqual({
+        kind: TAHARAH_KIND,
+        taharah: { task: 'bedikaVeset', day: today, onah: 'day' },
+      });
     });
 
     it('7e defers a perisha night that opens at motzaei Shabbat shkia to the block end instead of pulling it before Shabbat', async () => {
@@ -415,7 +429,12 @@ describe('NotificationScheduler taharah reminders', () => {
         { type: 'onset', onah: { abs: N - 29 - 28, kind: 'night' } },
         { type: 'onset', onah: { abs: N - 29, kind: 'night' } },
         { type: 'hefsek', day: N - 25, result: 'clean' },
-        ...[24, 23, 22, 21, 20, 19, 18].map((back): TaharahEventInput => ({ type: 'bedika', day: N - back, slot: 'morning', result: 'clean' })),
+        ...[24, 23, 22, 21, 20, 19, 18].map((back): TaharahEventInput => ({
+          type: 'bedika',
+          day: N - back,
+          slot: 'morning',
+          result: 'clean',
+        })),
         { type: 'tevila', day: N - 17 },
       );
       await NotificationScheduler.rebuild();
@@ -424,8 +443,12 @@ describe('NotificationScheduler taharah reminders', () => {
       const night = pendingOf(`taharah:perisha:${N}:night`)!;
       expect(night).toBeDefined();
       expect(triggerOf(night)).toBe(block.end.getTime());
-      expect(pendingOf('taharah:preBlock:2026-11-14')?.content.body ?? '').not.toContain(t('taharah.notify.title.perisha'));
-      expect(taharahPending().filter((p) => triggerOf(p) > block.start.getTime() && triggerOf(p) < block.end.getTime())).toEqual([]);
+      expect(pendingOf('taharah:preBlock:2026-11-14')?.content.body ?? '').not.toContain(
+        t('taharah.notify.title.perisha'),
+      );
+      expect(
+        taharahPending().filter((p) => triggerOf(p) > block.start.getTime() && triggerOf(p) < block.end.getTime()),
+      ).toEqual([]);
     });
 
     it('7b asks for no bedika on an onah that is only a haflaga', async () => {
@@ -497,8 +520,14 @@ ${t('taharah.disputed')}`,
 
   describe('marking from the notification', () => {
     const today = () => absOn('2026-11-11');
-    const morning = (): PendingNotificationMeta => ({ kind: TAHARAH_KIND, taharah: { task: 'bedikaMorning', day: today() } });
-    const evening = (): PendingNotificationMeta => ({ kind: TAHARAH_KIND, taharah: { task: 'bedikaEvening', day: today() } });
+    const morning = (): PendingNotificationMeta => ({
+      kind: TAHARAH_KIND,
+      taharah: { task: 'bedikaMorning', day: today() },
+    });
+    const evening = (): PendingNotificationMeta => ({
+      kind: TAHARAH_KIND,
+      taharah: { task: 'bedikaEvening', day: today() },
+    });
 
     it('9 records a clean bedika and settles the notification', async () => {
       record(...SHIVA_NEKIIM);
@@ -511,7 +540,12 @@ ${t('taharah.disputed')}`,
       expect(handled).toBe(true);
       const { events } = useTaharahStore.getState();
       expect(events).toHaveLength(eventsBefore + 1);
-      expect(events[events.length - 1]).toMatchObject({ type: 'bedika', day: today(), slot: 'morning', result: 'clean' });
+      expect(events[events.length - 1]).toMatchObject({
+        type: 'bedika',
+        day: today(),
+        slot: 'morning',
+        result: 'clean',
+      });
       expect(mockDismiss).toHaveBeenCalledWith(`taharah:bedikaMorning:${today()}`);
       expect(shouldSuppressForCompletion(morning())).toBe(true);
       expect(shouldSuppressForCompletion(evening())).toBe(false);
@@ -538,8 +572,19 @@ ${t('taharah.disputed')}`,
       record({ type: 'onset', onah: { abs: O, kind: 'day' } });
       const count = useTaharahStore.getState().events.length;
 
-      for (const task of ['hefsek', 'tevila', 'tevilaPrep', 'perisha', 'bedikaVeset', 'expectOnset', 'postBlock', 'preBlock'] as const) {
-        expect(await markDoneFromNotificationData({ kind: TAHARAH_KIND, taharah: { task, day: O + 4 } }, 'x')).toBe(false);
+      for (const task of [
+        'hefsek',
+        'tevila',
+        'tevilaPrep',
+        'perisha',
+        'bedikaVeset',
+        'expectOnset',
+        'postBlock',
+        'preBlock',
+      ] as const) {
+        expect(await markDoneFromNotificationData({ kind: TAHARAH_KIND, taharah: { task, day: O + 4 } }, 'x')).toBe(
+          false,
+        );
       }
       expect(useTaharahStore.getState().events).toHaveLength(count);
     });
@@ -547,8 +592,18 @@ ${t('taharah.disputed')}`,
     it('9e clears a settled notification from the tray', async () => {
       record(...SHIVA_NEKIIM, bedika('2026-11-11', 'morning'));
       mockState.presented = [
-        { request: { identifier: `taharah:bedikaMorning:${today()}`, content: { data: morning() as Record<string, unknown> } } },
-        { request: { identifier: `taharah:bedikaEvening:${today()}`, content: { data: evening() as Record<string, unknown> } } },
+        {
+          request: {
+            identifier: `taharah:bedikaMorning:${today()}`,
+            content: { data: morning() as Record<string, unknown> },
+          },
+        },
+        {
+          request: {
+            identifier: `taharah:bedikaEvening:${today()}`,
+            content: { data: evening() as Record<string, unknown> },
+          },
+        },
       ];
 
       await dismissCompletedPresentedNotifications();
@@ -572,7 +627,10 @@ ${t('taharah.disputed')}`,
       const night = absOn('2026-11-14');
       jest.setSystemTime(at(JERUSALEM, '2026-11-12T06:00'));
       const tevila: PendingNotificationMeta = { kind: TAHARAH_KIND, taharah: { task: 'tevila', day: night } };
-      const perisha: PendingNotificationMeta = { kind: TAHARAH_KIND, taharah: { task: 'perisha', day: night, onah: 'night' } };
+      const perisha: PendingNotificationMeta = {
+        kind: TAHARAH_KIND,
+        taharah: { task: 'perisha', day: night, onah: 'night' },
+      };
       expect(taharahNotificationSettled(tevila)).toBe(false);
 
       record({ type: 'tevila', day: night });
@@ -657,7 +715,9 @@ ${t('taharah.disputed')}`,
       await NotificationScheduler.rebuild();
 
       const block = blockOn(SHABBAT);
-      expect(taharahPending().filter((p) => triggerOf(p) > block.start.getTime() && triggerOf(p) < block.end.getTime())).toEqual([]);
+      expect(
+        taharahPending().filter((p) => triggerOf(p) > block.start.getTime() && triggerOf(p) < block.end.getTime()),
+      ).toEqual([]);
     });
   });
 
@@ -689,16 +749,17 @@ ${t('taharah.disputed')}`,
       expect(triggerOf(merged)).toBe(minutes(block.start, -10));
       expect(merged.content.title).toBe(t('taharah.notify.title.preBlock', { in: t('checkin.in.shabbat') }));
       expect(merged.content.body).toBe(
-        [
-          t('taharah.notify.title.bedikaMorning', { day: 4 }),
-          t('taharah.notify.title.bedikaEvening', { day: 4 }),
-        ].join('\n'),
+        [t('taharah.notify.title.bedikaMorning', { day: 4 }), t('taharah.notify.title.bedikaEvening', { day: 4 })].join(
+          '\n',
+        ),
       );
       expect(merged.content.categoryIdentifier).toBeUndefined();
       expect(merged.content.data).toEqual({ kind: TAHARAH_KIND, taharah: { task: 'preBlock', day } });
       expect(pendingOf(`taharah:bedikaMorning:${day}`)).toBeUndefined();
       expect(pendingOf(`taharah:bedikaEvening:${day}`)).toBeUndefined();
-      expect(taharahPending().filter((p) => triggerOf(p) > block.start.getTime() && triggerOf(p) < block.end.getTime())).toEqual([]);
+      expect(
+        taharahPending().filter((p) => triggerOf(p) > block.start.getTime() && triggerOf(p) < block.end.getTime()),
+      ).toEqual([]);
     });
 
     // Its own text would name a deadline inside Shabbat, where nothing can be done about it.
@@ -719,7 +780,9 @@ ${t('taharah.disputed')}`,
       expect(merged.content.title).toBe(t('taharah.notify.title.preBlock', { in: t('checkin.in.shabbat') }));
       expect(merged.content.body).toBe(t('taharah.notify.title.tevilaPrep'));
       expect(merged.content.data).toEqual({ kind: TAHARAH_KIND, taharah: { task: 'preBlock', day: absOn(SHABBAT) } });
-      expect(triggerOf(pendingOf(`taharah:tevilaPrep:${absOn(SHABBAT)}`)!)).toBe(minutes(zmanimOn(FRIDAY).tzeitHakochavim, -180));
+      expect(triggerOf(pendingOf(`taharah:tevilaPrep:${absOn(SHABBAT)}`)!)).toBe(
+        minutes(zmanimOn(FRIDAY).tzeitHakochavim, -180),
+      );
     });
 
     it('14c shows only the neutral text when discreet notifications are on', async () => {

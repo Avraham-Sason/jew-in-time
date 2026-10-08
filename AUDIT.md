@@ -120,8 +120,13 @@ Fix — all four are needed:
 3. `export function ErrorBoundary` in `src/app/_layout.tsx` (expo-router picks it up automatically) with a retry and a link to Settings; a second one in `(tabs)/_layout.tsx`.
 4. try/catch around each `scheduleOne`, and schedule-then-prune instead of cancel-then-schedule so a failure can never leave the user with less than they had.
 
-### 1.2 Infinite render loop on the mitzvah detail screen **[verified]** — ✅ FIXED
+### 1.2 Infinite render loop on the mitzvah detail screen **[verified]** — ✅ FIXED (re-opened and fixed 2026-10-09)
 `src/app/mitzvah/[id].tsx:60`
+
+> **Re-opened 2026-10-09.** The frozen constant described below was never committed: the selector still
+> read `?? { enabled: false }`. The `merge` in `useMitzvotStore` hides it for static ids, but a deleted
+> custom mitzvah reached through a notification still in the tray hit the loop. Fixed with
+> `selectActive(id)` / `INACTIVE` in `useMitzvotStore.ts`, pinned by `stores.test.ts`.
 
 ```ts
 const active = useMitzvotStore((s) => s.activeMitzvot[params.id] ?? { enabled: false });
@@ -425,7 +430,12 @@ Headless is exactly how Android delivers a MARK_DONE tap when the app process is
 
 ## 4. State and persistence
 
-### 4.1 No `version` / `migrate` on any persisted store **[verified]** — ✅ FIXED
+### 4.1 No `version` / `migrate` on any persisted store **[verified]** — ✅ FIXED (migrate added 2026-10-09)
+
+> **Re-opened 2026-10-09.** `version` and `merge` existed, `migrate` did not: zustand drops the whole
+> persisted state when the stored version differs and no `migrate` is given, so the first bump would
+> have erased completions and re-run onboarding. Every store now passes the identity `migrate` from
+> `persistOptions.ts`, pinned per store by `stores.test.ts` and `taharahStore.test.ts`.
 `useUserStore.ts:90`, `useMitzvotStore.ts:75`, `useCompletionsStore.ts:117`, `useCustomMitzvotStore.ts:36`
 
 All four pass only `{ name, storage }`. Zustand's default merge is a **single-level spread** (`{...currentState, ...persistedState}`, `middleware.js:335`).
@@ -467,7 +477,11 @@ Measured for a user completing the six defaults daily: ~67 KB after 1 year, ~202
 
 Fix: only write the sibling map when it actually changes, drop empty day buckets, and prune beyond the window the UI can show (`computeStats` only ever reads `daysBack = 30`).
 
-### 4.5 Double work on every completion — ✅ FIXED
+### 4.5 Double work on every completion — ✅ FIXED (second half 2026-10-09)
+
+> **Re-opened 2026-10-09.** `CompletionService.markDone` / `markSkipped` still awaited their own
+> `cancelForMitzvah` after the store action had queued the same call. Removed; `services.test.ts` 5.2
+> now pins one call, not only the arguments.
 `src/services/CompletionService.ts:5` and `src/stores/useCompletionsStore.ts:52`
 
 `CompletionService.markDone` calls `cancelForMitzvah`, and the store action *also* queues it via `queueMicrotask` + `require()`. Both run. `unmark` triggers two `rebuild()` calls, the second of which is silently dropped by `withLock` — correct only by accident.

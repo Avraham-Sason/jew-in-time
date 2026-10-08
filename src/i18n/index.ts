@@ -24,9 +24,7 @@ useUserStore.subscribe((state) => setLocale(state.language));
 
 function interpolate(str: string, options?: Record<string, unknown>): string {
   if (!options) return str;
-  return str.replace(/%\{(\w+)\}/g, (_, key) =>
-    options[key] !== undefined ? String(options[key]) : `%{${key}}`,
-  );
+  return str.replace(/%\{(\w+)\}/g, (_, key) => (options[key] !== undefined ? String(options[key]) : `%{${key}}`));
 }
 
 export function translate(

@@ -65,7 +65,9 @@ describe('pickBodyForReminder', () => {
       bodyVariants: ['first', 'second', 'third'],
     };
     const trigger = new Date('2026-05-06T12:00:00Z');
-    expect(pickBodyForReminder(reminder, baseMitzvah, trigger)).toBe(pickBodyForReminder(reminder, baseMitzvah, trigger));
+    expect(pickBodyForReminder(reminder, baseMitzvah, trigger)).toBe(
+      pickBodyForReminder(reminder, baseMitzvah, trigger),
+    );
   });
 
   it('falls back to the label and appends text content when requested', () => {

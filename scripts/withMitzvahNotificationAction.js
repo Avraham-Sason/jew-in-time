@@ -95,12 +95,17 @@ module.exports = function withMitzvahNotificationAction(config) {
     async (modConfig) => {
       const packageName = getAndroidPackageName(modConfig);
       const packagePath = packageName.replace(/\./g, path.sep);
-      const targetDir = path.join(modConfig.modRequest.platformProjectRoot, 'app', 'src', 'main', 'java', packagePath, 'notifications');
-      await fs.promises.mkdir(targetDir, { recursive: true });
-      await fs.promises.writeFile(
-        path.join(targetDir, 'MitzvahNotificationService.kt'),
-        kotlinSource(packageName),
+      const targetDir = path.join(
+        modConfig.modRequest.platformProjectRoot,
+        'app',
+        'src',
+        'main',
+        'java',
+        packagePath,
+        'notifications',
       );
+      await fs.promises.mkdir(targetDir, { recursive: true });
+      await fs.promises.writeFile(path.join(targetDir, 'MitzvahNotificationService.kt'), kotlinSource(packageName));
       return modConfig;
     },
   ]);

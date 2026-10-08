@@ -11,10 +11,7 @@ const SETTINGS: UserSettings = {
   inIsrael: true,
 };
 
-const DATES = [
-  new Date('2026-04-23T12:00:00Z'),
-  new Date('2026-05-15T12:00:00Z'),
-];
+const DATES = [new Date('2026-04-23T12:00:00Z'), new Date('2026-05-15T12:00:00Z')];
 
 function ctxFor(date: Date) {
   return { date, location: JERUSALEM, settings: SETTINGS, zmanim: zmanimFor(date, JERUSALEM) };
@@ -23,8 +20,16 @@ function ctxFor(date: Date) {
 describe('mitzvot windows', () => {
   it('has all 10 MVP mitzvot', () => {
     const ids = [
-      'tefillin', 'tzitzit', 'krias_shma_shacharit', 'shacharit', 'mincha',
-      'maariv', 'birchot_hashachar', 'candle_lighting', 'havdalah', 'sefirat_haomer',
+      'tefillin',
+      'tzitzit',
+      'krias_shma_shacharit',
+      'shacharit',
+      'mincha',
+      'maariv',
+      'birchot_hashachar',
+      'candle_lighting',
+      'havdalah',
+      'sefirat_haomer',
     ];
     for (const id of ids) {
       expect(findMitzvah(id)).toBeDefined();

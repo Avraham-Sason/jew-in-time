@@ -1,14 +1,10 @@
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
-import { NotificationScheduler } from './NotificationScheduler';
 
-// The store actions already queue the matching scheduler call, so this layer only awaits it — it
-// used to fire a second, identical cancel/rebuild for every completion.
+// Every store action queues its own scheduler call (cancel, settle, rebuild), so this layer never
+// adds one: the cancel it used to await ran a second time on every completion.
 export const CompletionService = {
   async markDone(mitzvahId: string, date: Date = new Date()): Promise<void> {
     useCompletionsStore.getState().markDone(mitzvahId, date);
-    try {
-      await NotificationScheduler.cancelForMitzvah(mitzvahId, date);
-    } catch {}
   },
 
   async unmark(mitzvahId: string, date: Date = new Date()): Promise<void> {
@@ -17,9 +13,6 @@ export const CompletionService = {
 
   async markSkipped(mitzvahId: string, date: Date = new Date()): Promise<void> {
     useCompletionsStore.getState().markSkipped(mitzvahId, date);
-    try {
-      await NotificationScheduler.cancelForMitzvah(mitzvahId, date);
-    } catch {}
   },
 
   isDone(mitzvahId: string, date: Date = new Date()): boolean {

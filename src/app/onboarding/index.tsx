@@ -1,14 +1,5 @@
 import React, { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { AppLogo } from '@/components/AppLogo';
@@ -43,16 +34,12 @@ export default function WelcomeScreen() {
     color: colors.text,
     borderColor: colors.border,
     writingDirection: language === 'he' ? 'rtl' : 'ltr',
-    textAlign: language === 'he' ? 'right' : 'left',
   } as const;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <AppLogo size={64} />
@@ -79,9 +66,7 @@ export default function WelcomeScreen() {
               autoCapitalize="words"
               style={[styles.input, inputStyle, error ? { borderColor: colors.urgent } : null]}
             />
-            {error ? (
-              <Text style={[typography.small, { color: colors.urgent, marginTop: 4 }]}>{error}</Text>
-            ) : null}
+            {error ? <Text style={[typography.small, { color: colors.urgent, marginTop: 4 }]}>{error}</Text> : null}
 
             <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 14, marginBottom: 6 }]}>
               {t('settings.profilePhone')}

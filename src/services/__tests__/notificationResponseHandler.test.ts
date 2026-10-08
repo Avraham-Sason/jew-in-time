@@ -71,7 +71,12 @@ import { useUserStore } from '@/stores/useUserStore';
 import { CITIES } from '@/data/cities';
 import { at } from '@/testing/zmanim';
 
-function response(actionIdentifier: string, data: Record<string, unknown>, identifier = 'notif-id', dataString?: string) {
+function response(
+  actionIdentifier: string,
+  data: Record<string, unknown>,
+  identifier = 'notif-id',
+  dataString?: string,
+) {
   return {
     actionIdentifier,
     notification: {
@@ -107,7 +112,14 @@ describe('notificationResponseHandler', () => {
     initNotificationResponseHandler();
     const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
 
-    listener(response(MARK_DONE_ACTION, {}, 'shacharit__2026-05-06__0', JSON.stringify({ mitzvahId: 'shacharit', dateKey: '2026-05-06' })));
+    listener(
+      response(
+        MARK_DONE_ACTION,
+        {},
+        'shacharit__2026-05-06__0',
+        JSON.stringify({ mitzvahId: 'shacharit', dateKey: '2026-05-06' }),
+      ),
+    );
 
     expect(mockMarkDoneFromNotificationData).toHaveBeenCalledWith(
       { mitzvahId: 'shacharit', dateKey: '2026-05-06' },
@@ -119,7 +131,12 @@ describe('notificationResponseHandler', () => {
     initNotificationResponseHandler();
     const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
 
-    listener(response(DEFAULT_NOTIFICATION_ACTION, { mitzvahId: 'sefirat_haomer', fullContent: [{ type: 'blessing', he: 'ברכה' }] }));
+    listener(
+      response(DEFAULT_NOTIFICATION_ACTION, {
+        mitzvahId: 'sefirat_haomer',
+        fullContent: [{ type: 'blessing', he: 'ברכה' }],
+      }),
+    );
 
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/mitzvah/[id]',
@@ -131,7 +148,14 @@ describe('notificationResponseHandler', () => {
     initNotificationResponseHandler();
     const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
 
-    listener(response(OPEN_TEXT_ACTION, {}, 'tefillin__2026-05-06__0', JSON.stringify({ mitzvahId: 'tefillin', dateKey: '2026-05-06' })));
+    listener(
+      response(
+        OPEN_TEXT_ACTION,
+        {},
+        'tefillin__2026-05-06__0',
+        JSON.stringify({ mitzvahId: 'tefillin', dateKey: '2026-05-06' }),
+      ),
+    );
 
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/siddur/[id]',
@@ -209,7 +233,11 @@ describe('notificationResponseHandler', () => {
     const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
 
     listener(
-      response(DEFAULT_NOTIFICATION_ACTION, { kind: 'taharah', taharah: { task: 'hefsek', day: 739931 } }, 'taharah:hefsek:739931'),
+      response(
+        DEFAULT_NOTIFICATION_ACTION,
+        { kind: 'taharah', taharah: { task: 'hefsek', day: 739931 } },
+        'taharah:hefsek:739931',
+      ),
     );
 
     expect(mockRouterNavigate).toHaveBeenCalledWith('/taharah');
@@ -221,7 +249,13 @@ describe('notificationResponseHandler', () => {
     initNotificationResponseHandler();
     const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
 
-    listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'hilula', hilula: { day: 739900, when: 'evening' } }, 'hilula:739900:evening'));
+    listener(
+      response(
+        DEFAULT_NOTIFICATION_ACTION,
+        { kind: 'hilula', hilula: { day: 739900, when: 'evening' } },
+        'hilula:739900:evening',
+      ),
+    );
 
     expect(mockRouterNavigate).toHaveBeenCalledWith('/hilulot');
     expect(mockRouterPush).not.toHaveBeenCalled();
@@ -274,7 +308,13 @@ describe('notificationResponseHandler', () => {
       initNotificationResponseHandler();
       const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
 
-      listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'update', updateId: 'u0', updateCreatedAt: '2026-10-08T11:00:00.000Z' }, 'update:u0'));
+      listener(
+        response(
+          DEFAULT_NOTIFICATION_ACTION,
+          { kind: 'update', updateId: 'u0', updateCreatedAt: '2026-10-08T11:00:00.000Z' },
+          'update:u0',
+        ),
+      );
 
       expect(mockRouterNavigate).toHaveBeenCalledWith('/(tabs)/home');
       expect(mockReload).not.toHaveBeenCalled();
@@ -297,7 +337,15 @@ describe('notificationResponseHandler', () => {
       beforeAll(() => {
         jest.useFakeTimers({
           now: at(jerusalem, '2026-11-14T10:00'),
-          doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'],
+          doNotFake: [
+            'nextTick',
+            'queueMicrotask',
+            'setImmediate',
+            'setTimeout',
+            'clearTimeout',
+            'setInterval',
+            'clearInterval',
+          ],
         });
       });
       afterAll(() => jest.useRealTimers());
@@ -311,7 +359,9 @@ describe('notificationResponseHandler', () => {
         const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
 
         listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'update', updateId: 'u1' }, 'update:u1'));
-        listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'update', updateId: 'running-id' }, 'update:running-id'));
+        listener(
+          response(DEFAULT_NOTIFICATION_ACTION, { kind: 'update', updateId: 'running-id' }, 'update:running-id'),
+        );
 
         expect(mockReload).not.toHaveBeenCalled();
         expect(mockRouterNavigate).not.toHaveBeenCalled();
@@ -325,7 +375,15 @@ describe('notificationResponseHandler', () => {
     beforeAll(() => {
       jest.useFakeTimers({
         now: at(jerusalem, '2026-11-14T10:00'),
-        doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'],
+        doNotFake: [
+          'nextTick',
+          'queueMicrotask',
+          'setImmediate',
+          'setTimeout',
+          'clearTimeout',
+          'setInterval',
+          'clearInterval',
+        ],
       });
     });
     afterAll(() => jest.useRealTimers());
@@ -341,17 +399,41 @@ describe('notificationResponseHandler', () => {
       initNotificationResponseHandler();
       const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
 
-      listener(response(OPEN_TEXT_ACTION, { mitzvahId: 'candle_lighting', dateKey: '2026-11-13' }, 'candle_lighting__2026-11-13__0'));
-      listener(response(DEFAULT_NOTIFICATION_ACTION, { mitzvahId: 'candle_lighting' }, 'candle_lighting__2026-11-13__0'));
+      listener(
+        response(
+          OPEN_TEXT_ACTION,
+          { mitzvahId: 'candle_lighting', dateKey: '2026-11-13' },
+          'candle_lighting__2026-11-13__0',
+        ),
+      );
+      listener(
+        response(DEFAULT_NOTIFICATION_ACTION, { mitzvahId: 'candle_lighting' }, 'candle_lighting__2026-11-13__0'),
+      );
       listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'blockNotice' }, 'blockNotice:2026-11-14'));
       listener(
-        response(DEFAULT_NOTIFICATION_ACTION, { kind: 'taharah', taharah: { task: 'hefsek', day: 739931 } }, 'taharah:hefsek:739931'),
+        response(
+          DEFAULT_NOTIFICATION_ACTION,
+          { kind: 'taharah', taharah: { task: 'hefsek', day: 739931 } },
+          'taharah:hefsek:739931',
+        ),
       );
-      listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'hilula', hilula: { day: 739900, when: 'before' } }, 'hilula:739900:before'));
+      listener(
+        response(
+          DEFAULT_NOTIFICATION_ACTION,
+          { kind: 'hilula', hilula: { day: 739900, when: 'before' } },
+          'hilula:739900:before',
+        ),
+      );
       expect(mockRouterPush).not.toHaveBeenCalled();
       expect(mockRouterNavigate).not.toHaveBeenCalled();
 
-      listener(response(MARK_DONE_ACTION, { mitzvahId: 'candle_lighting', dateKey: '2026-11-13' }, 'candle_lighting__2026-11-13__0'));
+      listener(
+        response(
+          MARK_DONE_ACTION,
+          { mitzvahId: 'candle_lighting', dateKey: '2026-11-13' },
+          'candle_lighting__2026-11-13__0',
+        ),
+      );
       expect(mockMarkDoneFromNotificationData).toHaveBeenCalledTimes(1);
     });
 

@@ -146,16 +146,24 @@ export function MitzvahCard({
             {name}
           </Text>
           {done && (
-            <Text style={[typography.micro, { color: colors.safe, fontWeight: '600', marginTop: 2 }]}>✓ {t('state.completed')}</Text>
+            <Text style={[typography.micro, { color: colors.safe, fontWeight: '600', marginTop: 2 }]}>
+              ✓ {t('state.completed')}
+            </Text>
           )}
           {!done && statusText ? (
-            <Text style={[typography.micro, { color: statusColor, fontWeight: '600', marginTop: 2 }]}>{statusText}</Text>
+            <Text style={[typography.micro, { color: statusColor, fontWeight: '600', marginTop: 2 }]}>
+              {statusText}
+            </Text>
           ) : null}
           {urgent && !done && !statusText && (
-            <Text style={[typography.micro, { color: colors.urgent, fontWeight: '600', marginTop: 2 }]}>⚠ {t('state.urgentSoon')}</Text>
+            <Text style={[typography.micro, { color: colors.urgent, fontWeight: '600', marginTop: 2 }]}>
+              ⚠ {t('state.urgentSoon')}
+            </Text>
           )}
           {readOnly && !done && !statusText && (
-            <Text style={[typography.micro, { color: colors.textMuted, fontWeight: '600', marginTop: 2 }]}>{t('state.readOnly')}</Text>
+            <Text style={[typography.micro, { color: colors.textMuted, fontWeight: '600', marginTop: 2 }]}>
+              {t('state.readOnly')}
+            </Text>
           )}
         </View>
         {onOpenText ? (
@@ -187,7 +195,7 @@ export function MitzvahCard({
           </Pressable>
         ) : done ? (
           <View style={[styles.checkBtn, { backgroundColor: colors.gold, borderColor: colors.gold }]}>
-            <Checkmark color="#fff" />
+            <Checkmark color={colors.onGold} />
           </View>
         ) : null}
       </View>

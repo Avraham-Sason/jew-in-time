@@ -24,9 +24,7 @@ function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): num
   const dLng = toRad(bLng - aLng);
   const s1 = Math.sin(dLat / 2);
   const s2 = Math.sin(dLng / 2);
-  const q =
-    s1 * s1 +
-    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * s2 * s2;
+  const q = s1 * s1 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * s2 * s2;
   return 6371 * 2 * Math.atan2(Math.sqrt(q), Math.sqrt(1 - q));
 }
 

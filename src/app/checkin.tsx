@@ -53,13 +53,21 @@ export default function CheckInRoute() {
     return open?.open ? open.block : null;
   });
   const checkIn = useMemo(
-    () => (block ? checkInFor(block, { mitzvot, completions, skipped, checkIns: {}, enabledSince, location, settings }, new Date()) : null),
+    () =>
+      block
+        ? checkInFor(
+            block,
+            { mitzvot, completions, skipped, checkIns: {}, enabledSince, location, settings },
+            new Date(),
+          )
+        : null,
     [block, mitzvot, completions, skipped, enabledSince, location, settings],
   );
 
+  const checkInId = checkIn?.id;
   useEffect(() => {
-    if (checkIn) StorageService.set(CHECK_IN_PROMPTED_KEY, checkIn.id);
-  }, [checkIn?.id]);
+    if (checkInId) StorageService.set(CHECK_IN_PROMPTED_KEY, checkInId);
+  }, [checkInId]);
 
   // Leaving with everything marked is the same as "done": nothing is left to remind about.
   const allMarked = Boolean(checkIn?.days.every((day) => day.items.every((item) => item.done)));
@@ -96,19 +104,28 @@ export default function CheckInRoute() {
     language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he;
   const title = checkIn ? t('checkin.title', { in: t(checkInPhraseKey(checkIn.block)) }) : t('checkin.empty');
   const deadline = checkIn
-    ? t('checkin.deadline', { day: DateTime.fromJSDate(checkInLastDay(checkIn.block)).setLocale(language).toFormat('cccc') })
+    ? t('checkin.deadline', {
+        day: DateTime.fromJSDate(checkInLastDay(checkIn.block)).setLocale(language).toFormat('cccc'),
+      })
     : '';
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
-        <Pressable onPress={close} style={[styles.backBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]}>
+        <Pressable
+          onPress={close}
+          accessibilityRole="button"
+          hitSlop={10}
+          style={[styles.backBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
+        >
           <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
         </Pressable>
         <Text style={[typography.heading, { color: colors.headerText }]}>{title}</Text>
         {checkIn ? (
-          <Text style={[typography.caption, { color: colors.headerSub, marginTop: 2 }]}>{t('checkin.subtitle', { deadline })}</Text>
+          <Text style={[typography.caption, { color: colors.headerSub, marginTop: 2 }]}>
+            {t('checkin.subtitle', { deadline })}
+          </Text>
         ) : null}
       </View>
       {checkIn ? (
@@ -117,7 +134,9 @@ export default function CheckInRoute() {
             {checkIn.days.map((day) => (
               <View key={day.key} style={styles.day}>
                 <Text style={[typography.captionBold, styles.dayTitle, { color: colors.textSub }]}>
-                  {DateTime.fromJSDate(day.date).setLocale(language).toFormat(language === 'he' ? 'cccc · d LLLL' : 'cccc · LLL d')}
+                  {DateTime.fromJSDate(day.date)
+                    .setLocale(language)
+                    .toFormat(language === 'he' ? 'cccc · d LLLL' : 'cccc · LLL d')}
                 </Text>
                 <View style={styles.list}>
                   {day.items
@@ -162,7 +181,9 @@ export default function CheckInRoute() {
           </View>
         </>
       ) : (
-        <Text style={[typography.body, { color: colors.textSub, textAlign: 'center', paddingTop: 28 }]}>{t('checkin.empty')}</Text>
+        <Text style={[typography.body, { color: colors.textSub, textAlign: 'center', paddingTop: 28 }]}>
+          {t('checkin.empty')}
+        </Text>
       )}
     </SafeAreaView>
   );

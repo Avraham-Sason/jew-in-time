@@ -41,7 +41,6 @@
   "update.notice.title": "Update ready",
   "home.quick.details": "Details",
   "home.quick.skipToday": "Skip today",
-  "home.quick.edit": "Edit",
   "home.quick.title": "Quick actions",
   "schedule.title": "Schedule",
   "schedule.day": "Day",
@@ -137,7 +136,7 @@
   "settings.locationStatus.denied": "Location denied",
   "settings.locationStatus.timeout": "Timed out",
   "settings.locationStatus.missing": "Missing",
-  "settings.logout": "Log out & reset",
+  "settings.logout": "Reset the app",
   "settings.logoutConfirmTitle": "Reset the app?",
   "settings.logoutConfirmBody": "All settings, active mitzvot, custom mitzvot, and history will be erased. This cannot be undone.",
   "settings.logoutConfirmAction": "Yes, reset",
@@ -543,5 +542,8 @@
   "hilulot.notice.evening.title": "Tonight: hilula of %{names}",
   "hilulot.notice.evening.body": "The hilula, %{date}, begins now at sunset.",
   "holyBlock.notice.hilulaTonight": "The hilula of %{names} begins tonight",
-  "holyBlock.notice.hilulaOn": "The hilula of %{names} begins %{day} evening"
+  "holyBlock.notice.hilulaOn": "The hilula of %{names} begins %{day} evening",
+  "home.passedAt": "Time passed at %{time}",
+  "common.previous": "Previous",
+  "common.next": "Next"
 }

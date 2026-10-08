@@ -1,0 +1,14 @@
+node_modules
+dist
+.expo
+android
+ios
+coverage
+design
+docs
+assets
+.claude
+pnpm-lock.yaml
+src/data/siddurAssets.generated.ts
+scripts/siddur/.cache
+*.md

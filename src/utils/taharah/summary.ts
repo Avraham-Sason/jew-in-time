@@ -30,7 +30,12 @@ export function onahStartDate(onah: Onah): Date {
   return hebrewDay(onah.kind === 'night' ? onah.abs - 1 : onah.abs).greg();
 }
 
-export function nextPerishaOnah(events: readonly TaharahEvent[], rules: TaharahRules, now: Date, location: Location): Onah | null {
+export function nextPerishaOnah(
+  events: readonly TaharahEvent[],
+  rules: TaharahRules,
+  now: Date,
+  location: Location,
+): Onah | null {
   const current = onahIndex(currentOnah(now, location));
   return perishaOnot(events, rules).find((entry) => onahIndex(entry.onah) >= current)?.onah ?? null;
 }
@@ -75,7 +80,9 @@ export function stageHint(
       return { key: role === 'husband' ? 'taharah.husband.hint' : key };
     case 'niddah':
       if (role === 'husband') return { key: 'taharah.husband.hint' };
-      return state.hefsekEarliestDay === null ? null : { key, params: { date: format.date(hebrewDay(state.hefsekEarliestDay).greg()) } };
+      return state.hefsekEarliestDay === null
+        ? null
+        : { key, params: { date: format.date(hebrewDay(state.hefsekEarliestDay).greg()) } };
     case 'awaitingHefsek': {
       const shkia = zmanimOfDay(today.abs, location)?.shkia;
       return shkia ? { key, params: { time: format.clock(shkia) } } : null;

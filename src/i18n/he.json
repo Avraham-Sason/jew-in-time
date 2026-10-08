@@ -41,7 +41,6 @@
   "update.notice.title": "עדכון חדש מוכן",
   "home.quick.details": "פרטים",
   "home.quick.skipToday": "דלג היום",
-  "home.quick.edit": "עריכה",
   "home.quick.title": "פעולות מהירות",
   "schedule.title": "לוח זמנים",
   "schedule.day": "יום",
@@ -137,7 +136,7 @@
   "settings.locationStatus.denied": "גישה למיקום נדחתה",
   "settings.locationStatus.timeout": "זמן החיפוש פג",
   "settings.locationStatus.missing": "לא הוגדר מיקום",
-  "settings.logout": "התנתקות ואיפוס",
+  "settings.logout": "איפוס האפליקציה",
   "settings.logoutConfirmTitle": "לאפס את האפליקציה?",
   "settings.logoutConfirmBody": "כל ההגדרות, המצוות הפעילות, המצוות המותאמות, וההיסטוריה יימחקו. הפעולה לא ניתנת לביטול.",
   "settings.logoutConfirmAction": "כן, אפס",
@@ -543,5 +542,8 @@
   "hilulot.notice.evening.title": "הערב: הילולת %{names}",
   "hilulot.notice.evening.body": "יום ההילולה, %{date}, נכנס עכשיו עם השקיעה.",
   "holyBlock.notice.hilulaTonight": "הערב נכנסת הילולת %{names}",
-  "holyBlock.notice.hilulaOn": "הילולת %{names} נכנסת ב%{day} בערב"
+  "holyBlock.notice.hilulaOn": "הילולת %{names} נכנסת ב%{day} בערב",
+  "home.passedAt": "עבר הזמן ב-%{time}",
+  "common.previous": "הקודם",
+  "common.next": "הבא"
 }

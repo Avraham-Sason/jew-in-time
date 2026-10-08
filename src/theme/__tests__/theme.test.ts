@@ -1,4 +1,16 @@
-import { T_LIGHT, T_DARK, T_PINK, T_PURPLE, T_BLUE, T_PLUM, THEMES, THEME_NAMES, DARK_THEMES, isDarkTheme, ThemeColors } from '../colors';
+import {
+  T_LIGHT,
+  T_DARK,
+  T_PINK,
+  T_PURPLE,
+  T_BLUE,
+  T_PLUM,
+  THEMES,
+  THEME_NAMES,
+  DARK_THEMES,
+  isDarkTheme,
+  ThemeColors,
+} from '../colors';
 import { ribbonThresholds, durations, spacing, radius } from '../tokens';
 import he from '@/i18n/he.json';
 import en from '@/i18n/en.json';
@@ -13,6 +25,10 @@ const READABLE_PAIRS: readonly (readonly [keyof ThemeColors, keyof ThemeColors, 
   ['text', 'surface', 4.5],
   ['textMuted', 'surface', 4.5],
   ['onGold', 'gold', 4.5],
+  ['goldText', 'surface', 4.5],
+  ['goldText', 'bg', 4.5],
+  ['goldText', 'goldLight', 4.5],
+  ['onUrgent', 'urgent', 4.5],
   ['headerText', 'headerBg', 4.5],
   ['headerAccent', 'headerBg', 4.5],
   ['textSub', 'surface', 4.0],

@@ -4,15 +4,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 
 export const ONBOARDING_STEPS = 5;
 
-export function OnboardingDots({
-  step,
-  total,
-  style,
-}: {
-  step: number;
-  total: number;
-  style?: StyleProp<ViewStyle>;
-}) {
+export function OnboardingDots({ step, total, style }: { step: number; total: number; style?: StyleProp<ViewStyle> }) {
   const { colors } = useTheme();
   return (
     <View style={[styles.dots, style]}>

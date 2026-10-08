@@ -13,7 +13,13 @@ export function AppLogo({ size = 32 }: Props) {
       <Circle cx={24} cy={24} r={24} fill={fill} />
       <Polygon points="24,8 37,31 11,31" fill="none" stroke={stroke} strokeWidth={2.4} strokeLinejoin="round" />
       <Polygon points="24,40 11,17 37,17" fill="none" stroke={stroke} strokeWidth={2.4} strokeLinejoin="round" />
-      <Path d="M19.5,24.5 L22.5,27.5 L28.5,21" stroke="#FFFFFF" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path
+        d="M19.5,24.5 L22.5,27.5 L28.5,21"
+        stroke="#FFFFFF"
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }

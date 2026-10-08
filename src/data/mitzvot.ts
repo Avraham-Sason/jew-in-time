@@ -14,9 +14,7 @@ function win(start: Date, end: Date): MitzvahWindow {
 }
 
 function sofZmanShma(ctx: ComputeContext): Date {
-  return ctx.settings.halachicOpinions.ksSofZman === 'MA'
-    ? ctx.zmanim.sofZmanShmaMA
-    : ctx.zmanim.sofZmanShmaGra;
+  return ctx.settings.halachicOpinions.ksSofZman === 'MA' ? ctx.zmanim.sofZmanShmaMA : ctx.zmanim.sofZmanShmaGra;
 }
 
 // The LOCATION's calendar day that ctx.zmanim were computed for, at its midday. Calendar questions
@@ -87,7 +85,7 @@ export const MITZVOT: Mitzvah[] = [
         bodyVariants: ['הגיע זמן הנחת תפילין', 'תפילין מחכות לך עכשיו', 'עוד יום קדוש מתחיל עם תפילין'],
       },
       { anchor: 'start', offsetMin: 180, label: 'תזכורת — עדיין לא הנחת תפילין', skipIfDone: true },
-      { anchor: 'end', offsetMin: -45, label: 'נותרו 45 דק\' להנחת תפילין', skipIfDone: true },
+      { anchor: 'end', offsetMin: -45, label: "נותרו 45 דק' להנחת תפילין", skipIfDone: true },
     ],
     computeWindow: ({ zmanim }) => win(zmanim.misheyakir, zmanim.shkia),
   },
@@ -143,7 +141,7 @@ export const MITZVOT: Mitzvah[] = [
         label: 'זמן תפילת שחרית',
         bodyVariants: ['צדיק, זמן שחרית הגיע', 'תפילת שחרית פותחת את היום', 'זמן שחרית — תפילה לפני היום שלך'],
       },
-      { anchor: 'end', offsetMin: -45, label: 'נותרו 45 דק\' לשחרית', skipIfDone: true },
+      { anchor: 'end', offsetMin: -45, label: "נותרו 45 דק' לשחרית", skipIfDone: true },
     ],
     computeWindow: ({ zmanim }) => win(zmanim.netzHaChama, zmanim.sofZmanTfilaGra),
   },

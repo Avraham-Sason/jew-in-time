@@ -14,7 +14,10 @@ jest.mock('expo-notifications', () => ({
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
-jest.mock('expo-background-fetch', () => ({ registerTaskAsync: jest.fn(), BackgroundFetchResult: { NewData: 1, Failed: 2 } }));
+jest.mock('expo-background-fetch', () => ({
+  registerTaskAsync: jest.fn(),
+  BackgroundFetchResult: { NewData: 1, Failed: 2 },
+}));
 
 import { archiveMarkedDays, isArchivedDay, pruneCheckIns, useCompletionsStore, dateKey } from '../useCompletionsStore';
 
@@ -106,7 +109,10 @@ describe('check-ins and the archive of kept days', () => {
       '2026-11-15': { a: 1 },
     };
     const archive = archiveMarkedDays([['2024-12-20', '2024-12-31']], completions, today);
-    expect(archive).toEqual([['2024-12-20', '2025-01-02'], ['2025-01-04', '2025-01-04']]);
+    expect(archive).toEqual([
+      ['2024-12-20', '2025-01-02'],
+      ['2025-01-04', '2025-01-04'],
+    ]);
     expect(isArchivedDay(archive, '2024-12-25')).toBe(true);
     expect(isArchivedDay(archive, '2025-01-03')).toBe(false);
     expect(isArchivedDay(archive, '2025-01-05')).toBe(false);

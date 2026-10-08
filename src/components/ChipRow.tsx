@@ -23,9 +23,12 @@ export function ChipRow<T extends string | number>({ values, selected, onSelect,
             onPress={() => onSelect(value)}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
+            hitSlop={6}
             style={[styles.pill, { backgroundColor: active ? colors.gold : colors.surface2 }]}
           >
-            <Text style={[typography.small, { color: active ? colors.onGold : colors.textSub }]}>{renderLabel(value)}</Text>
+            <Text style={[typography.small, { color: active ? colors.onGold : colors.textSub }]}>
+              {renderLabel(value)}
+            </Text>
           </Pressable>
         );
       })}

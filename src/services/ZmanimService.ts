@@ -50,13 +50,7 @@ export function antimeridianAdjustment(loc: Location): -1 | 0 | 1 {
 }
 
 function buildCalendar(date: Date, loc: Location): ComplexZmanimCalendar {
-  const geo = new GeoLocation(
-    loc.name,
-    loc.lat,
-    loc.lng,
-    loc.elevation ?? 0,
-    loc.tz,
-  );
+  const geo = new GeoLocation(loc.name, loc.lat, loc.lng, loc.elevation ?? 0, loc.tz);
   const adjustment = antimeridianAdjustment(loc);
   geo.getAntimeridianAdjustment = () => adjustment;
   const cal = new ComplexZmanimCalendar(geo);
@@ -68,13 +62,9 @@ function buildCalendar(date: Date, loc: Location): ComplexZmanimCalendar {
 }
 
 function cacheKey(date: Date, loc: Location): string {
-  return [
-    DateTime.fromJSDate(date).setZone(loc.tz).toISODate(),
-    loc.lat,
-    loc.lng,
-    loc.elevation ?? 0,
-    loc.tz,
-  ].join('|');
+  return [DateTime.fromJSDate(date).setZone(loc.tz).toISODate(), loc.lat, loc.lng, loc.elevation ?? 0, loc.tz].join(
+    '|',
+  );
 }
 
 function cloneZmanim(zmanim: Zmanim): Zmanim {
@@ -132,9 +122,7 @@ export const ZmanimService = {
     const mgaHour = (shift(shkia, MGA_OFFSET_MIN).getTime() - mgaStart.getTime()) / 12;
 
     const alotHaShachar =
-      toDateOrNull(cal.getAlosHashachar()) ??
-      toDateOrNull(cal.getAlos72()) ??
-      shift(netzHaChama, -ALOT_FALLBACK_MIN);
+      toDateOrNull(cal.getAlosHashachar()) ?? toDateOrNull(cal.getAlos72()) ?? shift(netzHaChama, -ALOT_FALLBACK_MIN);
     // Once alot falls back to fixed minutes, a still-solvable depression angle for misheyakir can
     // land before it. Misheyakir must sit between alot and sunrise, so fall back there too.
     const misheyakirCandidate =
@@ -163,8 +151,7 @@ export const ZmanimService = {
       minchaKetana: toDateOrNull(cal.getMinchaKetana(sunrise, sunset)) ?? fromNetz(9.5),
       plagHaMincha: toDateOrNull(cal.getPlagHamincha(sunrise, sunset)) ?? fromNetz(10.75),
       shkia,
-      tzeitHakochavim:
-        toDateOrNull(cal.getTzaisGeonim7Point083Degrees()) ?? shift(shkia, TZEIT_FALLBACK_MIN),
+      tzeitHakochavim: toDateOrNull(cal.getTzaisGeonim7Point083Degrees()) ?? shift(shkia, TZEIT_FALLBACK_MIN),
     };
 
     cacheZmanim(key, zmanim);

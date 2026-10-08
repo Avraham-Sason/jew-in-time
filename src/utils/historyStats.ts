@@ -8,7 +8,7 @@ import { ArchivedDays, CheckIns, Completions, dateKey, isArchivedDay } from '@/s
 
 export type HistoryStats = {
   streak: number;
-  daily: Array<{ date: string; doneCount: number; totalCount: number; pendingCount: number }>;
+  daily: { date: string; doneCount: number; totalCount: number; pendingCount: number }[];
   perMitzvah: Record<string, { done: number; eligible: number; percent: number }>;
   missedYesterday: string[];
 };
@@ -86,7 +86,11 @@ export function computeStreak(input: HistoryInput, now: Date = new Date(), judge
   const floor = earliestKey(input);
   if (!floor) return 0;
   let streak = 0;
-  for (let day = new Date(now.getFullYear(), now.getMonth(), now.getDate()); dateKey(day) >= floor; day = addDays(day, -1)) {
+  for (
+    let day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    dateKey(day) >= floor;
+    day = addDays(day, -1)
+  ) {
     const key = dateKey(day);
     if (Object.keys(input.completions[key] ?? {}).length || isArchivedDay(input.archivedDays ?? [], key)) {
       streak += 1;
@@ -144,6 +148,10 @@ export function computeStats(
     stat.percent = stat.eligible > 0 ? Math.round((stat.done / stat.eligible) * 100) : 0;
   }
 
-  const streak = computeStreak(input, now, (day, streakInput, at) => verdicts.get(dateKey(day)) ?? judgeDay(day, streakInput, at));
+  const streak = computeStreak(
+    input,
+    now,
+    (day, streakInput, at) => verdicts.get(dateKey(day)) ?? judgeDay(day, streakInput, at),
+  );
   return { streak, daily, perMitzvah, missedYesterday };
 }

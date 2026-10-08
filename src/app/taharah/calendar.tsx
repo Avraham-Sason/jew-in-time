@@ -49,7 +49,12 @@ const glyphOf = (kind: OnahKind) => (kind === 'day' ? SUN : MOON);
 function cellItems(marks: DayMarks, t: Translate) {
   const items: { key: string; title: string; detail: string; disputed: boolean }[] = [];
   marks.onsets.forEach((kind) =>
-    items.push({ key: `onset-${kind}`, title: t('taharah.event.onset'), detail: t(`taharah.onah.${kind}`), disputed: false }),
+    items.push({
+      key: `onset-${kind}`,
+      title: t('taharah.event.onset'),
+      detail: t(`taharah.onah.${kind}`),
+      disputed: false,
+    }),
   );
   if (marks.cleanIndex !== null) {
     items.push({
@@ -66,7 +71,10 @@ function cellItems(marks: DayMarks, t: Translate) {
     items.push({
       key: `perisha-${entry.onah.kind}`,
       title: t('taharah.task.perisha'),
-      detail: [t(`taharah.onah.${entry.onah.kind}`), entry.reasons.map((reason) => t(`taharah.reason.${reason}`)).join(' · ')].join(' · '),
+      detail: [
+        t(`taharah.onah.${entry.onah.kind}`),
+        entry.reasons.map((reason) => t(`taharah.reason.${reason}`)).join(' · '),
+      ].join(' · '),
       disputed: entry.disputed,
     }),
   );
@@ -222,12 +230,19 @@ export default function TaharahCalendar() {
         </View>
       </ScrollView>
 
-      <Modal animationType="fade" transparent visible={selected !== null && !quiet} onRequestClose={() => setSelected(null)}>
+      <Modal
+        animationType="fade"
+        transparent
+        visible={selected !== null && !quiet}
+        onRequestClose={() => setSelected(null)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {selected ? (
               <>
-                <Text style={[typography.heading, { color: colors.text }]}>{formatDayLine(selected.day.toJSDate(), language)}</Text>
+                <Text style={[typography.heading, { color: colors.text }]}>
+                  {formatDayLine(selected.day.toJSDate(), language)}
+                </Text>
                 <Text style={[typography.caption, { color: colors.textSub, marginBottom: 12 }]}>
                   {HebcalService.getHebrewDate(selected.day.toJSDate()).hebrewDateStr}
                 </Text>

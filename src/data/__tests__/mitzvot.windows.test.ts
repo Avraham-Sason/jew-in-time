@@ -77,7 +77,7 @@ describe('mitzvot windows extra', () => {
     expect(hours).toBeLessThan(9);
   });
 
-  it('3.7b sefirat haomer: tzeit → the next day\'s alot hashachar', () => {
+  it("3.7b sefirat haomer: tzeit → the next day's alot hashachar", () => {
     const omerNight = at(JERUSALEM, '2026-04-12T12:00'); // evening of 25 Nisan, omer night 11
     const c = ctx(omerNight);
     const w = findMitzvah('sefirat_haomer')!.computeWindow(c)!;
@@ -97,7 +97,11 @@ describe('mitzvot windows extra', () => {
 
   it('3.9 candle lighting follows the local minhag: 40 min in Jerusalem, 18 elsewhere in Israel', () => {
     const jerusalem = ctx(FRIDAY);
-    const telAviv = ctx(FRIDAY, SETTINGS_GRA, CITIES.find((c) => c.nameEn === 'Tel Aviv')!);
+    const telAviv = ctx(
+      FRIDAY,
+      SETTINGS_GRA,
+      CITIES.find((c) => c.nameEn === 'Tel Aviv')!,
+    );
     const minutesBefore = (c: ReturnType<typeof ctx>) => {
       const w = findMitzvah('candle_lighting')!.computeWindow(c)!;
       return (c.zmanim.shkia.getTime() - w.start.getTime()) / 60000;
@@ -178,8 +182,7 @@ describe('mitzvot windows extra', () => {
   // erev-Yom-Tov candle lighting from any rebuild that ran after tzeit; a device-local "next day"
   // ended the omer night before it began whenever the device's zone was not the location's.
   it('3.16 a window depends only on the day, not on the clock time ctx.date carries', () => {
-    const windowAt = (id: string, wallClock: string) =>
-      findMitzvah(id)!.computeWindow(ctx(at(JERUSALEM, wallClock)));
+    const windowAt = (id: string, wallClock: string) => findMitzvah(id)!.computeWindow(ctx(at(JERUSALEM, wallClock)));
     const cases = [
       ['candle_lighting', '2026-04-01'], // erev Pesach, a Wednesday
       ['sefirat_haomer', '2026-04-12'],

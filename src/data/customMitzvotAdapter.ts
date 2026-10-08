@@ -45,7 +45,7 @@ export function customToMitzvah(c: CustomMitzvah): Mitzvah {
       // On a DST spring-forward day both endpoints can collapse onto the same instant, which used
       // to make the mitzvah silently not exist that day. Preserve the configured duration instead.
       if (end <= start) {
-        end = start.plus({ minutes: (eh * 60 + em) - (sh * 60 + sm) });
+        end = start.plus({ minutes: eh * 60 + em - (sh * 60 + sm) });
       }
       return buildWindow(start.toJSDate(), end.toJSDate());
     },

@@ -19,7 +19,7 @@ type ScheduleInput = {
 
 const mockState: {
   pending: ScheduleInput[];
-  presented: Array<{ request: { identifier: string; content: { data?: Record<string, unknown> } } }>;
+  presented: { request: { identifier: string; content: { data?: Record<string, unknown> } } }[];
 } = { pending: [], presented: [] };
 const mockSchedule = jest.fn(async (input: ScheduleInput) => {
   mockState.pending = mockState.pending.filter((p) => p.identifier !== input.identifier);
@@ -263,8 +263,18 @@ describe('NotificationScheduler update notice', () => {
 
     mockState.presented = [
       { request: { identifier: 'update:running-id', content: { data: { kind: 'update', updateId: 'running-id' } } } },
-      { request: { identifier: 'update:u0', content: { data: { kind: 'update', updateId: 'u0', updateCreatedAt: OLDER } } } },
-      { request: { identifier: 'update:u1', content: { data: { kind: 'update', updateId: 'u1', updateCreatedAt: NEWER } } } },
+      {
+        request: {
+          identifier: 'update:u0',
+          content: { data: { kind: 'update', updateId: 'u0', updateCreatedAt: OLDER } },
+        },
+      },
+      {
+        request: {
+          identifier: 'update:u1',
+          content: { data: { kind: 'update', updateId: 'u1', updateCreatedAt: NEWER } },
+        },
+      },
     ];
     await dismissCompletedPresentedNotifications();
 
@@ -272,7 +282,9 @@ describe('NotificationScheduler update notice', () => {
   });
 
   it('8 the hourly background task presents the notice and survives a failed check', async () => {
-    const task = (TaskManager.defineTask as jest.Mock).mock.calls.find(([name]) => name === DAILY_REBUILD_TASK)![1] as () => Promise<number>;
+    const task = (TaskManager.defineTask as jest.Mock).mock.calls.find(
+      ([name]) => name === DAILY_REBUILD_TASK,
+    )![1] as () => Promise<number>;
 
     await expect(task()).resolves.toBe(1);
     expect(pendingOf('update:u1')).toBeDefined();

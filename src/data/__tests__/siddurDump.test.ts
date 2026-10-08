@@ -52,11 +52,18 @@ run('dumps resolved siddur texts', () => {
         for (const section of resolveSiddurText(text, features)) {
           out.push(`--- [${section.title.he}]${section.optional ? ` {folded section: ${section.optional.he}}` : ''}`);
           section.segments.forEach((segment, i) => {
-            const labels = [segment.optional ? `fold:${segment.optional.he}` : '', segment.minyan ? `by:${segment.minyan.he}` : '']
+            const labels = [
+              segment.optional ? `fold:${segment.optional.he}` : '',
+              segment.minyan ? `by:${segment.minyan.he}` : '',
+            ]
               .filter(Boolean)
               .join(' ');
-            const said = segment.he.map((runs) => runs.map((r) => (r.s === 'n' ? `[${r.t}]` : r.t)).join('')).join(' / ');
-            out.push(`${String(i).padStart(3)} ${labels ? `(${labels}) ` : ''}${said.slice(0, width)}${segment.en ? ` || EN: ${segment.en.slice(0, 60)}` : ''}`);
+            const said = segment.he
+              .map((runs) => runs.map((r) => (r.s === 'n' ? `[${r.t}]` : r.t)).join(''))
+              .join(' / ');
+            out.push(
+              `${String(i).padStart(3)} ${labels ? `(${labels}) ` : ''}${said.slice(0, width)}${segment.en ? ` || EN: ${segment.en.slice(0, 60)}` : ''}`,
+            );
           });
         }
       }

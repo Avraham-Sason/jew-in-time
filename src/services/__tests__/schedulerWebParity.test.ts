@@ -11,8 +11,10 @@ jest.mock('expo-notifications', () => ({
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
 jest.mock('expo-background-fetch', () => ({ registerTaskAsync: jest.fn(), BackgroundFetchResult: {} }));
 
+/* eslint-disable import/no-duplicates -- the resolver maps the bare path to the .web sibling */
 import * as native from '../NotificationScheduler';
 import * as web from '../NotificationScheduler.web';
+/* eslint-enable import/no-duplicates */
 
 // jest-expo resolves the native platform, so the web shim is never loaded by any other suite —
 // it had already drifted out of parity (missing pickBodyForReminder and shouldSuppressForCompletion,
@@ -26,8 +28,9 @@ describe('NotificationScheduler web shim parity', () => {
 
   it('exposes the same NotificationScheduler methods', () => {
     const missing = Object.keys(native.NotificationScheduler).filter(
-      (key) => typeof (native.NotificationScheduler as Record<string, unknown>)[key] === 'function'
-        && typeof (web.NotificationScheduler as Record<string, unknown>)[key] !== 'function',
+      (key) =>
+        typeof (native.NotificationScheduler as Record<string, unknown>)[key] === 'function' &&
+        typeof (web.NotificationScheduler as Record<string, unknown>)[key] !== 'function',
     );
     expect(missing).toEqual([]);
   });

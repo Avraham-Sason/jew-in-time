@@ -26,6 +26,8 @@ pnpm test:tz -- path/file.test.ts  # one file across the same four zones
 pnpm test -- path/to/file.test.ts  # single Jest file
 pnpm test -- -t "name fragment"    # Jest test-name filter
 pnpm typecheck                     # tsc --noEmit
+pnpm lint                          # eslint (eslint-config-expo + prettier config), zero warnings expected
+pnpm format                        # prettier --write; format:check is the read-only form
 pnpm check:dox                     # AGENTS.md links, section order and Child DOX Index
 pnpm siddur:build                  # rebuild the bundled nusach texts from pinned Sefaria and Wikisource sources
 pnpm doctor                        # expo-doctor
@@ -41,6 +43,8 @@ pnpm update:production --message "…"   # numbered EAS update to production —
 ```
 
 `pnpm web` calls [scripts/free-port.js](scripts/free-port.js) (cross-platform) and may kill a listener on port 8081. Use a dev client/native build when verifying `react-native-mmkv`, background tasks, or notifications.
+
+[.github/workflows/ci.yml](.github/workflows/ci.yml) runs `typecheck`, `lint`, `check:dox` and `test:tz` on every push to `main` and every pull request. The husky pre-commit hook runs lint-staged (`eslint --fix` and `prettier --write` on the staged files), so a commit never carries a lint error. ESLint's config is [eslint.config.js](eslint.config.js); test and mock files may keep `jest.mock` above their imports and `require` inside factories.
 
 Jest ([package.json](package.json)), Metro ([metro.config.js](metro.config.js)) and `check:dox` all ignore [.claude/](.claude), where agent sessions keep full worktree copies of the repo. Without that, a worktree's tests run twice against the wrong module paths, its AGENTS.md files fail the DOX check, and a `pnpm install` inside it crashes Metro's file watcher.
 
@@ -222,7 +226,7 @@ The web scheduler file is intentionally a no-op shim. If adding exported schedul
 
 ## State and Persistence
 
-All primary stores use Zustand with MMKV persistence through `StorageService.createZustandStorage()`, except `useTaharahStore`, which persists to its own encrypted instance.
+All primary stores use Zustand with MMKV persistence through `StorageService.createZustandStorage()`, except `useTaharahStore`, which persists to its own encrypted instance. Every store passes `version` and the identity `migrate` from [persistOptions.ts](src/stores/persistOptions.ts): without a `migrate`, zustand discards the persisted state on a version mismatch.
 
 - `useUserStore` (`user-store`): nusach, location, theme (one of the six palette names), language, notification permission/toggle, profile fields, halachic opinions, in-Israel flag, onboarding flag, the reader's text size and auto-scroll (`siddurAutoScroll`, off by default, and `siddurScrollSpeed`, a level into `SIDDUR_SCROLL_SPEEDS`), the hilula notices switch (`hilulotEnabled`, off by default), `gender` and `maritalStatus` (`married` or `single`), each `null` until answered, taharah opt-in.
 - `useMitzvotStore` (`mitzvot-store`): enabled state and custom reminders per mitzvah.
@@ -238,12 +242,12 @@ All primary stores use Zustand with MMKV persistence through `StorageService.cre
 
 - The app loads Heebo font weights in [_layout.tsx](src/app/_layout.tsx).
 - Use `useTheme()` and `src/theme/*` tokens. Avoid hard-coded colors in new UI unless there is a narrow reason.
-- Six palettes live in [src/theme/colors.ts](src/theme/colors.ts): gold, pink, purple, blue, dark and plum (dark plum with a rose accent), chosen in Settings as colour circles with no visible labels. `gold` / `onGold` / `goldLight` are each palette's accent tokens, `headerAccent` is the accent drawn on the header, and `isDark` is true for the two dark palettes (`DARK_THEMES`).
+- Six palettes live in [src/theme/colors.ts](src/theme/colors.ts): gold, pink, purple, blue, dark and plum (dark plum with a rose accent), chosen in Settings as colour circles with no visible labels. `gold` / `onGold` / `goldLight` are each palette's accent tokens, `goldText` is the accent as a text colour on light surfaces (gold itself reads 2.75:1 on white), `onUrgent` is the label colour on an `urgent` fill, `headerAccent` is the accent drawn on the header, and `isDark` is true for the two dark palettes (`DARK_THEMES`).
 - Translation tables are flat JSON dictionaries in [he.json](src/i18n/he.json) and [en.json](src/i18n/en.json); tests enforce key parity and non-empty values.
 - `setLocale()` and `useI18n()` are lightweight wrappers. The `i18n-js` package is installed but the current app does not rely on the normal `i18n-js` runtime API.
 - RTL is dynamic based on `useUserStore.language`. `_layout.tsx` calls `I18nManager.allowRTL/forceRTL`; native language direction changes can require a reload.
 - Web also sets `document.documentElement.dir/lang` and `body.dir`.
-- Main reusable UI components: `MitzvahCard`, `CompletedRow`, `ReminderEditor`, `TimeRibbon`, `BottomTabs`, `NavBar`, `HebrewDate`, `AppLogo`, `ShabbatScreen`, `ChipRow`, `SettingsSection`, `DayStepper`, `OnboardingDots`, `ChoiceRow`, `ThemeSwatchRow`, `ScrollSpeedStepper` and `TaharahLock`.
+- Main reusable UI components: `MitzvahCard`, `CompletedRow`, `ReminderEditor`, `TimeRibbon`, `BottomTabs`, `NavBar`, `AppLogo`, `ShabbatScreen`, `ChipRow`, `SettingsSection`, `DayStepper`, `OnboardingDots`, `ChoiceRow`, `ThemeSwatchRow`, `ScrollSpeedStepper` and `TaharahLock`.
 
 ## Tests
 
@@ -300,7 +304,7 @@ pnpm typecheck
 - New notification not tied to a mitzvah: an id `parseId` rejects (no `__`), a `data.kind`, no mitzvah category (its "done" button would mark a fake mitzvah), the kind in both scheduler files' `PendingNotificationMeta`, and its tap route in [notificationResponseHandler.ts](src/services/notificationResponseHandler.ts).
 - New decision about whether the app may act at an instant: extend `quietBlockAt()` in [skipRules.ts](src/utils/skipRules.ts). Never add a second copy of the quiet window.
 - New background task (`TaskManager.defineTask`): define it in a module imported from the root [index.js](index.js), never only behind a route module — headless launches do not load the router tree.
-- New persisted store field: add a default, reset behavior, and a `version`/`migrate` step in [persistOptions.ts](src/stores/persistOptions.ts) if old persisted data may exist.
+- New persisted store field: add a default and reset behavior; a nested shape change bumps `STORE_VERSION` and replaces the identity `migrate` in [persistOptions.ts](src/stores/persistOptions.ts) with a step that transforms the old state.
 - New decision about whether a mitzvah applies to a day: extend [skipRules.ts](src/utils/skipRules.ts). Never add a second copy of that predicate.
 - New nusach text or day-dependent insert: follow [scripts/siddur/AGENTS.md](scripts/siddur/AGENTS.md) — registry in [siddur.ts](src/data/siddur.ts), day flags in [siddur.ts](src/utils/siddur.ts), manifest, `pnpm siddur:build`, dated content tests.
 - New standalone siddur text (no mitzvah): its id in `StandaloneTextId` ([siddur.ts](src/types/siddur.ts)), its name and group in `STANDALONE_TEXTS` ([siddur.ts](src/data/siddur.ts)), a new group's i18n key `siddur.group.<group>`, a manifest entry for all four nuschaot, `pnpm siddur:build`, and dated cases in [siddur.test.ts](src/data/__tests__/siddur.test.ts). The catalog and the reader need no change.

@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, PressableStateCallbackType, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  PressableStateCallbackType,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import Animated, { FadeOut } from 'react-native-reanimated';
@@ -79,7 +87,9 @@ export default function OnboardingLocationScreen() {
           accessibilityRole="button"
           style={(state) => [styles.secondaryBtn, { backgroundColor: colors.surface2 }, pressFeedback(state)]}
         >
-          <Text style={[typography.bodyBold, { color: colors.text }]}>{busy ? '...' : t('onboarding.locationRefresh')}</Text>
+          <Text style={[typography.bodyBold, { color: colors.text }]}>
+            {busy ? '...' : t('onboarding.locationRefresh')}
+          </Text>
         </Pressable>
       </View>
 
@@ -92,14 +102,19 @@ export default function OnboardingLocationScreen() {
               onPress={() => user.setLocationState(city, 'ready', 'manual')}
               style={[styles.cityPill, { backgroundColor: selected ? colors.gold : colors.surface2 }]}
             >
-              <Text style={[typography.small, { color: selected ? colors.onGold : colors.textSub }]}>{getLocationName(city, language)}</Text>
+              <Text style={[typography.small, { color: selected ? colors.onGold : colors.textSub }]}>
+                {getLocationName(city, language)}
+              </Text>
             </Pressable>
           );
         })}
       </View>
 
       {notificationsGranted ? null : (
-        <Animated.View exiting={FadeOut.duration(250)} style={[styles.card, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}>
+        <Animated.View
+          exiting={FadeOut.duration(250)}
+          style={[styles.card, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}
+        >
           <Text style={[typography.subheading, { color: colors.text }]}>{t('onboarding.notificationsTitle')}</Text>
           <Text style={[typography.small, { color: colors.textSub, marginTop: 4 }]}>
             {refused ? t('onboarding.notificationsBlocked') : t('onboarding.notificationsBody')}
@@ -109,12 +124,16 @@ export default function OnboardingLocationScreen() {
             disabled={requesting}
             accessibilityRole="button"
             accessibilityState={{ busy: requesting }}
-            style={(state) => [styles.secondaryBtn, { borderColor: colors.gold, borderWidth: 1.5 }, pressFeedback(state)]}
+            style={(state) => [
+              styles.secondaryBtn,
+              { borderColor: colors.gold, borderWidth: 1.5 },
+              pressFeedback(state),
+            ]}
           >
             {requesting ? (
               <ActivityIndicator color={colors.gold} />
             ) : (
-              <Text style={[typography.bodyBold, { color: colors.gold }]}>
+              <Text style={[typography.bodyBold, { color: colors.goldText }]}>
                 {refused ? t('onboarding.notificationsOpenSettings') : t('onboarding.notificationsAction')}
               </Text>
             )}
@@ -123,7 +142,10 @@ export default function OnboardingLocationScreen() {
       )}
 
       <OnboardingDots step={3} total={ONBOARDING_STEPS} style={styles.dots} />
-      <Pressable onPress={() => router.push('/onboarding/ready')} style={[styles.cta, { backgroundColor: colors.gold }]}>
+      <Pressable
+        onPress={() => router.push('/onboarding/ready')}
+        style={[styles.cta, { backgroundColor: colors.gold }]}
+      >
         <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.continue')}</Text>
       </Pressable>
       <Pressable onPress={() => router.back()} style={styles.backBtn}>

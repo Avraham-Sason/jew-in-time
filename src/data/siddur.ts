@@ -2,7 +2,16 @@ import { HDate } from '@hebcal/core';
 import { Mitzvah, Nusach } from '@/types/mitzvah';
 import { Location } from '@/types/zmanim';
 import { HebcalService } from '@/services/HebcalService';
-import { Condition, DayFeatures, MitzvahTextId, Place, SiddurGroup, SiddurText, SiddurTextId, StandaloneTextId } from '@/types/siddur';
+import {
+  Condition,
+  DayFeatures,
+  MitzvahTextId,
+  Place,
+  SiddurGroup,
+  SiddurText,
+  SiddurTextId,
+  StandaloneTextId,
+} from '@/types/siddur';
 import { isJerusalem } from './mitzvot';
 import { dayFeatures, liturgicalDay, matchesCondition } from '@/utils/siddur';
 import { SIDDUR_ASSETS } from './siddurAssets.generated';
@@ -41,10 +50,22 @@ export const STANDALONE_TEXTS: Record<StandaloneTextId, StandaloneEntry> = {
   birchot_hanehenin: { name: { he: 'ברכות הנהנין', en: 'Blessings on Food and Fragrance' }, group: 'blessings' },
   kriat_shema_al_hamita: { name: { he: 'קריאת שמע על המיטה', en: 'Bedtime Shema' }, group: 'night', evening: true },
   birchot_hareiya: { name: { he: 'ברכות הראייה', en: 'Blessings on Sights and Sounds' }, group: 'blessings' },
-  kiddush_levana: { name: { he: 'קידוש לבנה', en: 'Kiddush Levana' }, group: 'night', evening: true, available: { all: ['kiddushLevana'], none: ['shabbat', 'yomTov', 'yomKippur'] }, availableLabel: { he: 'מג׳ עד ט״ו בחודש', en: 'From the 3rd to the 15th of the month' } },
+  kiddush_levana: {
+    name: { he: 'קידוש לבנה', en: 'Kiddush Levana' },
+    group: 'night',
+    evening: true,
+    available: { all: ['kiddushLevana'], none: ['shabbat', 'yomTov', 'yomKippur'] },
+    availableLabel: { he: 'מג׳ עד ט״ו בחודש', en: 'From the 3rd to the 15th of the month' },
+  },
   mezuzah: { name: { he: 'קביעת מזוזה', en: 'Affixing a Mezuzah' }, group: 'blessings' },
   sheva_berachot: { name: { he: 'שבע ברכות', en: 'Sheva Berachot' }, group: 'occasions' },
-  chanukah_candles: { name: { he: 'הדלקת נרות חנוכה', en: 'Chanukah Candle Lighting' }, group: 'occasions', evening: true, available: { all: ['chanukah'] }, availableLabel: { he: 'בחנוכה', en: 'On Chanukah' } },
+  chanukah_candles: {
+    name: { he: 'הדלקת נרות חנוכה', en: 'Chanukah Candle Lighting' },
+    group: 'occasions',
+    evening: true,
+    available: { all: ['chanukah'] },
+    availableLabel: { he: 'בחנוכה', en: 'On Chanukah' },
+  },
 };
 
 export const SIDDUR_GROUPS: readonly SiddurGroup[] = ['meals', 'blessings', 'travel', 'night', 'occasions'];
@@ -78,7 +99,9 @@ export function hasStandaloneText(id: StandaloneTextId, nusach: Nusach, features
 
 // The Hebrew day a standalone text opened with no date resolves for at this instant.
 export function standaloneTextDay(id: StandaloneTextId, instant: Date, location: Location): HDate {
-  return STANDALONE_TEXTS[id].evening ? HebcalService.hebrewNightAt(instant, location) : HebcalService.hebrewDayAt(instant, location);
+  return STANDALONE_TEXTS[id].evening
+    ? HebcalService.hebrewNightAt(instant, location)
+    : HebcalService.hebrewDayAt(instant, location);
 }
 
 export function customSiddurText(mitzvah: Mitzvah, nusach: Nusach): SiddurText | null {

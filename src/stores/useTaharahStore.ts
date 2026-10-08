@@ -1,17 +1,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from './zustandMiddleware';
 import { createTaharahZustandStorage, taharahStorage } from '@/services/TaharahStorage';
-import { STORE_VERSION, onRehydrateStorage } from './persistOptions';
+import { STORE_VERSION, migrate, onRehydrateStorage } from './persistOptions';
 import { TAHARAH_PRESETS, presetForNusach, rulesFor } from '@/data/taharahPresets';
 import type { Nusach } from '@/types/mitzvah';
 import type { Gender } from './useUserStore';
-import type {
-  TaharahEvent,
-  TaharahPresetId,
-  TaharahRole,
-  TaharahRules,
-  TaharahSettings,
-} from '@/types/taharah';
+import type { TaharahEvent, TaharahPresetId, TaharahRole, TaharahRules, TaharahSettings } from '@/types/taharah';
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
@@ -61,7 +55,8 @@ const roleFor = (gender: Gender): TaharahRole => (gender === 'female' ? 'woman' 
 const sameRules = (a: TaharahRules, b: TaharahRules) =>
   (Object.keys(b) as (keyof TaharahRules)[]).every((key) => JSON.stringify(a[key]) === JSON.stringify(b[key]));
 
-const isUntouched = (s: TaharahData) => s.events.length === 0 && sameRules(s.settings.rules, rulesFor(s.settings.preset));
+const isUntouched = (s: TaharahData) =>
+  s.events.length === 0 && sameRules(s.settings.rules, rulesFor(s.settings.preset));
 
 const settingsForNusach = (s: TaharahData, nusach: Nusach): TaharahSettings => {
   if (!isUntouched(s)) return s.settings;
@@ -100,6 +95,7 @@ export const useTaharahStore = create<TaharahState>()(
       name: 'taharah-store',
       storage: createJSONStorage(() => createTaharahZustandStorage()),
       version: STORE_VERSION,
+      migrate,
       onRehydrateStorage: onRehydrateStorage('taharah-store', taharahStorage),
       // `settings` is nested, so zustand's shallow merge would replace it whole and a rule added in a
       // later release would never reach a user who saved the old shape.

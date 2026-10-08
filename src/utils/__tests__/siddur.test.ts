@@ -64,7 +64,8 @@ describe('liturgicalDay', () => {
 
 describe('dayFeatures', () => {
   const on = (hd: HDate, place: Place = ISRAEL) => dayFeatures(hd, place).flags;
-  const at = (day: number, month: number, year: number, place: Place = ISRAEL) => on(new HDate(day, month, year), place);
+  const at = (day: number, month: number, year: number, place: Place = ISRAEL) =>
+    on(new HDate(day, month, year), place);
   const civil = (y: number, m: number, d: number, place: Place = ISRAEL) => on(new HDate(new Date(y, m - 1, d)), place);
 
   it('marks Shabbat on Saturday only', () => {
@@ -408,7 +409,10 @@ describe('resolveSiddurText', () => {
         title: { he: 'יום טוב', en: 'Yom Tov' },
         segments: [
           {
-            he: [[{ t: 'נר של ' }, { t: 'שבת ו', when: { all: ['shabbat'] } }, { t: 'יום טוב' }], [{ t: 'שבת', when: { all: ['shabbat'] } }]],
+            he: [
+              [{ t: 'נר של ' }, { t: 'שבת ו', when: { all: ['shabbat'] } }, { t: 'יום טוב' }],
+              [{ t: 'שבת', when: { all: ['shabbat'] } }],
+            ],
             when: { all: ['yomTov'] },
           },
           { he: [[{ t: 'שהחיינו' }]], en: 'Shehecheyanu', when: { all: ['shehecheyanu'] } },
@@ -478,12 +482,16 @@ describe('resolveSiddurText', () => {
       sections: [
         {
           title: { he: 'מוסף', en: 'Musaf' },
-          segments: [{ he: [[{ t: 'את יום ' }, { t: 'השבת הזה ואת יום', when: { all: ['shabbat'] } }, { t: ' חג הסכות הזה' }]] }],
+          segments: [
+            { he: [[{ t: 'את יום ' }, { t: 'השבת הזה ואת יום', when: { all: ['shabbat'] } }, { t: ' חג הסכות הזה' }]] },
+          ],
         },
       ],
     };
     const line = (flags: DayFlag[]) =>
-      resolveSiddurText(insert, features(flags))[0].segments[0].he[0].map((run) => run.t).join('');
+      resolveSiddurText(insert, features(flags))[0]
+        .segments[0].he[0].map((run) => run.t)
+        .join('');
     expect(line([])).toBe('את יום חג הסכות הזה');
     expect(line(['shabbat'])).toBe('את יום השבת הזה ואת יום חג הסכות הזה');
   });
@@ -491,8 +499,16 @@ describe('resolveSiddurText', () => {
 
 describe('passage labels', () => {
   const someSay: PassageLabel = { he: 'יש אומרים', en: 'Some say' };
-  const hallelToday: PassageLabel = { he: 'יש נוהגים לומר הלל היום', en: 'Some say Hallel today', when: { all: ['hallelDisputed'] } };
-  const verseOnRoshChodesh: PassageLabel = { he: 'יש אומרים פסוק', en: 'Some say a verse', when: { all: ['roshChodesh'] } };
+  const hallelToday: PassageLabel = {
+    he: 'יש נוהגים לומר הלל היום',
+    en: 'Some say Hallel today',
+    when: { all: ['hallelDisputed'] },
+  };
+  const verseOnRoshChodesh: PassageLabel = {
+    he: 'יש אומרים פסוק',
+    en: 'Some say a verse',
+    when: { all: ['roshChodesh'] },
+  };
   const text: SiddurText = {
     nusach: 'ashkenaz',
     id: 'shacharit',
@@ -548,7 +564,10 @@ describe('passage labels', () => {
       ],
     };
     const blocks = (flags: DayFlag[]) =>
-      segmentBlocks(resolveSiddurText(amidah, features(flags))[0].segments, 'minyan', 10).map((block) => [block.start, block.label?.he ?? null]);
+      segmentBlocks(resolveSiddurText(amidah, features(flags))[0].segments, 'minyan', 10).map((block) => [
+        block.start,
+        block.label?.he ?? null,
+      ]);
     expect(blocks(['publicFast'])).toEqual([
       [10, null],
       [11, fastOnly.he],

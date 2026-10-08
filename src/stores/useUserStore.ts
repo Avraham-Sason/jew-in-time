@@ -2,7 +2,7 @@ import { Appearance } from 'react-native';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from './zustandMiddleware';
 import { createZustandStorage } from '@/services/StorageService';
-import { STORE_VERSION, onRehydrateStorage } from './persistOptions';
+import { STORE_VERSION, migrate, onRehydrateStorage } from './persistOptions';
 import { Nusach, HalachicOpinion } from '@/types/mitzvah';
 import { Location } from '@/types/zmanim';
 import { CITIES } from '@/data/cities';
@@ -92,7 +92,8 @@ export const useUserStore = create<UserState>()(
     (set) => ({
       nusach: 'ashkenaz',
       location: DEFAULT_LOCATION,
-      locationStatus: 'ready',
+      // The default city is a guess until GPS or a city pick confirms it; 'ready' claimed otherwise.
+      locationStatus: 'missing',
       locationSource: 'manual',
       theme: DEFAULT_THEME,
       language: 'he',
@@ -136,7 +137,7 @@ export const useUserStore = create<UserState>()(
         set({
           nusach: 'ashkenaz',
           location: DEFAULT_LOCATION,
-          locationStatus: 'ready',
+          locationStatus: 'missing',
           locationSource: 'manual',
           theme: DEFAULT_THEME,
           language: 'he',
@@ -160,6 +161,7 @@ export const useUserStore = create<UserState>()(
       name: 'user-store',
       storage: createJSONStorage(() => createZustandStorage()),
       version: STORE_VERSION,
+      migrate,
       merge: mergeSavedUserState,
       onRehydrateStorage: onRehydrateStorage('user-store'),
     },

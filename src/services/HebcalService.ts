@@ -145,7 +145,9 @@ export const HebcalService = {
   hebrewNightAt(instant: Date, loc: Location): HDate {
     const civil = civilDayAt(instant, loc);
     const dawn = ZmanimService.getZmanim(instant, loc)?.alotHaShachar;
-    const beforeDawn = dawn ? instant.getTime() < dawn.getTime() : DateTime.fromJSDate(instant).setZone(loc.tz).hour < 4;
+    const beforeDawn = dawn
+      ? instant.getTime() < dawn.getTime()
+      : DateTime.fromJSDate(instant).setZone(loc.tz).hour < 4;
     return beforeDawn ? civil : civil.next();
   },
 

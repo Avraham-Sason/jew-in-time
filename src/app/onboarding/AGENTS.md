@@ -7,7 +7,8 @@
 ## Ownership
 
 - [index.tsx](index.tsx) owns the onboarding entry route.
-- [profile.tsx](profile.tsx) owns the second step: gender, marital status, and the opt-in to taharat hamishpacha tracking.
+- [profile.tsx](profile.tsx) owns the second step: gender, marital status, and the opt-in to taharat hamishpacha tracking. Choosing a gender goes through `chooseGender()`, which also sets the library defaults for it (no tefillin or tzitzit for a woman), so the step never writes the mitzvot store itself.
+- The location step shows the default city with `settings.locationStatus.missing` until GPS or a city chip confirms it; the status never reads "ready" for a guess.
 - [nusach.tsx](nusach.tsx), [location.tsx](location.tsx), and [ready.tsx](ready.tsx) own their respective onboarding steps.
 - Every step draws its progress with [OnboardingDots](../../components/OnboardingDots.tsx) and `ONBOARDING_STEPS`; a new step raises that constant and shifts the later steps' indexes.
 

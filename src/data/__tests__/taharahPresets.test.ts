@@ -1,4 +1,10 @@
-import { TAHARAH_PRESET_IDS, TAHARAH_PRESETS, TAHARAH_RULES_VERSION, presetForNusach, rulesFor } from '../taharahPresets';
+import {
+  TAHARAH_PRESET_IDS,
+  TAHARAH_PRESETS,
+  TAHARAH_RULES_VERSION,
+  presetForNusach,
+  rulesFor,
+} from '../taharahPresets';
 
 describe('taharahPresets', () => {
   it('pins the rules of every preset', () => {
@@ -45,7 +51,13 @@ describe('taharahPresets', () => {
   });
 
   it('lists exactly the five presets', () => {
-    expect([...TAHARAH_PRESET_IDS].sort()).toEqual(['ashkenaz', 'chabad', 'chassidic', 'sephardi_eliyahu', 'sephardi_ovadia']);
+    expect([...TAHARAH_PRESET_IDS].sort()).toEqual([
+      'ashkenaz',
+      'chabad',
+      'chassidic',
+      'sephardi_eliyahu',
+      'sephardi_ovadia',
+    ]);
     expect(Object.keys(TAHARAH_PRESETS).sort()).toEqual([...TAHARAH_PRESET_IDS].sort());
   });
 

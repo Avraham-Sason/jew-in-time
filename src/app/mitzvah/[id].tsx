@@ -1,14 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Linking,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
@@ -17,7 +8,7 @@ import { ReminderEditor } from '@/components/ReminderEditor';
 import { findAnyMitzvah } from '@/data/customMitzvotAdapter';
 import { hasSiddurText, siddurPlace } from '@/data/siddur';
 import { dateKey } from '@/stores/useCompletionsStore';
-import { useMitzvotStore } from '@/stores/useMitzvotStore';
+import { selectActive, useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useQuietBlock } from '@/components/ShabbatScreen';
@@ -40,7 +31,7 @@ export default function MitzvahDetailScreen() {
   const nusach = useUserStore((s) => s.nusach);
   const ksSofZman = useUserStore((s) => s.halachicOpinions.ksSofZman);
   const inIsrael = useUserStore((s) => s.inIsrael);
-  const active = useMitzvotStore((s) => s.activeMitzvot[params.id] ?? { enabled: false });
+  const active = useMitzvotStore(selectActive(params.id));
   const setEnabled = useMitzvotStore((s) => s.setEnabled);
   const setReminders = useMitzvotStore((s) => s.setReminders);
   const resetToDefault = useMitzvotStore((s) => s.resetToDefault);
@@ -48,13 +39,19 @@ export default function MitzvahDetailScreen() {
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
-  const reminders = active.customReminders ?? mitzvah?.defaultReminders ?? [];
+  const reminders = useMemo(
+    () => active.customReminders ?? mitzvah?.defaultReminders ?? [],
+    [active.customReminders, mitzvah],
+  );
   const includeContentInNotification = reminders.some((reminder) => reminder.includeContentInBody);
   const window = useMemo(
-    () => (mitzvah ? currentOrNextWindow(mitzvah, location, { nusach, halachicOpinions: { ksSofZman }, inIsrael }) : null),
+    () =>
+      mitzvah ? currentOrNextWindow(mitzvah, location, { nusach, halachicOpinions: { ksSofZman }, inIsrael }) : null,
     [mitzvah, location, nusach, ksSofZman, inIsrael],
   );
-  const showText = Boolean(mitzvah && window && hasSiddurText(mitzvah, nusach, window.date, siddurPlace(location, inIsrael)));
+  const showText = Boolean(
+    mitzvah && window && hasSiddurText(mitzvah, nusach, window.date, siddurPlace(location, inIsrael)),
+  );
   const nextTrigger = useMemo(() => {
     if (!window) return null;
     const now = new Date();
@@ -89,18 +86,24 @@ export default function MitzvahDetailScreen() {
     setEditIndex(null);
   };
   const setIncludeContent = (value: boolean) => {
-    setReminders(mitzvah.id, reminders.map((reminder) => ({ ...reminder, includeContentInBody: value })));
+    setReminders(
+      mitzvah.id,
+      reminders.map((reminder) => ({ ...reminder, includeContentInBody: value })),
+    );
   };
   const confirmDeleteReminder = () => {
     if (deleteIndex === null) return;
-    setReminders(mitzvah.id, reminders.filter((_, itemIndex) => itemIndex !== deleteIndex));
+    setReminders(
+      mitzvah.id,
+      reminders.filter((_, itemIndex) => itemIndex !== deleteIndex),
+    );
     if (editIndex === deleteIndex) {
       setEditIndex(null);
       setEditorVisible(false);
     }
     setDeleteIndex(null);
   };
-  const pendingDeleteReminder = deleteIndex === null ? null : reminders[deleteIndex] ?? null;
+  const pendingDeleteReminder = deleteIndex === null ? null : (reminders[deleteIndex] ?? null);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
@@ -137,13 +140,16 @@ export default function MitzvahDetailScreen() {
           <View>
             <Text style={[typography.heading, { color: colors.headerText }]}>{name}</Text>
             <Text style={[typography.micro, { color: colors.headerSub, marginTop: 2 }]}>
-              {cycle} · {window ? t('detail.timeRange', {
-                start: DateTime.fromJSDate(window.start).toFormat('HH:mm'),
-                end: DateTime.fromJSDate(window.end).toFormat('HH:mm'),
-              }) : '-'}
+              {cycle} ·{' '}
+              {window
+                ? t('detail.timeRange', {
+                    start: DateTime.fromJSDate(window.start).toFormat('HH:mm'),
+                    end: DateTime.fromJSDate(window.end).toFormat('HH:mm'),
+                  })
+                : '-'}
             </Text>
             {nextTrigger ? (
-              <Text style={[typography.micro, { color: colors.gold, marginTop: 2 }]}>
+              <Text style={[typography.micro, { color: colors.headerAccent, marginTop: 2 }]}>
                 {t('detail.previewNext', { time: DateTime.fromJSDate(nextTrigger).toFormat('dd/MM HH:mm') })}
               </Text>
             ) : null}
@@ -154,17 +160,23 @@ export default function MitzvahDetailScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {showText && window ? (
           <Pressable
-            onPress={() => router.push({ pathname: '/siddur/[id]', params: { id: mitzvah.id, date: dateKey(window.date) } })}
+            onPress={() =>
+              router.push({ pathname: '/siddur/[id]', params: { id: mitzvah.id, date: dateKey(window.date) } })
+            }
             accessibilityRole="button"
             style={({ pressed }) => [styles.openTextBtn, { backgroundColor: colors.gold, opacity: pressed ? 0.85 : 1 }]}
           >
             <Text style={[typography.heading, { color: colors.onGold }]}>{t('siddur.open')}</Text>
           </Pressable>
         ) : null}
-        <View style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}>
-          <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 10 }]}>{t('detail.timeWindow')}</Text>
+        <View
+          style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}
+        >
+          <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 10 }]}>
+            {t('detail.timeWindow')}
+          </Text>
           <View style={styles.windowRow}>
-            <Text style={[typography.micro, { color: colors.textMuted, width: 40, textAlign: 'right' }]}>
+            <Text style={[typography.micro, { color: colors.textMuted, width: 40 }]}>
               {window ? DateTime.fromJSDate(window.start).toFormat('HH:mm') : '--:--'}
             </Text>
             <View style={styles.ribbon}>
@@ -184,14 +196,26 @@ export default function MitzvahDetailScreen() {
             </Text>
           </View>
           <View style={styles.legend}>
-            {[['time.safe', colors.safe], ['time.warning', colors.warning], ['time.urgent', colors.urgent]].map(([key, color]) => (
-              <Text key={key} style={[typography.micro, { color }]}>● {t(key)}</Text>
+            {[
+              ['time.safe', colors.safe],
+              ['time.warning', colors.warning],
+              ['time.urgent', colors.urgent],
+            ].map(([key, color]) => (
+              <Text key={key} style={[typography.micro, { color }]}>
+                ● {t(key)}
+              </Text>
             ))}
           </View>
         </View>
 
         {mitzvah.description ? (
-          <View style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}>
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: colors.surface },
+              shadowStyle(colors.shadow, shadowPresets.cardSoft),
+            ]}
+          >
             <Text style={[typography.body, { color: colors.text }]}>
               {language === 'en' && mitzvah.description.en ? mitzvah.description.en : mitzvah.description.he}
             </Text>
@@ -212,10 +236,16 @@ export default function MitzvahDetailScreen() {
           >
             <Text style={[typography.subheading, { color: colors.text, marginBottom: 10 }]}>{t('detail.content')}</Text>
             {mitzvah.contentBlocks.map((block, index) => (
-              <ContentBlockView key={`${block.type}-${index}`} block={block} highlighted={params.highlightContent === '1'} />
+              <ContentBlockView
+                key={`${block.type}-${index}`}
+                block={block}
+                highlighted={params.highlightContent === '1'}
+              />
             ))}
             <View style={[styles.row, { marginTop: 12 }]}>
-              <Text style={[typography.bodyBold, { color: colors.text, flex: 1 }]}>{t('detail.includeContentInNotification')}</Text>
+              <Text style={[typography.bodyBold, { color: colors.text, flex: 1 }]}>
+                {t('detail.includeContentInNotification')}
+              </Text>
               <Switch
                 value={includeContentInNotification}
                 onValueChange={setIncludeContent}
@@ -226,7 +256,9 @@ export default function MitzvahDetailScreen() {
           </View>
         ) : null}
 
-        <View style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}>
+        <View
+          style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}
+        >
           <View style={styles.row}>
             <Text style={[typography.subheading, { color: colors.text }]}>{t('detail.settings')}</Text>
             <Switch
@@ -250,10 +282,7 @@ export default function MitzvahDetailScreen() {
         >
           <Text style={[typography.subheading, { color: colors.text, marginBottom: 10 }]}>{t('detail.reminders')}</Text>
           {reminders.map((reminder, index) => (
-            <View
-              key={`${reminder.label}-${index}`}
-              style={[styles.reminderRow, { borderBottomColor: colors.border }]}
-            >
+            <View key={`${reminder.label}-${index}`} style={[styles.reminderRow, { borderBottomColor: colors.border }]}>
               <Pressable
                 onPress={() => {
                   setEditIndex(index);
@@ -263,13 +292,15 @@ export default function MitzvahDetailScreen() {
               >
                 <Text style={[typography.bodyBold, { color: colors.text }]}>{reminder.label}</Text>
                 <Text style={[typography.micro, { color: colors.textMuted, marginTop: 2 }]}>
-                  {t(`reminder.anchor.${reminder.anchor}`)} · {reminder.offsetMin >= 0 ? '+' : ''}{reminder.offsetMin} {t('reminder.minutesShort')}
+                  {t(`reminder.anchor.${reminder.anchor}`)} · {reminder.offsetMin >= 0 ? '+' : ''}
+                  {reminder.offsetMin} {t('reminder.minutesShort')}
                 </Text>
               </Pressable>
               <Pressable
                 onPress={() => setDeleteIndex(index)}
                 accessibilityRole="button"
                 accessibilityLabel={t('reminder.delete')}
+                hitSlop={10}
                 style={[styles.deleteBtn, { backgroundColor: colors.surface2 }]}
               >
                 <Text style={[typography.captionBold, { color: colors.textMuted }]}>✕</Text>
@@ -291,9 +322,12 @@ export default function MitzvahDetailScreen() {
             <View style={[styles.plus, { backgroundColor: colors.goldLight }]}>
               <Text style={{ fontSize: 16, color: colors.gold }}>＋</Text>
             </View>
-            <Text style={[typography.bodyBold, { color: colors.gold }]}>{t('detail.addReminder')}</Text>
+            <Text style={[typography.bodyBold, { color: colors.goldText }]}>{t('detail.addReminder')}</Text>
           </Pressable>
-          <Pressable onPress={() => resetToDefault(mitzvah.id)} style={[styles.resetBtn, { backgroundColor: colors.surface2 }]}>
+          <Pressable
+            onPress={() => resetToDefault(mitzvah.id)}
+            style={[styles.resetBtn, { backgroundColor: colors.surface2 }]}
+          >
             <Text style={[typography.bodyBold, { color: colors.textSub }]}>{t('detail.defaultReset')}</Text>
           </Pressable>
         </View>
@@ -333,7 +367,9 @@ export default function MitzvahDetailScreen() {
                 onPress={confirmDeleteReminder}
                 style={[styles.confirmBtn, { backgroundColor: colors.urgent }]}
               >
-                <Text style={[typography.bodyBold, { color: '#fff' }]}>{t('reminder.deleteConfirmAction')}</Text>
+                <Text style={[typography.bodyBold, { color: colors.onUrgent }]}>
+                  {t('reminder.deleteConfirmAction')}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -348,7 +384,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={[styles.row, { marginTop: 10 }]}>
       <Text style={[typography.bodyBold, { color: colors.text }]}>{label}</Text>
-      <Text style={[typography.body, { color: colors.gold }]}>{value}</Text>
+      <Text style={[typography.body, { color: colors.goldText }]}>{value}</Text>
     </View>
   );
 }
@@ -361,9 +397,13 @@ function ContentBlockView({ block, highlighted }: { block: ContentBlock; highlig
     return (
       <Pressable
         onPress={() => Linking.openURL(block.url).catch(() => {})}
-        style={[styles.contentBlock, styles.linkBlock, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+        style={[
+          styles.contentBlock,
+          styles.linkBlock,
+          { backgroundColor: colors.surface2, borderColor: colors.border },
+        ]}
       >
-        <Text style={[typography.bodyBold, { color: colors.gold, flex: 1 }]}>{text}</Text>
+        <Text style={[typography.bodyBold, { color: colors.goldText, flex: 1 }]}>{text}</Text>
         <Text style={[typography.micro, { color: colors.textMuted }]}>{t('detail.openLink')}</Text>
       </Pressable>
     );
@@ -379,7 +419,7 @@ function ContentBlockView({ block, highlighted }: { block: ContentBlock; highlig
         },
       ]}
     >
-      <Text style={[typography.body, { color: colors.text, textAlign: language === 'he' ? 'right' : 'left' }]}>{text}</Text>
+      <Text style={[typography.body, { color: colors.text }]}>{text}</Text>
     </View>
   );
 }

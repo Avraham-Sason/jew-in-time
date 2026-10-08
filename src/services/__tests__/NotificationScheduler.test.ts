@@ -21,7 +21,7 @@ type ScheduleInput = {
 
 const mockState: {
   pending: ScheduleInput[];
-  presented: Array<{ request: { identifier: string; content: { data?: Record<string, unknown>; dataString?: string } } }>;
+  presented: { request: { identifier: string; content: { data?: Record<string, unknown>; dataString?: string } } }[];
 } = { pending: [], presented: [] };
 const mockSchedule = jest.fn(async (input: ScheduleInput) => {
   mockState.pending = mockState.pending.filter((p) => p.identifier !== input.identifier);
@@ -196,9 +196,18 @@ describe('NotificationScheduler', () => {
     const date = new Date(2026, 4, 6);
     const key = dateKey(date);
     mockState.pending = [
-      { identifier: `shacharit__${key}__0`, content: { data: { mitzvahId: 'shacharit', dateKey: key, reminderIndex: 0 } } },
-      { identifier: `shacharit__${key}__1`, content: { data: { mitzvahId: 'shacharit', dateKey: key, reminderIndex: 1 } } },
-      { identifier: `shacharit__${key}__2`, content: { data: { mitzvahId: 'shacharit', dateKey: key, reminderIndex: 2 } } },
+      {
+        identifier: `shacharit__${key}__0`,
+        content: { data: { mitzvahId: 'shacharit', dateKey: key, reminderIndex: 0 } },
+      },
+      {
+        identifier: `shacharit__${key}__1`,
+        content: { data: { mitzvahId: 'shacharit', dateKey: key, reminderIndex: 1 } },
+      },
+      {
+        identifier: `shacharit__${key}__2`,
+        content: { data: { mitzvahId: 'shacharit', dateKey: key, reminderIndex: 2 } },
+      },
       { identifier: `mincha__${key}__0`, content: { data: { mitzvahId: 'mincha', dateKey: key, reminderIndex: 0 } } },
       {
         identifier: 'shacharit__2026-05-07__0',
@@ -217,9 +226,24 @@ describe('NotificationScheduler', () => {
   it('6.2b cancelForMitzvah also clears that mitzvah and date from the notification tray', async () => {
     const date = new Date(2026, 4, 6);
     mockState.presented = [
-      { request: { identifier: 'tefillin__2026-05-06__0', content: { data: { mitzvahId: 'tefillin', dateKey: '2026-05-06' } } } },
-      { request: { identifier: 'tefillin__2026-05-07__0', content: { data: { mitzvahId: 'tefillin', dateKey: '2026-05-07' } } } },
-      { request: { identifier: 'shacharit__2026-05-06__0', content: { data: { mitzvahId: 'shacharit', dateKey: '2026-05-06' } } } },
+      {
+        request: {
+          identifier: 'tefillin__2026-05-06__0',
+          content: { data: { mitzvahId: 'tefillin', dateKey: '2026-05-06' } },
+        },
+      },
+      {
+        request: {
+          identifier: 'tefillin__2026-05-07__0',
+          content: { data: { mitzvahId: 'tefillin', dateKey: '2026-05-07' } },
+        },
+      },
+      {
+        request: {
+          identifier: 'shacharit__2026-05-06__0',
+          content: { data: { mitzvahId: 'shacharit', dateKey: '2026-05-06' } },
+        },
+      },
     ];
 
     await NotificationScheduler.cancelForMitzvah('tefillin', date);
@@ -235,7 +259,10 @@ describe('NotificationScheduler', () => {
     mockState.pending = [
       {
         identifier: 'tefillin__2026-05-06__0',
-        content: { data: { mitzvahId: 'tefillin', dateKey: '2026-05-06' }, categoryIdentifier: MITZVAH_REMINDER_CATEGORY },
+        content: {
+          data: { mitzvahId: 'tefillin', dateKey: '2026-05-06' },
+          categoryIdentifier: MITZVAH_REMINDER_CATEGORY,
+        },
       },
     ];
 
@@ -397,7 +424,8 @@ describe('NotificationScheduler', () => {
 
     await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000), [plain, withText, withLinkOnly]);
 
-    const categoryOf = (id: string) => mockState.pending.find((p) => p.identifier.startsWith(`${id}__`))?.content.categoryIdentifier;
+    const categoryOf = (id: string) =>
+      mockState.pending.find((p) => p.identifier.startsWith(`${id}__`))?.content.categoryIdentifier;
     expect(categoryOf('no_text')).toBe(MITZVAH_REMINDER_CATEGORY);
     expect(categoryOf('custom_text')).toBe(MITZVAH_TEXT_CATEGORY);
     expect(categoryOf('custom_link')).toBe(MITZVAH_REMINDER_CATEGORY);
@@ -606,7 +634,11 @@ describe('NotificationScheduler', () => {
     await scheduleAt(erev);
 
     expectNothingInside(block);
-    const keysOf = (id: string) => [...new Set(mockState.pending.filter((p) => p.identifier.startsWith(`${id}__`)).map((p) => p.identifier.split('__')[1]))];
+    const keysOf = (id: string) => [
+      ...new Set(
+        mockState.pending.filter((p) => p.identifier.startsWith(`${id}__`)).map((p) => p.identifier.split('__')[1]),
+      ),
+    ];
     expect(keysOf('candle_lighting')).toEqual(['2028-09-20']);
     expect(keysOf('havdalah')).toEqual(['2028-09-23']);
     expect(idsFor('candle_lighting', '2028-09-20').map(triggerOf)).toEqual([block.start.getTime()]);
@@ -646,7 +678,9 @@ describe('NotificationScheduler', () => {
     useUserStore.getState().setLocation(losAngeles);
     // Thursday morning in Los Angeles: Thursday, Friday, Shabbat and Sunday, each exactly once.
     await scheduleAt(at(losAngeles, '2026-11-12T05:00'));
-    const keys = mockState.pending.filter((p) => p.identifier.startsWith('shacharit__')).map((p) => p.identifier.split('__')[1]);
+    const keys = mockState.pending
+      .filter((p) => p.identifier.startsWith('shacharit__'))
+      .map((p) => p.identifier.split('__')[1]);
     expect([...new Set(keys)].sort()).toEqual(['2026-11-12', '2026-11-13', '2026-11-15']);
     expect(new Set(mockState.pending.map((p) => p.identifier)).size).toBe(mockState.pending.length);
   });
@@ -677,14 +711,18 @@ describe('NotificationScheduler', () => {
       expect(notice.content.title).toBe(t('holyBlock.title.shabbat'));
       const clock = (instant: Date) => DateTime.fromJSDate(instant).toFormat('HH:mm');
       expect(notice.content.body).toBe(
-        t('holyBlock.notice.body', { start: clock(block.start), exit: t('holyBlock.exit.shabbat'), end: clock(block.end) }),
+        t('holyBlock.notice.body', {
+          start: clock(block.start),
+          exit: t('holyBlock.exit.shabbat'),
+          end: clock(block.end),
+        }),
       );
       // Not a mitzvah reminder: no category, so no "done" button can mark a fake mitzvah.
       expect(notice.content.categoryIdentifier).toBeUndefined();
       expect(notice.content.data.mitzvahId).toBeUndefined();
     });
 
-    it('names the Omer counts that fall on the block\'s nights', async () => {
+    it("names the Omer counts that fall on the block's nights", async () => {
       setupEnabled(['sefirat_haomer']);
       // Friday 2027-04-30 (23 Nisan 5787): Friday night counts day 9.
       await scheduleAt(at(jerusalem, '2027-04-30T06:00'));
@@ -704,14 +742,16 @@ describe('NotificationScheduler', () => {
 
     // The first Seder has no count: day 1 is the next night, inside the block. Calling it "tonight"
     // sent diaspora users to count on the wrong night.
-    it('never calls a later night\'s count tonight', async () => {
+    it("never calls a later night's count tonight", async () => {
       setupEnabled(['sefirat_haomer']);
       useUserStore.getState().setLocation(CITIES.find((city) => city.nameEn === 'New York')!);
       // Pesach 5788 abroad: Tuesday and Wednesday. Monday night is the first Seder.
       await scheduleAt(at(useUserStore.getState().location, '2028-04-10T06:00'));
       const body = noticesOf()[0].content.body ?? '';
       expect(body).not.toContain(t('holyBlock.notice.omerTonight', { count: 1 }));
-      expect(body).toContain(t('holyBlock.notice.omerNights', { counts: t('holyBlock.notice.omerOn', { count: 1, day: 'יום שלישי' }) }));
+      expect(body).toContain(
+        t('holyBlock.notice.omerNights', { counts: t('holyBlock.notice.omerOn', { count: 1, day: 'יום שלישי' }) }),
+      );
     });
 
     it('leaves the Omer out when the user does not count it', async () => {
@@ -756,7 +796,11 @@ describe('NotificationScheduler', () => {
     expect(idsFor('tefillin', locationDayKey(thursdayEvening, 1)).length).toBeGreaterThan(0);
   });
 
-  function bulkMitzvah(id: string, reminders: Mitzvah['defaultReminders'], window: { start: Date; end: Date }): Mitzvah {
+  function bulkMitzvah(
+    id: string,
+    reminders: Mitzvah['defaultReminders'],
+    window: { start: Date; end: Date },
+  ): Mitzvah {
     return {
       id,
       name: { he: 'בדיקה', en: 'Test' },
@@ -773,10 +817,14 @@ describe('NotificationScheduler', () => {
   it('6.14 the trigger is a date trigger at the exact anchor offset, on the app channel', async () => {
     const start = new Date(Date.now() + 30 * 60_000);
     const end = new Date(Date.now() + 120 * 60_000);
-    const mitzvah = bulkMitzvah('trigger_test', [
-      { anchor: 'start', offsetMin: 10, label: 'from start' },
-      { anchor: 'end', offsetMin: -45, label: 'before end' },
-    ], { start, end });
+    const mitzvah = bulkMitzvah(
+      'trigger_test',
+      [
+        { anchor: 'start', offsetMin: 10, label: 'from start' },
+        { anchor: 'end', offsetMin: -45, label: 'before end' },
+      ],
+      { start, end },
+    );
 
     await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000), [mitzvah]);
 
@@ -792,10 +840,14 @@ describe('NotificationScheduler', () => {
   it('6.15 a reminder whose trigger falls outside its own window is never scheduled', async () => {
     const start = new Date(Date.now() + 30 * 60_000);
     const end = new Date(Date.now() + 90 * 60_000); // a one-hour window
-    const mitzvah = bulkMitzvah('outside_test', [
-      { anchor: 'start', offsetMin: 15, label: 'inside' },
-      { anchor: 'start', offsetMin: 600, label: 'hours after the window closed' },
-    ], { start, end });
+    const mitzvah = bulkMitzvah(
+      'outside_test',
+      [
+        { anchor: 'start', offsetMin: 15, label: 'inside' },
+        { anchor: 'start', offsetMin: 600, label: 'hours after the window closed' },
+      ],
+      { start, end },
+    );
 
     await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000), [mitzvah]);
 
@@ -853,9 +905,7 @@ describe('NotificationScheduler', () => {
     await Promise.all([NotificationScheduler.rebuild(), NotificationScheduler.rebuild()]);
 
     expect(mockCancelAll).toHaveBeenCalledTimes(2);
-    const tefillinIds = mockState.pending
-      .filter((p) => p.identifier.startsWith('tefillin__'))
-      .map((p) => p.identifier);
+    const tefillinIds = mockState.pending.filter((p) => p.identifier.startsWith('tefillin__')).map((p) => p.identifier);
     expect(new Set(tefillinIds).size).toBe(tefillinIds.length);
   });
 
@@ -885,7 +935,11 @@ describe('NotificationScheduler', () => {
       setupEnabled(['shacharit', 'mincha']);
       await scheduleAt(friday);
       const block = shabbat();
-      expect(checkInsOf().map((p) => p.identifier)).toEqual(['checkin:2026-11-14:0', 'checkin:2026-11-14:1', 'checkin:2026-11-14:2']);
+      expect(checkInsOf().map((p) => p.identifier)).toEqual([
+        'checkin:2026-11-14:0',
+        'checkin:2026-11-14:1',
+        'checkin:2026-11-14:2',
+      ]);
       expect(checkInsOf().map(triggerOf)).toEqual([
         block.end.getTime(),
         block.end.getTime() + 2 * 3_600_000,
@@ -919,13 +973,18 @@ describe('NotificationScheduler', () => {
       useCompletionsStore.getState().markDone('shacharit', new Date(2026, 10, 14));
       await settled();
       expect(checkInsOf()).toHaveLength(0);
-      expect(shouldSuppressForCompletion({ kind: 'checkin', blockId: '2026-11-14' }, 'checkin:2026-11-14:1')).toBe(true);
+      expect(shouldSuppressForCompletion({ kind: 'checkin', blockId: '2026-11-14' }, 'checkin:2026-11-14:1')).toBe(
+        true,
+      );
     });
 
     it('a mitzvah skipped on the erev is settled, not waiting', async () => {
       setupEnabled(['mincha']);
       // Friday's mincha runs into Shabbat, so it is in the check-in — unless it was skipped.
-      useCompletionsStore.setState({ skipped: { '2026-11-13': { mincha: 1 } }, completions: { '2026-11-14': { mincha: 1 } } });
+      useCompletionsStore.setState({
+        skipped: { '2026-11-13': { mincha: 1 } },
+        completions: { '2026-11-14': { mincha: 1 } },
+      });
       await scheduleAt(friday);
       expect(checkInsOf()).toHaveLength(0);
     });
@@ -954,7 +1013,14 @@ describe('NotificationScheduler', () => {
     it('finishing the check-in withdraws its nudges from the schedule and the tray, and silences any in flight', async () => {
       setupEnabled(['shacharit']);
       await scheduleAt(friday);
-      mockState.presented = [{ request: { identifier: 'checkin:2026-11-14:0', content: { data: { kind: 'checkin', blockId: '2026-11-14' } } } }];
+      mockState.presented = [
+        {
+          request: {
+            identifier: 'checkin:2026-11-14:0',
+            content: { data: { kind: 'checkin', blockId: '2026-11-14' } },
+          },
+        },
+      ];
       const data = { kind: 'checkin' as const, blockId: '2026-11-14' };
       expect(shouldSuppressForCompletion(data, 'checkin:2026-11-14:1')).toBe(false);
 
@@ -969,4 +1035,3 @@ describe('NotificationScheduler', () => {
     });
   });
 });
-

@@ -25,11 +25,20 @@ export default function NusachScreen() {
       <Text style={[typography.body, { color: colors.textSub, marginTop: 4 }]}>{t('onboarding.nusachBody')}</Text>
       <ScrollView contentContainerStyle={styles.list}>
         {OPTIONS.map((option) => (
-          <ChoiceRow key={option} label={t(`nusach.${option}`)} selected={selected === option} onPress={() => chooseNusach(option)} />
+          <ChoiceRow
+            key={option}
+            label={t(`nusach.${option}`)}
+            selected={selected === option}
+            onPress={() => chooseNusach(option)}
+          />
         ))}
       </ScrollView>
       <OnboardingDots step={2} total={ONBOARDING_STEPS} style={styles.dots} />
-      <Pressable onPress={() => router.push('/onboarding/location')} accessibilityRole="button" style={[styles.cta, { backgroundColor: colors.gold }]}>
+      <Pressable
+        onPress={() => router.push('/onboarding/location')}
+        accessibilityRole="button"
+        style={[styles.cta, { backgroundColor: colors.gold }]}
+      >
         <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.continue')}</Text>
       </Pressable>
       <Pressable onPress={() => router.back()} accessibilityRole="button" style={styles.backBtn}>

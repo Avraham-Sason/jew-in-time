@@ -26,7 +26,11 @@ const hefsek = (day: number): Draft<TaharahEvent> => ({ type: 'hefsek', day, res
 
 const day = (abs: number): Onah => ({ abs, kind: 'day' });
 const night = (abs: number): Onah => ({ abs, kind: 'night' });
-const entry = (onah: Onah, reasons: PerishaOnah['reasons'], disputed = false): PerishaOnah => ({ onah, reasons, disputed });
+const entry = (onah: Onah, reasons: PerishaOnah['reasons'], disputed = false): PerishaOnah => ({
+  onah,
+  reasons,
+  disputed,
+});
 
 describe('perishaOnot', () => {
   it('anchors the fixtures on the Tishrei and Cheshvan dates they rely on', () => {
@@ -64,7 +68,10 @@ describe('perishaOnot', () => {
     it('has no haflaga for a single onset, but still the yom hachodesh and the onah beinonit', () => {
       const result = perishaOnot(log(onset(L)), ASHKENAZ);
       expect(result.some((e) => e.reasons.includes('haflaga'))).toBe(false);
-      expect(result).toEqual([entry(day(L + 29), ['onahBeinonit']), entry(day(L + 30), ['yomHachodesh', 'onahBeinonit'])]);
+      expect(result).toEqual([
+        entry(day(L + 29), ['onahBeinonit']),
+        entry(day(L + 30), ['yomHachodesh', 'onahBeinonit']),
+      ]);
     });
 
     it('marks the yom hachodesh of a 30th as disputed when the next month has only 29 days', () => {
@@ -102,7 +109,7 @@ describe('perishaOnot', () => {
   });
 
   describe('chassidic', () => {
-    it('adds ohr zarua before every onah except one that is only the thirty-first day\'s onah beinonit', () => {
+    it("adds ohr zarua before every onah except one that is only the thirty-first day's onah beinonit", () => {
       // Elul has 29 days, so the yom hachodesh falls on day 30 and the onah beinonit of day 31 stands alone.
       expect(perishaOnot(log(onset(P)), TAHARAH_PRESETS.chassidic)).toEqual([
         entry(night(P + 29), ['ohrZarua']),
@@ -150,14 +157,18 @@ describe('yomHachodeshOf', () => {
   });
 });
 
-    it('ignores a hefsek the cycle itself rejected, exactly as deriveCycle does', () => {
-      // A hefsek on the third day is too early under the Chabad five-day rule, so the previous
-      // cycle has no settled hefsek and the day count stands in, not an onot count from day 3.
-      const events = log(onset(P), { type: 'hefsek', day: P + 2, result: 'clean' }, onset(L), { type: 'hefsek', day: L + 4, result: 'clean' });
-      const result = perishaOnot(events, CHABAD);
-      expect(result.find((e) => e.reasons.includes('haflaga'))?.onah).toEqual(day(L + 28));
-      expect(result.filter((e) => e.reasons.includes('haflaga'))).toHaveLength(1);
-    });
+it('ignores a hefsek the cycle itself rejected, exactly as deriveCycle does', () => {
+  // A hefsek on the third day is too early under the Chabad five-day rule, so the previous
+  // cycle has no settled hefsek and the day count stands in, not an onot count from day 3.
+  const events = log(onset(P), { type: 'hefsek', day: P + 2, result: 'clean' }, onset(L), {
+    type: 'hefsek',
+    day: L + 4,
+    result: 'clean',
+  });
+  const result = perishaOnot(events, CHABAD);
+  expect(result.find((e) => e.reasons.includes('haflaga'))?.onah).toEqual(day(L + 28));
+  expect(result.filter((e) => e.reasons.includes('haflaga'))).toHaveLength(1);
+});
 
 describe('haflagaDays', () => {
   it('counts the interval inclusively', () => {
@@ -173,7 +184,12 @@ describe('activeOnsets', () => {
 
   it('drops everything up to the pause and keeps what follows it', () => {
     const afterResume = P + 60;
-    const events = log(onset(P), { type: 'pause', day: P + 10, reason: 'pregnancy' }, { type: 'resume', day: P + 40 }, onset(afterResume));
+    const events = log(
+      onset(P),
+      { type: 'pause', day: P + 10, reason: 'pregnancy' },
+      { type: 'resume', day: P + 40 },
+      onset(afterResume),
+    );
     expect(activeOnsets(events).map((e) => e.onah.abs)).toEqual([afterResume]);
   });
 
@@ -181,7 +197,12 @@ describe('activeOnsets', () => {
   // erase it here or the two would disagree about the same events.
   it('keeps an onset dated between the pause and its resume', () => {
     const betweenPauseAndResume = P + 28;
-    const events = log(onset(P), { type: 'pause', day: P + 10, reason: 'pregnancy' }, { type: 'resume', day: P + 40 }, onset(betweenPauseAndResume));
+    const events = log(
+      onset(P),
+      { type: 'pause', day: P + 10, reason: 'pregnancy' },
+      { type: 'resume', day: P + 40 },
+      onset(betweenPauseAndResume),
+    );
     expect(activeOnsets(events).map((e) => e.onah.abs)).toEqual([betweenPauseAndResume]);
   });
 
@@ -229,7 +250,9 @@ describe('kavuaHints', () => {
 
   it('gives no interval hint when the intervals differ', () => {
     const X = absOf(2026, 10, 20);
-    expect(kavuaHints(log(onset(X), onset(X + 28), onset(X + 56), onset(X + 90))).filter((h) => h.kind === 'interval')).toEqual([]);
+    expect(
+      kavuaHints(log(onset(X), onset(X + 28), onset(X + 56), onset(X + 90))).filter((h) => h.kind === 'interval'),
+    ).toEqual([]);
   });
 
   it('needs at least three onsets', () => {

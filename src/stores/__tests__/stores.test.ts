@@ -22,13 +22,42 @@ jest.mock('expo-background-fetch', () => ({
 
 import { STORE_VERSION } from '../persistOptions';
 import { SIDDUR_SCROLL_SPEEDS, scrollSpeedLevel, useUserStore } from '../useUserStore';
-import { useMitzvotStore } from '../useMitzvotStore';
+import { INACTIVE, selectActive, useMitzvotStore } from '../useMitzvotStore';
 import { useCompletionsStore, dateKey } from '../useCompletionsStore';
+import { useCustomMitzvotStore } from '../useCustomMitzvotStore';
 
 describe('stores', () => {
   beforeEach(() => {
     useUserStore.getState().reset();
     useCompletionsStore.setState({ completions: {}, skipped: {} });
+  });
+
+  it.each([
+    ['user-store', useUserStore],
+    ['mitzvot-store', useMitzvotStore],
+    ['completions-store', useCompletionsStore],
+    ['custom-mitzvot-store', useCustomMitzvotStore],
+  ])('%s keeps a persisted state across a version bump (identity migrate)', (name, store) => {
+    const options = store.persist.getOptions();
+    expect(options.name).toBe(name);
+    expect(options.version).toBe(STORE_VERSION);
+    const saved = { marker: name };
+    expect(options.migrate?.(saved, 0)).toBe(saved);
+  });
+
+  it('selectActive returns one frozen object for a missing id, so the detail screen cannot loop', () => {
+    const state = useMitzvotStore.getState();
+    expect(selectActive('custom_deleted')(state)).toBe(INACTIVE);
+    expect(selectActive('custom_deleted')(state)).toBe(selectActive('custom_deleted')(state));
+    expect(Object.isFrozen(INACTIVE)).toBe(true);
+    expect(selectActive('tefillin')(state)).toBe(state.activeMitzvot.tefillin);
+  });
+
+  it('a fresh install reports the default city as missing, not ready', () => {
+    useUserStore.getState().reset();
+    expect(useUserStore.getState().locationStatus).toBe('missing');
+    useUserStore.getState().setLocationState(useUserStore.getState().location, 'ready', 'manual');
+    expect(useUserStore.getState().locationStatus).toBe('ready');
   });
 
   it('4.1 useUserStore setNusach persists', () => {

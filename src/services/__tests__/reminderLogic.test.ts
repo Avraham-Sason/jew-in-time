@@ -31,9 +31,7 @@ describe('buildTriggerTime', () => {
     expect(buildTriggerTime({ anchor: 'start', offsetMin: 0, label: 'x' }, window).getTime()).toBe(
       window.start.getTime(),
     );
-    expect(buildTriggerTime({ anchor: 'end', offsetMin: 0, label: 'x' }, window).getTime()).toBe(
-      window.end.getTime(),
-    );
+    expect(buildTriggerTime({ anchor: 'end', offsetMin: 0, label: 'x' }, window).getTime()).toBe(window.end.getTime());
   });
 
   it('16.3 a negative offset on the end anchor lands BEFORE the window closes', () => {

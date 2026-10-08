@@ -98,8 +98,13 @@ function expandTemplate(body, key) {
   const [name, ...args] = body.split('|');
   const expand = WIKI_TEMPLATES[name.trim()];
   if (!expand) throw new Error(`${key}: unsupported template {{${name.trim()}}}`);
-  const named = Object.fromEntries(args.filter((arg) => /^[^=]+=/.test(arg)).map((arg) => arg.split(/=(.*)/s).slice(0, 2)));
-  return expand(args.filter((arg) => !/^[^=]+=/.test(arg)), named);
+  const named = Object.fromEntries(
+    args.filter((arg) => /^[^=]+=/.test(arg)).map((arg) => arg.split(/=(.*)/s).slice(0, 2)),
+  );
+  return expand(
+    args.filter((arg) => !/^[^=]+=/.test(arg)),
+    named,
+  );
 }
 
 async function wikiToHtml(wikitext, key) {
@@ -107,14 +112,18 @@ async function wikiToHtml(wikitext, key) {
     .replace(/<noinclude>[\s\S]*?<\/noinclude>/g, '')
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/<קטע (?:התחלה|סוף)=[^>]*\/>/g, '');
-  for (let found = /\{\{#קטע:([^|{}]+)\|([^|{}]+)\}\}/.exec(html); found; found = /\{\{#קטע:([^|{}]+)\|([^|{}]+)\}\}/.exec(html)) {
+  for (
+    let found = /\{\{#קטע:([^|{}]+)\|([^|{}]+)\}\}/.exec(html);
+    found;
+    found = /\{\{#קטע:([^|{}]+)\|([^|{}]+)\}\}/.exec(html)
+  ) {
     const [page, label] = [found[1].trim(), found[2].trim()];
     const sourceKey = Object.keys(SOURCES).find((candidate) => SOURCES[candidate].wikisource === page);
     if (!sourceKey) throw new Error(`${key}: transcludes "${page}", which is not a pinned source`);
     const included = await wikiToHtml(labeledText(await loadSource(sourceKey), label, sourceKey), sourceKey);
     html = html.slice(0, found.index) + included + html.slice(found.index + found[0].length);
   }
-  for (let previous = ''; previous !== html; ) {
+  for (let previous = ''; previous !== html;) {
     previous = html;
     html = html.replace(/\{\{([^{}]*)\}\}/g, (_, body) => expandTemplate(body, key));
   }
@@ -133,7 +142,12 @@ async function wikisourceSegments(key, nodePath) {
     const [after, before] = part.split(' .. ');
     const raw = before === undefined ? labeledText(wikitext, part, key) : textBetween(wikitext, after, before, key);
     const html = await wikiToHtml(raw, key);
-    segments.push(...html.split(/\n[ \t]*\n/).map((paragraph) => paragraph.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean));
+    segments.push(
+      ...html
+        .split(/\n[ \t]*\n/)
+        .map((paragraph) => paragraph.replace(/\s*\n\s*/g, ' ').trim())
+        .filter(Boolean),
+    );
   }
   return segments;
 }
@@ -336,7 +350,11 @@ function parseHebrew(html) {
 }
 
 function parseEnglish(html) {
-  const text = decodeEntities(withoutFootnotes(html).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ''))
+  const text = decodeEntities(
+    withoutFootnotes(html)
+      .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/<[^>]+>/g, ''),
+  )
     .replace(/\s+/g, ' ')
     .trim();
   return /[A-Za-z]{2,}/.test(text) ? text.replace(/^\d+\.\s/, '') : '';
@@ -367,12 +385,21 @@ function linearPunctuation(runs) {
 }
 
 function isAlwaysSaid(segment) {
-  const said = normalizeHebrew(segment.he.flat().filter((run) => run.s !== 'n').map((run) => run.t).join(' '));
+  const said = normalizeHebrew(
+    segment.he
+      .flat()
+      .filter((run) => run.s !== 'n')
+      .map((run) => run.t)
+      .join(' '),
+  );
   return ALWAYS_SAID.some((pattern) => pattern.test(said));
 }
 
 function plain(runs) {
-  return runs.flat().map((run) => run.t).join(' ');
+  return runs
+    .flat()
+    .map((run) => run.t)
+    .join(' ');
 }
 
 function normalizeHebrew(text) {
@@ -456,7 +483,9 @@ function verifyOmer(segments, label) {
   for (const [day, text] of byDay) {
     const expected = normalizeLabel(omerDateLabel(day));
     if (!normalizeLabel(text).includes(expected)) {
-      throw new Error(`${label}: omer day ${day} does not carry the date "${omerDateLabel(day)}": ${text.slice(0, 80)}`);
+      throw new Error(
+        `${label}: omer day ${day} does not carry the date "${omerDateLabel(day)}": ${text.slice(0, 80)}`,
+      );
     }
   }
 }
@@ -495,8 +524,10 @@ function labeledPartsOf(spec, label) {
     for (const part of spec[key] ?? []) {
       const to = part.to ?? part.from;
       checkLabel(part.label, `${label} ${field} part #${part.from}`);
-      if (part.paragraph !== undefined && part.paragraph < 1) throw new Error(`${label} #${part.from}: starts at paragraph ${part.paragraph}`);
-      if (part.until !== undefined && part.until < 1) throw new Error(`${label} #${to}: ends at paragraph ${part.until}`);
+      if (part.paragraph !== undefined && part.paragraph < 1)
+        throw new Error(`${label} #${part.from}: starts at paragraph ${part.paragraph}`);
+      if (part.until !== undefined && part.until < 1)
+        throw new Error(`${label} #${to}: ends at paragraph ${part.until}`);
       for (let i = part.from; i <= to; i++) {
         if (covered.has(i)) throw new Error(`${label} #${i}: two ${field} parts overlap`);
         covered.add(i);
@@ -508,7 +539,12 @@ function labeledPartsOf(spec, label) {
 }
 
 function partCovers(part, index, first, last) {
-  return index >= part.from && index <= part.to && (index > part.from || first >= (part.paragraph ?? 0)) && (index < part.to || part.until === undefined || last < part.until);
+  return (
+    index >= part.from &&
+    index <= part.to &&
+    (index > part.from || first >= (part.paragraph ?? 0)) &&
+    (index < part.to || part.until === undefined || last < part.until)
+  );
 }
 
 function withLabels(draft, parts, label) {
@@ -518,7 +554,8 @@ function withLabels(draft, parts, label) {
     ...own.filter((part) => part.to === draft.index && part.until).map((part) => part.until),
   ];
   for (const cut of cuts) {
-    if (cut >= draft.he.length) throw new Error(`${label} #${draft.index}: cannot cut ${draft.he.length} paragraphs at ${cut}`);
+    if (cut >= draft.he.length)
+      throw new Error(`${label} #${draft.index}: cannot cut ${draft.he.length} paragraphs at ${cut}`);
   }
   const bounds = [...new Set([0, ...cuts, draft.he.length])].sort((a, b) => a - b);
   const pieces = bounds.slice(0, -1).map((first, n) => {
@@ -569,7 +606,13 @@ async function buildSection(spec, ctx) {
   for (let i = from; i <= to; i++) {
     if (spec.drop?.includes(i)) continue;
     for (const insert of (spec.insert ?? []).filter((item) => item.at === i)) {
-      drafts.push({ index: i - 0.5, he: parseHebrew(insert.he), en: insert.en ?? '', when: mergeConditions(spec.when, insert.when), authored: true });
+      drafts.push({
+        index: i - 0.5,
+        he: parseHebrew(insert.he),
+        en: insert.en ?? '',
+        when: mergeConditions(spec.when, insert.when),
+        authored: true,
+      });
     }
     let html = heAll[i].replace(/‎/g, '').normalize('NFC');
     if (editsBySeg.has(i)) html = applyEdits(html, editsBySeg.get(i), `${label} #${i}`);
@@ -584,12 +627,21 @@ async function buildSection(spec, ctx) {
     if (en) ctx.credits.add(spec.en);
     const when = mergeConditions(spec.when, spec.at?.[i], omerOf(i));
     for (const part of parts.filter((candidate) => i >= candidate.from && i <= candidate.to)) matchedParts.add(part);
-    drafts.push(...withLabels({ index: i, he, en, when, group: groupOf.get(i), promoted: classified.promoted }, parts, label));
+    drafts.push(
+      ...withLabels({ index: i, he, en, when, group: groupOf.get(i), promoted: classified.promoted }, parts, label),
+    );
   }
   const unmatched = parts.filter((part) => !matchedParts.has(part));
-  if (unmatched.length) throw new Error(`${label}: labeled parts with no text at ${unmatched.map((part) => part.from)}`);
+  if (unmatched.length)
+    throw new Error(`${label}: labeled parts with no text at ${unmatched.map((part) => part.from)}`);
   for (const insert of (spec.insert ?? []).filter((item) => item.at > to)) {
-    drafts.push({ index: insert.at - 0.5, he: parseHebrew(insert.he), en: insert.en ?? '', when: mergeConditions(spec.when, insert.when), authored: true });
+    drafts.push({
+      index: insert.at - 0.5,
+      he: parseHebrew(insert.he),
+      en: insert.en ?? '',
+      when: mergeConditions(spec.when, insert.when),
+      authored: true,
+    });
   }
 
   if (spec.minyan) for (const draft of drafts.filter((candidate) => !candidate.authored)) draft.minyan = spec.minyan;
@@ -598,7 +650,8 @@ async function buildSection(spec, ctx) {
   for (const draft of drafts) {
     const previous = segments[segments.length - 1];
     if (draft.group !== undefined && previous && previous.group === draft.group) {
-      if (!sameCondition(previous.when, draft.when)) throw new Error(`${label}: group mixes conditions at #${draft.index}`);
+      if (!sameCondition(previous.when, draft.when))
+        throw new Error(`${label}: group mixes conditions at #${draft.index}`);
       if (previous.optional !== draft.optional || previous.minyan !== draft.minyan) {
         throw new Error(`${label}: group mixes labeled and unlabeled text at #${draft.index}`);
       }
@@ -625,18 +678,24 @@ async function buildSection(spec, ctx) {
   }
 
   const namesADay = (runs) => {
-    const notes = runs.filter((run) => run.s === 'n' && !run.when).map((run) => run.t).join(' ');
+    const notes = runs
+      .filter((run) => run.s === 'n' && !run.when)
+      .map((run) => run.t)
+      .join(' ');
     return CONDITIONAL_INSTRUCTION.some((pattern) => pattern.test(normalizeHebrew(notes))) ? notes : null;
   };
   for (const segment of segments) {
     if (segment.authored || spec.reviewed?.includes(segment.index)) continue;
-    const midText = segment.he.flatMap((runs) => runs.filter((run, i) => runs.slice(0, i).some((prev) => prev.s !== 'n' && prev.t.trim())));
+    const midText = segment.he.flatMap((runs) =>
+      runs.filter((run, i) => runs.slice(0, i).some((prev) => prev.s !== 'n' && prev.t.trim())),
+    );
     const inline = namesADay(midText);
     if (inline) ctx.unreviewed.push(`${label} #${segment.index}: inline instruction "${inline.slice(0, 90)}"`);
     if (inline || segment.when) continue;
     const notes = namesADay(segment.he.flat());
     if (notes) ctx.unreviewed.push(`${label} #${segment.index}: instruction "${notes.slice(0, 90)}"`);
-    else if (segment.promoted && !isAlwaysSaid(segment)) ctx.unreviewed.push(`${label} #${segment.index}: small vocalized text "${plain(segment.he).slice(0, 90)}"`);
+    else if (segment.promoted && !isAlwaysSaid(segment))
+      ctx.unreviewed.push(`${label} #${segment.index}: small vocalized text "${plain(segment.he).slice(0, 90)}"`);
   }
 
   return {
@@ -654,7 +713,9 @@ async function buildSection(spec, ctx) {
 
 async function buildTranslationMemory() {
   const memory = new Map();
-  for (const [heKey, enKey] of Object.entries(SOURCES).filter(([, s]) => s.translationMemory).map(([k, s]) => [k, s.translationMemory])) {
+  for (const [heKey, enKey] of Object.entries(SOURCES)
+    .filter(([, s]) => s.translationMemory)
+    .map(([k, s]) => [k, s.translationMemory])) {
     const heTree = await loadSource(heKey);
     const enTree = await loadSource(enKey);
     const walk = (heNode, enNode) => {
@@ -724,7 +785,9 @@ async function main() {
       const filled = fillTranslations(sections, memory, credits);
       const segments = sections.flatMap((s) => s.segments);
       const translated = segments.filter((s) => s.en).length;
-      report.push(`${nusach}/${textId}: ${segments.length} segments, ${translated} translated (${filled} via exact match)`);
+      report.push(
+        `${nusach}/${textId}: ${segments.length} segments, ${translated} translated (${filled} via exact match)`,
+      );
       const text = {
         nusach,
         id: textId,
@@ -747,7 +810,10 @@ async function main() {
 
 function writeOutputs(outputs) {
   const existing = fs.existsSync(OUT_DIR)
-    ? fs.readdirSync(OUT_DIR, { recursive: true }).map((file) => path.join(OUT_DIR, String(file))).filter((file) => file.endsWith('.siddur'))
+    ? fs
+        .readdirSync(OUT_DIR, { recursive: true })
+        .map((file) => path.join(OUT_DIR, String(file)))
+        .filter((file) => file.endsWith('.siddur'))
     : [];
   for (const stale of existing.filter((file) => !outputs.has(file))) fs.rmSync(stale);
   for (const [file, content] of outputs) {
@@ -765,7 +831,9 @@ async function inspect(sourceKey, nodePath) {
     if (!he.length) return;
     const text = he.map((runs) => runs.map((run) => (run.s === 'n' ? `[${run.t}]` : run.t)).join('')).join(' / ');
     const said = he.flat().some((run) => run.s !== 'n');
-    console.log(`${String(index).padStart(3)} ${classified.promoted ? 'P' : ' '}${said ? ' ' : 'N'} ${text.slice(0, Number(process.env.WIDTH ?? 160))}`);
+    console.log(
+      `${String(index).padStart(3)} ${classified.promoted ? 'P' : ' '}${said ? ' ' : 'N'} ${text.slice(0, Number(process.env.WIDTH ?? 160))}`,
+    );
   });
 }
 

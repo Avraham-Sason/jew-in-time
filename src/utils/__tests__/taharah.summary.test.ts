@@ -21,7 +21,8 @@ const hefsek = (day: number): Draft<TaharahEvent> => ({ type: 'hefsek', day, res
 const morning = (day: number): Draft<TaharahEvent> => ({ type: 'bedika', day, slot: 'morning', result: 'clean' });
 const tevila = (day: number): Draft<TaharahEvent> => ({ type: 'tevila', day });
 
-const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const iso = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const clock = (instant: Date) => instant.toISOString();
 const FORMAT = { date: iso, clock };
 const hint = (events: TaharahEvent[], now: string, role: 'woman' | 'husband' = 'woman') => {
@@ -44,7 +45,7 @@ describe('stageHint', () => {
     expect(hint([], '2026-10-22T12:00')).toEqual({ key: 'taharah.stage.unknown.hint' });
   });
 
-  it('names today\'s shkia once the hefsek is possible', () => {
+  it("names today's shkia once the hefsek is possible", () => {
     const shkia = zmanimFor(at(JERUSALEM, '2026-10-24T12:00'), JERUSALEM).shkia;
     expect(hint(log(onset(O)), '2026-10-24T12:00')).toEqual({
       key: 'taharah.stage.awaitingHefsek.hint',
@@ -60,12 +61,18 @@ describe('stageHint', () => {
     expect(hint(events, '2026-10-24T19:00')).toEqual({ key: 'taharah.stage.shivaNekiim.hint', params: { day: 1 } });
   });
 
-  it('names tonight\'s tzeit on the tevila night and the deferral when the night has passed', () => {
+  it("names tonight's tzeit on the tevila night and the deferral when the night has passed", () => {
     const events = log(onset(O), hefsek(O + 4), morning(O + 5), morning(O + 11));
     const tzeit = zmanimFor(at(JERUSALEM, '2026-10-31T12:00'), JERUSALEM).tzeitHakochavim;
-    expect(hint(events, '2026-10-31T20:00')).toEqual({ key: 'taharah.stage.tevilaNight.hint', params: { time: clock(tzeit) } });
+    expect(hint(events, '2026-10-31T20:00')).toEqual({
+      key: 'taharah.stage.tevilaNight.hint',
+      params: { time: clock(tzeit) },
+    });
     const nextTzeit = zmanimFor(at(JERUSALEM, '2026-11-01T12:00'), JERUSALEM).tzeitHakochavim;
-    expect(hint(events, '2026-11-01T12:00')).toEqual({ key: 'taharah.stage.awaitingTevila.hint', params: { time: clock(nextTzeit) } });
+    expect(hint(events, '2026-11-01T12:00')).toEqual({
+      key: 'taharah.stage.awaitingTevila.hint',
+      params: { time: clock(nextTzeit) },
+    });
     // Hefsek on 2026-09-13: the eighth night is Yom Kippur, so on the seventh day's evening the
     // line says the tevila is deferred rather than naming tonight's tzeit.
     const H = absOf(2026, 9, 13);
@@ -78,9 +85,21 @@ describe('stageHint', () => {
   });
 
   it('points at the next perisha onah when tahor, on the evening a night onah opens', () => {
-    const events = log(onset(P), onset(L), hefsek(L + 4), ...Array.from({ length: 7 }, (_, i) => morning(L + 5 + i)), tevila(L + 12));
-    expect(hint(events, '2026-10-20T12:00')).toEqual({ key: 'taharah.stage.tahor.hint', params: { date: '2026-10-27' } });
-    expect(nextPerishaOnah(events, RULES, at(JERUSALEM, '2026-10-20T12:00'), JERUSALEM)).toEqual({ abs: L + 28, kind: 'day' });
+    const events = log(
+      onset(P),
+      onset(L),
+      hefsek(L + 4),
+      ...Array.from({ length: 7 }, (_, i) => morning(L + 5 + i)),
+      tevila(L + 12),
+    );
+    expect(hint(events, '2026-10-20T12:00')).toEqual({
+      key: 'taharah.stage.tahor.hint',
+      params: { date: '2026-10-27' },
+    });
+    expect(nextPerishaOnah(events, RULES, at(JERUSALEM, '2026-10-20T12:00'), JERUSALEM)).toEqual({
+      abs: L + 28,
+      kind: 'day',
+    });
     expect(hint(events, '2026-12-20T12:00')).toEqual({ key: 'taharah.stage.tahor.none' });
     expect(iso(onahStartDate({ abs: L + 29, kind: 'night' }))).toBe('2026-10-27');
   });
@@ -89,7 +108,9 @@ describe('stageHint', () => {
     const paused = hint(log(onset(O), { type: 'pause', day: O + 2, reason: 'pregnancy' }), '2026-10-25T12:00');
     expect(paused).toEqual({ key: 'taharah.stage.paused.hint', translate: { reason: 'taharah.pause.pregnancy' } });
     expect(renderHint(paused, t)).toBe('taharah.stage.paused.hint {"reason":"taharah.pause.pregnancy"}');
-    expect(hint(log(onset(O), hefsek(O + 4)), '2026-10-26T12:00')).toEqual({ key: 'taharah.safek.missedFirstDayBedika' });
+    expect(hint(log(onset(O), hefsek(O + 4)), '2026-10-26T12:00')).toEqual({
+      key: 'taharah.safek.missedFirstDayBedika',
+    });
     expect(renderHint(null, t)).toBe('');
   });
 
@@ -105,8 +126,14 @@ describe('stageHint', () => {
   it('shows the husband an estimated mikveh night from the earliest hefsek day', () => {
     const events = log(onset(O));
     const tzeit = zmanimFor(at(JERUSALEM, '2026-10-31T12:00'), JERUSALEM).tzeitHakochavim;
-    expect(hint(events, '2026-10-31T12:00', 'husband')).toEqual({ key: 'taharah.stage.tevilaEstimated.hint', params: { time: clock(tzeit) } });
-    expect(hint(events, '2026-10-31T20:00', 'husband')).toEqual({ key: 'taharah.stage.tevilaEstimated.hint', params: { time: clock(tzeit) } });
+    expect(hint(events, '2026-10-31T12:00', 'husband')).toEqual({
+      key: 'taharah.stage.tevilaEstimated.hint',
+      params: { time: clock(tzeit) },
+    });
+    expect(hint(events, '2026-10-31T20:00', 'husband')).toEqual({
+      key: 'taharah.stage.tevilaEstimated.hint',
+      params: { time: clock(tzeit) },
+    });
     const at31 = deriveCycle(events, RULES, JERUSALEM, at(JERUSALEM, '2026-10-31T20:00'));
     expect(at31.tevilaEstimatedDay).toBe(O + 12);
     expect(visibleStage(at31, 'husband', { abs: O + 12, kind: 'night' }, JERUSALEM)).toBe('tevilaNight');

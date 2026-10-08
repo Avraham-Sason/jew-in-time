@@ -1,12 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  InteractionManager,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { InteractionManager, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
@@ -52,10 +45,7 @@ export default function ScheduleScreen() {
     () => allMitzvot.filter((item) => activeMap[item.id]?.enabled),
     [allMitzvot, activeMap],
   );
-  const settings = useMemo(
-    () => ({ nusach, halachicOpinions, inIsrael }),
-    [nusach, halachicOpinions, inIsrael],
-  );
+  const settings = useMemo(() => ({ nusach, halachicOpinions, inIsrael }), [nusach, halachicOpinions, inIsrael]);
   const [view, setView] = useState<ViewMode>('day');
   const [cursor, setCursor] = useState(DateTime.now());
   const today = DateTime.now().startOf('day');
@@ -76,7 +66,15 @@ export default function ScheduleScreen() {
   const pendingIds = useMemo(() => {
     if (view !== 'day') return new Set<string>();
     const enabledSince = enabledSinceOf(activeMap);
-    const checkIn = latestCheckIn({ mitzvot: enabledMitzvot, completions, skipped, checkIns, enabledSince, location, settings });
+    const checkIn = latestCheckIn({
+      mitzvot: enabledMitzvot,
+      completions,
+      skipped,
+      checkIns,
+      enabledSince,
+      location,
+      settings,
+    });
     return pendingCheckInIds(checkIn, cursor.toISODate() ?? '');
   }, [view, enabledMitzvot, completions, skipped, checkIns, activeMap, location, settings, cursor]);
 
@@ -87,8 +85,15 @@ export default function ScheduleScreen() {
     const start = cursor.startOf('day').minus({ days: cursor.weekday % 7 });
     return Array.from({ length: 7 }, (_, index) => {
       const day = start.plus({ days: index });
-      const items = buildDayTimeline(day.toJSDate(), enabledMitzvot, completions, location, settings, language, t)
-        .filter((item) => item.type === 'mitzvah');
+      const items = buildDayTimeline(
+        day.toJSDate(),
+        enabledMitzvot,
+        completions,
+        location,
+        settings,
+        language,
+        t,
+      ).filter((item) => item.type === 'mitzvah');
       const count = items.length;
       const holidays = HebcalService.getHolidays(day.toJSDate(), location);
       return { day, count, holidays, items: items.slice(0, 4) };
@@ -115,8 +120,15 @@ export default function ScheduleScreen() {
       const day = gridStart.plus({ days: index });
       const holidays = HebcalService.getHolidays(day.toJSDate(), location);
       const hebrew = HebcalService.getHebrewDate(day.toJSDate());
-      const openCount = buildDayTimeline(day.toJSDate(), enabledMitzvot, completions, location, settings, language, t)
-        .filter((item) => item.type === 'mitzvah' && !item.done).length;
+      const openCount = buildDayTimeline(
+        day.toJSDate(),
+        enabledMitzvot,
+        completions,
+        location,
+        settings,
+        language,
+        t,
+      ).filter((item) => item.type === 'mitzvah' && !item.done).length;
       return {
         day,
         inMonth: day.month === cursor.month,
@@ -163,7 +175,13 @@ export default function ScheduleScreen() {
           ))}
         </View>
         <View style={styles.navRow}>
-          <Pressable onPress={() => setCursor((prev) => shift(prev, view, -1))} style={styles.navBtn}>
+          <Pressable
+            onPress={() => setCursor((prev) => shift(prev, view, -1))}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.previous')}
+            hitSlop={10}
+            style={styles.navBtn}
+          >
             <Text style={[typography.bodyBold, { color: colors.headerText }]}>{prevArrow}</Text>
           </Pressable>
           <Text style={[typography.captionBold, { color: colors.headerText }]}>
@@ -171,7 +189,13 @@ export default function ScheduleScreen() {
               ? t(`month.${cursor.month - 1}`)
               : cursor.setLocale(language).toFormat(language === 'he' ? 'cccc d LLL' : 'ccc LLL d')}
           </Text>
-          <Pressable onPress={() => setCursor((prev) => shift(prev, view, 1))} style={styles.navBtn}>
+          <Pressable
+            onPress={() => setCursor((prev) => shift(prev, view, 1))}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.next')}
+            hitSlop={10}
+            style={styles.navBtn}
+          >
             <Text style={[typography.bodyBold, { color: colors.headerText }]}>{nextArrow}</Text>
           </Pressable>
         </View>
@@ -181,20 +205,22 @@ export default function ScheduleScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {dayItems.map((item, index) => {
             const highlight = index === highlightIndex;
-            const waiting = item.type === 'mitzvah' && !item.done && Boolean(item.mitzvahId && pendingIds.has(item.mitzvahId));
+            const waiting =
+              item.type === 'mitzvah' && !item.done && Boolean(item.mitzvahId && pendingIds.has(item.mitzvahId));
             const missed = isSelectedPast && item.type === 'mitzvah' && !item.done && !waiting;
             const rowUrgent = missed || (isSelectedToday && item.urgent);
-            const statusText = item.type === 'mitzvah'
-              ? waiting
-                ? t('checkin.pending')
-                : missed
-                ? t('day.missed')
-                : isSelectedPast && item.done
-                  ? t('state.completed')
-                  : isSelectedFuture
-                    ? t('day.scheduled')
-                    : undefined
-              : undefined;
+            const statusText =
+              item.type === 'mitzvah'
+                ? waiting
+                  ? t('checkin.pending')
+                  : missed
+                    ? t('day.missed')
+                    : isSelectedPast && item.done
+                      ? t('state.completed')
+                      : isSelectedFuture
+                        ? t('day.scheduled')
+                        : undefined
+                : undefined;
             const statusColor = missed ? colors.urgent : item.done ? colors.safe : colors.textMuted;
             return (
               <Pressable
@@ -248,7 +274,13 @@ export default function ScheduleScreen() {
                     style={[
                       typography.body,
                       {
-                        color: item.done ? colors.textMuted : rowUrgent ? colors.urgent : item.type === 'zman' ? colors.textSub : colors.text,
+                        color: item.done
+                          ? colors.textMuted
+                          : rowUrgent
+                            ? colors.urgent
+                            : item.type === 'zman'
+                              ? colors.textSub
+                              : colors.text,
                         fontFamily: item.type === 'mitzvah' ? 'Heebo_600SemiBold' : 'Heebo_400Regular',
                         textDecorationLine: item.done ? 'line-through' : 'none',
                       },
@@ -272,7 +304,7 @@ export default function ScheduleScreen() {
                       },
                     ]}
                   >
-                    {item.done ? <Text style={[typography.micro, { color: '#fff' }]}>✓</Text> : null}
+                    {item.done ? <Text style={[typography.micro, { color: colors.onGold }]}>✓</Text> : null}
                   </View>
                 ) : null}
               </Pressable>
@@ -300,9 +332,13 @@ export default function ScheduleScreen() {
                 },
               ]}
             >
-              <Text style={[typography.captionBold, { color: colors.text }]}>{t(`weekday.short.${day.weekday % 7}`)}</Text>
+              <Text style={[typography.captionBold, { color: colors.text }]}>
+                {t(`weekday.short.${day.weekday % 7}`)}
+              </Text>
               <Text style={[typography.title, { color: colors.text, marginTop: 6 }]}>{day.day}</Text>
-              <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>{t('schedule.weekCount', { count })}</Text>
+              <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>
+                {t('schedule.weekCount', { count })}
+              </Text>
               <View style={styles.weekDots}>
                 {Array.from({ length: Math.min(4, count) }).map((_, index) => (
                   <View key={index} style={[styles.weekDot, { backgroundColor: colors.gold }]} />
@@ -311,14 +347,21 @@ export default function ScheduleScreen() {
               {items.length ? (
                 <View style={styles.weekPreview}>
                   {items.map((item) => (
-                    <Text key={item.id} style={[typography.micro, styles.weekPreviewText, { color: colors.textSub }]} numberOfLines={1}>
+                    <Text
+                      key={item.id}
+                      style={[typography.micro, styles.weekPreviewText, { color: colors.textSub }]}
+                      numberOfLines={1}
+                    >
                       {item.name}
                     </Text>
                   ))}
                 </View>
               ) : null}
               {holidays.length ? (
-                <Text style={[typography.micro, { color: colors.urgent, marginTop: 8, textAlign: 'center' }]} numberOfLines={2}>
+                <Text
+                  style={[typography.micro, { color: colors.urgent, marginTop: 8, textAlign: 'center' }]}
+                  numberOfLines={2}
+                >
                   {holidays[0]}
                 </Text>
               ) : null}
@@ -352,7 +395,9 @@ export default function ScheduleScreen() {
               >
                 {cell.openCount > 0 ? (
                   <View style={[styles.monthBadge, { backgroundColor: colors.gold }]}>
-                    <Text style={[typography.micro, { color: '#fff', fontFamily: 'Heebo_700Bold' }]}>{cell.openCount}</Text>
+                    <Text style={[typography.micro, { color: colors.onGold, fontFamily: 'Heebo_700Bold' }]}>
+                      {cell.openCount}
+                    </Text>
                   </View>
                 ) : null}
                 <Text style={[typography.captionBold, { color: colors.text }]}>{cell.day.day}</Text>
@@ -424,7 +469,6 @@ const styles = StyleSheet.create({
   },
   timeCol: {
     width: 40,
-    textAlign: 'right',
   },
   dotCol: {
     width: 14,

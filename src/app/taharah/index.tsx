@@ -140,6 +140,7 @@ export default function TaharahDashboard() {
           <Pressable
             onPress={close}
             accessibilityRole="button"
+            hitSlop={10}
             style={[styles.pill, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
           >
             <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
@@ -169,13 +170,17 @@ export default function TaharahDashboard() {
           <Text style={[typography.title, { color: colors.text }]}>{t(`taharah.stage.${stage}`)}</Text>
           {hint ? <Text style={[typography.body, { color: colors.textSub, marginTop: 4 }]}>{hint}</Text> : null}
           {state.tevilaDeferred ? (
-            <Text style={[typography.captionBold, { color: colors.warning, marginTop: 8 }]}>{t('taharah.tevilaDeferred')}</Text>
+            <Text style={[typography.captionBold, { color: colors.warning, marginTop: 8 }]}>
+              {t('taharah.tevilaDeferred')}
+            </Text>
           ) : null}
         </View>
 
         {!husband && state.stage === 'safek' && state.safekReason ? (
           <View style={[styles.banner, { backgroundColor: colors.urgentBg, borderColor: colors.urgentBorder }]}>
-            <Text style={[typography.bodyBold, { color: colors.urgent }]}>{t(`taharah.safek.${state.safekReason}`)}</Text>
+            <Text style={[typography.bodyBold, { color: colors.urgent }]}>
+              {t(`taharah.safek.${state.safekReason}`)}
+            </Text>
             <Text style={[typography.caption, { color: colors.urgent, marginTop: 4 }]}>{t('taharah.askRav')}</Text>
             <View style={styles.bannerActions}>
               {(['continue', 'restart'] as const).map((decision) => (
@@ -185,7 +190,9 @@ export default function TaharahDashboard() {
                   accessibilityRole="button"
                   style={[styles.bannerBtn, { backgroundColor: colors.surface, borderColor: colors.urgent }]}
                 >
-                  <Text style={[typography.captionBold, { color: colors.urgent }]}>{t(`taharah.ruling.${decision}`)}</Text>
+                  <Text style={[typography.captionBold, { color: colors.urgent }]}>
+                    {t(`taharah.ruling.${decision}`)}
+                  </Text>
                 </Pressable>
               ))}
             </View>
@@ -241,7 +248,13 @@ export default function TaharahDashboard() {
             {upcoming.slice(0, UPCOMING_LIMIT).map((entry, index, list) => (
               <View
                 key={onahIndex(entry.onah)}
-                style={[styles.row, index < list.length - 1 && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}
+                style={[
+                  styles.row,
+                  index < list.length - 1 && {
+                    borderBottomColor: colors.border,
+                    borderBottomWidth: StyleSheet.hairlineWidth,
+                  },
+                ]}
               >
                 <View style={styles.rowMain}>
                   <Text style={[typography.bodyBold, { color: colors.text }]}>
@@ -254,7 +267,9 @@ export default function TaharahDashboard() {
                     <Text style={[typography.captionBold, { color: colors.warning }]}>{t('taharah.disputed')}</Text>
                   ) : null}
                 </View>
-                <Text style={[typography.captionBold, { color: colors.gold }]}>{t(`taharah.onah.${entry.onah.kind}`)}</Text>
+                <Text style={[typography.captionBold, { color: colors.goldText }]}>
+                  {t(`taharah.onah.${entry.onah.kind}`)}
+                </Text>
               </View>
             ))}
           </Section>
@@ -265,7 +280,13 @@ export default function TaharahDashboard() {
             {recent.map((event, index) => (
               <View
                 key={event.id}
-                style={[styles.row, index < recent.length - 1 && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}
+                style={[
+                  styles.row,
+                  index < recent.length - 1 && {
+                    borderBottomColor: colors.border,
+                    borderBottomWidth: StyleSheet.hairlineWidth,
+                  },
+                ]}
               >
                 <View style={styles.rowMain}>
                   <Text style={[typography.bodyBold, { color: colors.text }]}>{t(`taharah.event.${event.type}`)}</Text>
@@ -280,7 +301,7 @@ export default function TaharahDashboard() {
                     accessibilityRole="button"
                     style={[styles.undoBtn, { borderColor: colors.border }]}
                   >
-                    <Text style={[typography.small, { color: colors.gold, fontFamily: 'Heebo_700Bold' }]}>
+                    <Text style={[typography.small, { color: colors.goldText, fontFamily: 'Heebo_700Bold' }]}>
                       {t('taharah.log.undo')}
                     </Text>
                   </Pressable>
@@ -301,12 +322,8 @@ export default function TaharahDashboard() {
         </Pressable>
         {husband ? null : (
           <View style={styles.secondaryRow}>
-            {showHefsek ? (
-              <SecondaryButton label={t('taharah.task.hefsek')} onPress={() => goLog('hefsek')} />
-            ) : null}
-            {showTevila ? (
-              <SecondaryButton label={t('taharah.log.tevila')} onPress={() => goLog('tevila')} />
-            ) : null}
+            {showHefsek ? <SecondaryButton label={t('taharah.task.hefsek')} onPress={() => goLog('hefsek')} /> : null}
+            {showTevila ? <SecondaryButton label={t('taharah.log.tevila')} onPress={() => goLog('tevila')} /> : null}
             {paused ? (
               <SecondaryButton
                 label={t('taharah.log.resume')}
@@ -341,7 +358,9 @@ function Section({ title, plain = false, children }: { title: string; plain?: bo
       {plain ? (
         children
       ) : (
-        <View style={[styles.listCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>{children}</View>
+        <View style={[styles.listCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {children}
+        </View>
       )}
     </View>
   );
@@ -404,7 +423,12 @@ function TaskRow({ task, last, onPress }: { task: TaharahTask; last: boolean; on
               : { backgroundColor: colors.surface2, borderColor: colors.border },
           ]}
         >
-          <Text style={[typography.micro, { color: task.required ? colors.text : colors.textSub, fontFamily: 'Heebo_700Bold' }]}>
+          <Text
+            style={[
+              typography.micro,
+              { color: task.required ? colors.text : colors.textSub, fontFamily: 'Heebo_700Bold' },
+            ]}
+          >
             {task.required ? t('taharah.task.required') : t('taharah.task.recommended')}
           </Text>
         </View>
@@ -494,8 +518,15 @@ function BedikaSheet({ target, index, past, onClose, onSave }: SheetProps) {
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[typography.heading, { color: colors.text }]}>{t('taharah.bedika.record')}</Text>
-          <Text style={[typography.caption, { color: colors.textSub, marginTop: 2, marginBottom: 14 }]}>{subtitle}</Text>
-          <ChipRow values={BEDIKA_SLOTS} selected={slot} onSelect={setSlot} renderLabel={(value) => t(`taharah.bedika.${value}`)} />
+          <Text style={[typography.caption, { color: colors.textSub, marginTop: 2, marginBottom: 14 }]}>
+            {subtitle}
+          </Text>
+          <ChipRow
+            values={BEDIKA_SLOTS}
+            selected={slot}
+            onSelect={setSlot}
+            renderLabel={(value) => t(`taharah.bedika.${value}`)}
+          />
           <ChipRow
             values={BEDIKA_RESULTS}
             selected={result}
@@ -504,10 +535,16 @@ function BedikaSheet({ target, index, past, onClose, onSave }: SheetProps) {
             style={styles.resultRow}
           />
           {past ? (
-            <Text style={[typography.caption, { color: colors.textMuted, marginTop: 12 }]}>{t('taharah.bedika.pastDay')}</Text>
+            <Text style={[typography.caption, { color: colors.textMuted, marginTop: 12 }]}>
+              {t('taharah.bedika.pastDay')}
+            </Text>
           ) : null}
           <View style={styles.modalActions}>
-            <Pressable onPress={onClose} accessibilityRole="button" style={[styles.modalBtn, { backgroundColor: colors.surface2 }]}>
+            <Pressable
+              onPress={onClose}
+              accessibilityRole="button"
+              style={[styles.modalBtn, { backgroundColor: colors.surface2 }]}
+            >
               <Text style={[typography.bodyBold, { color: colors.text }]}>{t('common.cancel')}</Text>
             </Pressable>
             <Pressable

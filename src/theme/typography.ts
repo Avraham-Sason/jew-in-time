@@ -17,16 +17,7 @@ export const fontFamilies = {
 } as const;
 
 type Variant =
-  | 'display'
-  | 'title'
-  | 'heading'
-  | 'subheading'
-  | 'body'
-  | 'bodyBold'
-  | 'caption'
-  | 'captionBold'
-  | 'small'
-  | 'micro';
+  'display' | 'title' | 'heading' | 'subheading' | 'body' | 'bodyBold' | 'caption' | 'captionBold' | 'small' | 'micro';
 
 export const typography: Record<Variant, TextStyle> = {
   display: { fontFamily: fontFamilies.heebo.black, fontSize: 28, lineHeight: 34 },

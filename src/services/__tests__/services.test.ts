@@ -52,16 +52,22 @@ describe('Services', () => {
     expect(StorageService.get<{ a: number }>('k')).toEqual({ a: 1 });
   });
 
-  it('5.2 CompletionService.markDone calls cancelForMitzvah', async () => {
+  // The store action queues the cancel itself; the service used to await a second one, so these
+  // pin the count, not only the arguments.
+  it('5.2 CompletionService.markDone cancels the reminders exactly once', async () => {
     const spy = jest.spyOn(NotificationScheduler, 'cancelForMitzvah').mockResolvedValue();
     await CompletionService.markDone('tefillin');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith('tefillin', expect.any(Date));
     spy.mockRestore();
   });
 
-  it('5.2b CompletionService.markSkipped calls cancelForMitzvah', async () => {
+  it('5.2b CompletionService.markSkipped cancels the reminders exactly once', async () => {
     const spy = jest.spyOn(NotificationScheduler, 'cancelForMitzvah').mockResolvedValue();
     await CompletionService.markSkipped('tefillin');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith('tefillin', expect.any(Date));
     expect(CompletionService.isSkipped('tefillin')).toBe(true);
     spy.mockRestore();
@@ -87,7 +93,7 @@ describe('Services', () => {
     expect(r.location).toBeNull();
   });
 
-  it('5.4b GPS far from every preset does not inherit that preset\'s timezone or inIsrael', async () => {
+  it("5.4b GPS far from every preset does not inherit that preset's timezone or inIsrael", async () => {
     mockGetForeground.mockResolvedValue({ granted: true, canAskAgain: true });
     mockGetCurrentPosition.mockResolvedValue({ coords: { latitude: -26.2041, longitude: 28.0473 } }); // Johannesburg
     const r = await LocationService.getCurrentLocation();

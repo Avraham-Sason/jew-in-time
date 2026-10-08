@@ -59,8 +59,16 @@ describe('Settings logic — halachic opinions + israel/diaspora', () => {
 
   it('12.7 candle lighting respects custom minutesBefore override', () => {
     const fri = dateAt('2026-04-24T10:00:00Z');
-    const c40 = ZmanimService.getCandleLighting(fri, CITIES[0], { isFriday: true, isErevYomTov: false, minutesBefore: 40 })!;
-    const c0 = ZmanimService.getCandleLighting(fri, CITIES[0], { isFriday: true, isErevYomTov: false, minutesBefore: 0 })!;
+    const c40 = ZmanimService.getCandleLighting(fri, CITIES[0], {
+      isFriday: true,
+      isErevYomTov: false,
+      minutesBefore: 40,
+    })!;
+    const c0 = ZmanimService.getCandleLighting(fri, CITIES[0], {
+      isFriday: true,
+      isErevYomTov: false,
+      minutesBefore: 0,
+    })!;
     expect(c0.getTime() - c40.getTime()).toBe(40 * 60_000);
   });
 });

@@ -161,14 +161,23 @@ describe('skipRules', () => {
       const shabbatIntoRoshHashana = HebcalService.holyBlockAt(at(JERUSALEM, '2027-10-02T12:00'), JERUSALEM)!;
       expect(holyBlockLabelKeys(shabbatIntoRoshHashana).exit).toBe('holyBlock.exit.chag');
       const yomKippur = HebcalService.holyBlockAt(at(JERUSALEM, '2027-10-11T12:00'), JERUSALEM)!;
-      expect(holyBlockLabelKeys(yomKippur)).toEqual({ title: 'holyBlock.title.yomKippur', exit: 'holyBlock.exit.yomKippur' });
+      expect(holyBlockLabelKeys(yomKippur)).toEqual({
+        title: 'holyBlock.title.yomKippur',
+        exit: 'holyBlock.exit.yomKippur',
+      });
       const pesachVii = HebcalService.holyBlockAt(at(JERUSALEM, '2027-04-28T12:00'), JERUSALEM)!;
       expect(holyBlockLabelKeys(pesachVii)).toEqual({ title: 'holyBlock.title.yomTov', exit: 'holyBlock.exit.chag' });
     });
 
     it('stays quiet across every day of a three-day block', () => {
       // Rosh Hashana 5789 (Thu-Fri) runs straight into Shabbat.
-      for (const wallClock of ['2028-09-20T20:00', '2028-09-21T12:00', '2028-09-21T22:00', '2028-09-22T18:30', '2028-09-23T12:00']) {
+      for (const wallClock of [
+        '2028-09-20T20:00',
+        '2028-09-21T12:00',
+        '2028-09-21T22:00',
+        '2028-09-22T18:30',
+        '2028-09-23T12:00',
+      ]) {
         expect(isQuietAt(at(JERUSALEM, wallClock), JERUSALEM)).toBe(true);
       }
       expect(isQuietAt(at(JERUSALEM, '2028-09-24T12:00'), JERUSALEM)).toBe(false);

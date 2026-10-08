@@ -9,7 +9,9 @@ export type ThemeColors = {
   gold: string;
   onGold: string;
   goldLight: string;
+  goldText: string;
   urgent: string;
+  onUrgent: string;
   urgentBg: string;
   urgentBorder: string;
   warning: string;
@@ -45,7 +47,10 @@ export const T_LIGHT: ThemeColors = {
   // White on gold is 2.4:1 — far below AA for button labels. This is 5.1:1 on the same fill.
   onGold: '#1C2B4A',
   goldLight: '#FDF0D8',
+  // Gold reads 2.75:1 on white, so it is never a text colour; this is the accent dark enough for text.
+  goldText: '#7F5A0F',
   urgent: '#D63030',
+  onUrgent: '#FFFFFF',
   urgentBg: '#FEF2F2',
   urgentBorder: '#FECACA',
   warning: '#D97020',
@@ -75,7 +80,9 @@ export const T_PINK: ThemeColors = {
   gold: '#C92B63',
   onGold: '#FFFFFF',
   goldLight: '#FDE7EF',
+  goldText: '#B4214F',
   urgent: '#D63030',
+  onUrgent: '#FFFFFF',
   urgentBg: '#FEF2F2',
   urgentBorder: '#FECACA',
   warning: '#D97020',
@@ -105,7 +112,9 @@ export const T_PURPLE: ThemeColors = {
   gold: '#7538E0',
   onGold: '#FFFFFF',
   goldLight: '#EDE4FF',
+  goldText: '#7538E0',
   urgent: '#D63030',
+  onUrgent: '#FFFFFF',
   urgentBg: '#FEF2F2',
   urgentBorder: '#FECACA',
   warning: '#D97020',
@@ -135,7 +144,9 @@ export const T_BLUE: ThemeColors = {
   gold: '#1F5FD0',
   onGold: '#FFFFFF',
   goldLight: '#DEE9FB',
+  goldText: '#1F5FD0',
   urgent: '#D63030',
+  onUrgent: '#FFFFFF',
   urgentBg: '#FEF2F2',
   urgentBorder: '#FECACA',
   warning: '#D97020',
@@ -165,7 +176,9 @@ export const T_DARK: ThemeColors = {
   gold: '#D4A030',
   onGold: '#12202F',
   goldLight: '#2A2010',
+  goldText: '#D4A030',
   urgent: '#EF4444',
+  onUrgent: '#0D1925',
   urgentBg: '#2A1515',
   urgentBorder: '#7F1D1D',
   warning: '#F59E0B',
@@ -195,7 +208,9 @@ export const T_PLUM: ThemeColors = {
   gold: '#F48FBC',
   onGold: '#2A0F20',
   goldLight: '#3C2238',
+  goldText: '#F48FBC',
   urgent: '#FF6B6B',
+  onUrgent: '#1A1026',
   urgentBg: '#3A1A24',
   urgentBorder: '#7F2A3A',
   warning: '#F5B041',

@@ -20,13 +20,7 @@ export type TimeType =
   | 'annual-seasonal';
 
 export type MitzvahCategory =
-  | 'daily-morning'
-  | 'daily-afternoon'
-  | 'daily-evening'
-  | 'daily-allday'
-  | 'weekly'
-  | 'seasonal'
-  | 'learning';
+  'daily-morning' | 'daily-afternoon' | 'daily-evening' | 'daily-allday' | 'weekly' | 'seasonal' | 'learning';
 
 export type SkipContext = 'shabbat' | 'yomtov' | 'cholHamoed' | 'fastDay';
 

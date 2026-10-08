@@ -43,7 +43,13 @@ export function haflagaDays(previous: Onah, last: Onah): number {
 // hefsek through the onset onah, then lays the same count from the night after the new hefsek.
 // Without the new hefsek it is not yet known (null); without the previous one the day count
 // stands in.
-function haflagaInOnot(records: readonly CycleRecord[], previous: Onset, last: Onset, candidate: Onah, prior: Onah): Onah | null {
+function haflagaInOnot(
+  records: readonly CycleRecord[],
+  previous: Onset,
+  last: Onset,
+  candidate: Onah,
+  prior: Onah,
+): Onah | null {
   const previousHefsek = settledHefsek(records, previous);
   if (previousHefsek === null) {
     return { abs: candidate.abs + haflagaDays(prior, candidate) - 1, kind: candidate.kind };

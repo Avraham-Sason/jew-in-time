@@ -96,7 +96,9 @@ export function tevilaBlockedOnNight(abs: number, location: Location): boolean {
   if (cached !== undefined) return cached;
   const greg = hebrewDay(abs).greg();
   const events = HebrewCalendar.calendar({ start: greg, end: greg, il: location.inIsrael });
-  const blocked = events.some((event) => Boolean(event.getFlags() & flags.MAJOR_FAST) && !(event.getFlags() & flags.EREV));
+  const blocked = events.some(
+    (event) => Boolean(event.getFlags() & flags.MAJOR_FAST) && !(event.getFlags() & flags.EREV),
+  );
   blockedNightCache.set(key, blocked);
   return blocked;
 }

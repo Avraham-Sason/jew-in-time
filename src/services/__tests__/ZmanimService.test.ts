@@ -27,11 +27,7 @@ const NEW_YORK: Location = {
   inIsrael: false,
 };
 
-const DATES = [
-  new Date('2026-04-23T12:00:00Z'),
-  new Date('2026-06-21T12:00:00Z'),
-  new Date('2026-12-21T12:00:00Z'),
-];
+const DATES = [new Date('2026-04-23T12:00:00Z'), new Date('2026-06-21T12:00:00Z'), new Date('2026-12-21T12:00:00Z')];
 
 function toLocalHHMM(d: Date, tz: string): string {
   return new Intl.DateTimeFormat('en-GB', {
@@ -53,7 +49,9 @@ function diffMinutes(a: Date, tz: string, expected: string): number {
 
 // The day a zman falls on, on the location's own clock.
 function localDate(d: Date, tz: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+    d,
+  );
 }
 
 describe('ZmanimService day resolution east of the zone meridian', () => {
@@ -70,23 +68,30 @@ describe('ZmanimService day resolution east of the zone meridian', () => {
   // Midday in both hemispheres' summer and winter, written as each place's own wall clock.
   const DAYS = ['2026-01-15', '2026-04-23', '2026-07-15', '2026-12-04'];
 
-  it.each(PLACES.map((place) => [place.name, place] as const))('gives %s the zmanim of the very day asked for', (_name, place) => {
-    for (const day of DAYS) {
-      const noon = new Date(new Date(`${day}T12:00:00Z`).getTime() - zoneOffsetMs(`${day}T12:00:00Z`, place.tz));
-      expect(localDate(noon, place.tz)).toBe(day);
-      const z = ZmanimService.getZmanim(noon, place);
-      if (!z) throw new Error(`no zmanim for ${place.name} on ${day}`);
-      expect(localDate(z.netzHaChama, place.tz)).toBe(day);
-      expect(localDate(z.shkia, place.tz)).toBe(day);
-      expect(localDate(z.alotHaShachar, place.tz)).toBe(day);
-      expect(z.netzHaChama.getTime()).toBeLessThan(noon.getTime());
-      expect(z.shkia.getTime()).toBeGreaterThan(noon.getTime());
-    }
-  });
+  it.each(PLACES.map((place) => [place.name, place] as const))(
+    'gives %s the zmanim of the very day asked for',
+    (_name, place) => {
+      for (const day of DAYS) {
+        const noon = new Date(new Date(`${day}T12:00:00Z`).getTime() - zoneOffsetMs(`${day}T12:00:00Z`, place.tz));
+        expect(localDate(noon, place.tz)).toBe(day);
+        const z = ZmanimService.getZmanim(noon, place);
+        if (!z) throw new Error(`no zmanim for ${place.name} on ${day}`);
+        expect(localDate(z.netzHaChama, place.tz)).toBe(day);
+        expect(localDate(z.shkia, place.tz)).toBe(day);
+        expect(localDate(z.alotHaShachar, place.tz)).toBe(day);
+        expect(z.netzHaChama.getTime()).toBeLessThan(noon.getTime());
+        expect(z.shkia.getTime()).toBeGreaterThan(noon.getTime());
+      }
+    },
+  );
 
   it('still rolls the day for a zone across the antimeridian, as the library intends', () => {
-    expect(antimeridianAdjustment({ name: 'Apia', lat: -13.83, lng: -171.76, tz: 'Pacific/Apia', inIsrael: false })).toBe(-1);
-    expect(antimeridianAdjustment({ name: 'Kiritimati', lat: 1.87, lng: -157.4, tz: 'Pacific/Kiritimati', inIsrael: false })).toBe(-1);
+    expect(
+      antimeridianAdjustment({ name: 'Apia', lat: -13.83, lng: -171.76, tz: 'Pacific/Apia', inIsrael: false }),
+    ).toBe(-1);
+    expect(
+      antimeridianAdjustment({ name: 'Kiritimati', lat: 1.87, lng: -157.4, tz: 'Pacific/Kiritimati', inIsrael: false }),
+    ).toBe(-1);
     for (const place of PLACES) expect(antimeridianAdjustment(place)).toBe(0);
   });
 });
@@ -94,11 +99,27 @@ describe('ZmanimService day resolution east of the zone meridian', () => {
 function zoneOffsetMs(isoUtc: string, tz: string): number {
   const at = new Date(isoUtc);
   const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
       .formatToParts(at)
       .map((part) => [part.type, part.value]),
   );
-  const wall = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), Number(parts.second));
+  const wall = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second),
+  );
   return wall - at.getTime();
 }
 

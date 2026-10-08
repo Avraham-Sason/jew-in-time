@@ -157,7 +157,9 @@ describe('HebcalService holy blocks', () => {
     expect(block.start).toEqual(lightingOn(JERUSALEM_CITY, '2026-04-24'));
     expect(block.end).toEqual(tzeitOn(JERUSALEM_CITY, '2026-04-25'));
     // Jerusalem lights 40 minutes before shkia.
-    expect(zmanimFor(noonAt(JERUSALEM_CITY, '2026-04-24'), JERUSALEM_CITY).shkia.getTime() - block.start.getTime()).toBe(40 * 60_000);
+    expect(
+      zmanimFor(noonAt(JERUSALEM_CITY, '2026-04-24'), JERUSALEM_CITY).shkia.getTime() - block.start.getTime(),
+    ).toBe(40 * 60_000);
   });
 
   it('Rosh Hashana on Thursday-Friday merges with Shabbat into one three-day block', () => {
@@ -184,14 +186,18 @@ describe('HebcalService holy blocks', () => {
     expect(block.kind).toBe('shabbatYomTov');
   });
 
-  it('the second day of Yom Tov makes the diaspora block longer than Israel\'s', () => {
+  it("the second day of Yom Tov makes the diaspora block longer than Israel's", () => {
     const diaspora = HebcalService.holyBlockOn(noonAt(NEW_YORK, '2027-04-22'), NEW_YORK)!;
     expect(diaspora.days).toEqual(['2027-04-22', '2027-04-23', '2027-04-24']);
     expect(diaspora.start).toEqual(lightingOn(NEW_YORK, '2027-04-21'));
     expect(diaspora.end).toEqual(tzeitOn(NEW_YORK, '2027-04-24'));
     // In Israel 16 Nisan is chol hamoed, so Pesach I and the Shabbat after it are separate blocks.
-    expect(HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2027-04-22'), JERUSALEM_CITY)!.days).toEqual(['2027-04-22']);
-    expect(HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2027-04-24'), JERUSALEM_CITY)!.days).toEqual(['2027-04-24']);
+    expect(HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2027-04-22'), JERUSALEM_CITY)!.days).toEqual([
+      '2027-04-22',
+    ]);
+    expect(HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2027-04-24'), JERUSALEM_CITY)!.days).toEqual([
+      '2027-04-24',
+    ]);
     expect(HebcalService.holyBlockOn(noonAt(JERUSALEM_CITY, '2027-04-23'), JERUSALEM_CITY)).toBeNull();
   });
 

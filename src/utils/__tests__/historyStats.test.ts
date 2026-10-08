@@ -116,7 +116,11 @@ describe('historyStats around Shabbat', () => {
     const stats = computeStats(mitzvot, weekdays, location, settings, 7, new Date(2026, 10, 15, 8), {
       skipped: { '2026-11-14': { daily: 1 } },
     });
-    expect(stats.daily.find((day) => day.date === '2026-11-14')).toMatchObject({ pendingCount: 0, doneCount: 0, totalCount: 1 });
+    expect(stats.daily.find((day) => day.date === '2026-11-14')).toMatchObject({
+      pendingCount: 0,
+      doneCount: 0,
+      totalCount: 1,
+    });
     expect(stats.streak).toBe(0);
   });
 
@@ -124,7 +128,9 @@ describe('historyStats around Shabbat', () => {
     const later = fixtureMitzvah('later');
     const marked = done('2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15');
     const enabledSince = { later: new Date(2026, 10, 15, 9).getTime() };
-    const stats = computeStats([mitzvot[0], later], marked, location, settings, 7, new Date(2026, 10, 15, 20), { enabledSince });
+    const stats = computeStats([mitzvot[0], later], marked, location, settings, 7, new Date(2026, 10, 15, 20), {
+      enabledSince,
+    });
     expect(stats.streak).toBe(5);
     expect(stats.perMitzvah.later.eligible).toBe(0);
   });
@@ -137,10 +143,14 @@ describe('historyStats around Shabbat', () => {
   it('reaches past retention through the archive of kept days', () => {
     const recent = done('2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15');
     const now = new Date(2026, 10, 15, 20);
-    const kept = computeStats(mitzvot, recent, location, settings, 30, now, { archivedDays: [['2025-10-01', '2026-11-10']] });
+    const kept = computeStats(mitzvot, recent, location, settings, 30, now, {
+      archivedDays: [['2025-10-01', '2026-11-10']],
+    });
     const days = Math.round((new Date(2026, 10, 15).getTime() - new Date(2025, 9, 1).getTime()) / 86_400_000) + 1;
     expect(kept.streak).toBe(days);
-    const gap = computeStats(mitzvot, recent, location, settings, 30, now, { archivedDays: [['2025-10-01', '2026-11-09']] });
+    const gap = computeStats(mitzvot, recent, location, settings, 30, now, {
+      archivedDays: [['2025-10-01', '2026-11-09']],
+    });
     expect(gap.streak).toBe(5);
   });
 });

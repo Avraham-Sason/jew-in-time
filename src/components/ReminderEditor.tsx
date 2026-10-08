@@ -1,13 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Reminder, ReminderAnchor } from '@/types/mitzvah';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useQuietBlock } from './ShabbatScreen';
@@ -117,7 +109,11 @@ export function ReminderEditor({ visible, initialValue, window, mitzvahName, onC
               keyboardType="numbers-and-punctuation"
               value={offsetMin}
               onChangeText={setOffsetMin}
-              style={[styles.input, styles.offsetInput, { backgroundColor: colors.surface2, color: colors.text, borderColor: colors.border }]}
+              style={[
+                styles.input,
+                styles.offsetInput,
+                { backgroundColor: colors.surface2, color: colors.text, borderColor: colors.border },
+              ]}
             />
             <Pressable
               onPress={() => setOffsetMin(String((Number(offsetMin) || 0) + 5))}
@@ -130,11 +126,14 @@ export function ReminderEditor({ visible, initialValue, window, mitzvahName, onC
             <View style={{ flex: 1 }}>
               <Text style={[typography.subheading, { color: colors.text }]}>{t('reminder.skipIfDone')}</Text>
             </View>
-            <Switch value={skipIfDone} onValueChange={setSkipIfDone} thumbColor="#fff" trackColor={{ false: colors.border, true: colors.gold }} />
+            <Switch
+              value={skipIfDone}
+              onValueChange={setSkipIfDone}
+              thumbColor="#fff"
+              trackColor={{ false: colors.border, true: colors.gold }}
+            />
           </View>
-          {error ? (
-            <Text style={[typography.small, { color: colors.urgent, marginTop: 4 }]}>{error}</Text>
-          ) : null}
+          {error ? <Text style={[typography.small, { color: colors.urgent, marginTop: 4 }]}>{error}</Text> : null}
           <View style={styles.actions}>
             <Pressable onPress={onClose} style={[styles.actionBtn, { backgroundColor: colors.surface2 }]}>
               <Text style={[typography.bodyBold, { color: colors.textSub }]}>{t('common.cancel')}</Text>

@@ -41,9 +41,10 @@ function directChildren(agentsFile, allAgentsFiles) {
       const candidateDir = path.dirname(candidate);
       if (!candidateDir.startsWith(dir + path.sep)) return false;
       const between = path.relative(dir, candidateDir).split(path.sep);
-      return between.every((_, index) =>
-        index === between.length - 1 ||
-        !fs.existsSync(path.join(dir, ...between.slice(0, index + 1), 'AGENTS.md')));
+      return between.every(
+        (_, index) =>
+          index === between.length - 1 || !fs.existsSync(path.join(dir, ...between.slice(0, index + 1), 'AGENTS.md')),
+      );
     })
     .sort();
 }
@@ -87,7 +88,7 @@ function checkPlainTextRefs(file, body) {
     const token = match[1].trim().replace(/\/$/, '');
     // A whole shell command contains spaces and never matches, so `pnpm test -- some/file.ts` is
     // left alone. Being linked elsewhere in the doc is NOT an exemption: the rule is per reference.
-    if (!PATHISH.test(token) || !token.includes('.') && !token.includes('/')) continue;
+    if (!PATHISH.test(token) || (!token.includes('.') && !token.includes('/'))) continue;
     if (token.includes('node_modules')) continue; // linking into a dependency is not useful
     const fromDoc = path.resolve(dir, token);
     const fromRoot = path.resolve(ROOT, token);

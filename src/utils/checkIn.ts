@@ -112,7 +112,10 @@ export function checkInFor(block: HolyBlock, input: CheckInInput, now: Date): Ch
 export function blockForDay(day: Date, location: Location): HolyBlock | null {
   return (
     HebcalService.holyBlockOn(locationNoon(day, location), location) ??
-    HebcalService.holyBlockOn(locationNoon(new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1), location), location)
+    HebcalService.holyBlockOn(
+      locationNoon(new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1), location),
+      location,
+    )
   );
 }
 

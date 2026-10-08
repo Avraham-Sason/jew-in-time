@@ -16,6 +16,13 @@ const hefsek = { type: 'hefsek', day: 5, result: 'clean' } as const;
 const bedika = { type: 'bedika', day: 6, slot: 'morning', result: 'clean' } as const;
 
 describe('useTaharahStore', () => {
+  it('keeps a persisted state across a version bump (identity migrate)', () => {
+    const options = useTaharahStore.persist.getOptions();
+    expect(options.name).toBe('taharah-store');
+    const saved = { marker: 'taharah' };
+    expect(options.migrate?.(saved, 0)).toBe(saved);
+  });
+
   beforeEach(() => get().reset());
   afterEach(() => jest.restoreAllMocks());
 
@@ -223,7 +230,7 @@ describe('useTaharahStore', () => {
       expect(get().settings).toEqual({ preset: 'chassidic', rules: rulesFor('chassidic'), role: 'husband' });
     });
 
-    it('follows a changed mind while the rules are still the picked preset\'s own', () => {
+    it("follows a changed mind while the rules are still the picked preset's own", () => {
       get().adoptPresetFor('sefard');
       get().adoptPresetFor('chabad');
       expect(get().settings.preset).toBe('chabad');

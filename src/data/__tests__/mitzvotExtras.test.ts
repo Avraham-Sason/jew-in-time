@@ -121,8 +121,9 @@ describe('nusach filtering', () => {
     const { getAllMitzvot } = require('@/data/customMitzvotAdapter');
     const all = getAllMitzvot();
     expect(all.length).toBeGreaterThan(0);
-    expect(getAllMitzvot('ashkenaz').length).toBe(all.filter((m: { nuschaotSupported: string[] }) =>
-      m.nuschaotSupported.includes('ashkenaz')).length);
+    expect(getAllMitzvot('ashkenaz').length).toBe(
+      all.filter((m: { nuschaotSupported: string[] }) => m.nuschaotSupported.includes('ashkenaz')).length,
+    );
 
     const restricted = { ...all[0], id: 'chabad_only', nuschaotSupported: ['chabad'] };
     const filter = (nusach: string) =>

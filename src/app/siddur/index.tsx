@@ -4,7 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { HDate } from '@hebcal/core';
-import { SIDDUR_GROUPS, STANDALONE_TEXTS, hasStandaloneText, siddurPlace, standaloneTextDay, standaloneTextsIn } from '@/data/siddur';
+import {
+  SIDDUR_GROUPS,
+  STANDALONE_TEXTS,
+  hasStandaloneText,
+  siddurPlace,
+  standaloneTextDay,
+  standaloneTextsIn,
+} from '@/data/siddur';
 import { useNow } from '@/hooks/useNow';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -22,14 +29,19 @@ export default function SiddurCatalogScreen() {
   const inIsrael = useUserStore((s) => s.inIsrael);
   const now = useNow();
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'));
-  const groups = useMemo(() => SIDDUR_GROUPS.map((group) => ({ group, ids: standaloneTextsIn(group) })).filter(({ ids }) => ids.length), []);
+  const groups = useMemo(
+    () => SIDDUR_GROUPS.map((group) => ({ group, ids: standaloneTextsIn(group) })).filter(({ ids }) => ids.length),
+    [],
+  );
   // Keyed by each text's day number, so the clock tick re-checks availability only when a day turns.
   const dayKey = groups.flatMap(({ ids }) => ids.map((id) => standaloneTextDay(id, now, location).abs())).join(',');
   const available = useMemo(() => {
     const place = siddurPlace(location, inIsrael);
     const days = dayKey.split(',').map(Number);
     const ids = groups.flatMap((entry) => entry.ids);
-    return new Map(ids.map((id, index) => [id, hasStandaloneText(id, nusach, dayFeatures(new HDate(days[index]), place))]));
+    return new Map(
+      ids.map((id, index) => [id, hasStandaloneText(id, nusach, dayFeatures(new HDate(days[index]), place))]),
+    );
   }, [dayKey, groups, location, inIsrael, nusach]);
   const label = (entry: { he: string; en: string }) => (language === 'en' ? entry.en : entry.he);
 
@@ -43,7 +55,10 @@ export default function SiddurCatalogScreen() {
         onPress={() => router.push({ pathname: '/siddur/[id]', params: { id } })}
         accessibilityRole="button"
         accessibilityState={{ disabled: !open }}
-        style={({ pressed }) => [styles.row, { borderBottomColor: colors.border, opacity: !open ? 0.55 : pressed ? 0.7 : 1 }]}
+        style={({ pressed }) => [
+          styles.row,
+          { borderBottomColor: colors.border, opacity: !open ? 0.55 : pressed ? 0.7 : 1 },
+        ]}
       >
         <View style={[styles.icon, { backgroundColor: open ? colors.goldLight : colors.surface2 }]}>
           <Text style={{ fontSize: 17, color: open ? colors.gold : colors.textMuted }}>✦</Text>
@@ -56,7 +71,9 @@ export default function SiddurCatalogScreen() {
             </Text>
           ) : null}
         </View>
-        {open ? <Text style={[typography.bodyBold, { color: colors.textMuted }]}>{language === 'he' ? '‹' : '›'}</Text> : null}
+        {open ? (
+          <Text style={[typography.bodyBold, { color: colors.textMuted }]}>{language === 'he' ? '‹' : '›'}</Text>
+        ) : null}
       </Pressable>
     );
   };
@@ -70,7 +87,10 @@ export default function SiddurCatalogScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
           hitSlop={10}
-          style={({ pressed }) => [styles.backBtn, { backgroundColor: pressed ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)' }]}
+          style={({ pressed }) => [
+            styles.backBtn,
+            { backgroundColor: pressed ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)' },
+          ]}
         >
           <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
             <Path
@@ -91,8 +111,12 @@ export default function SiddurCatalogScreen() {
       <ScrollView contentContainerStyle={styles.list}>
         {groups.map(({ group, ids }) => (
           <View key={group} style={styles.group}>
-            <Text style={[typography.captionBold, styles.groupLabel, { color: colors.textSub }]}>{t(`siddur.group.${group}`)}</Text>
-            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>{ids.map(row)}</View>
+            <Text style={[typography.captionBold, styles.groupLabel, { color: colors.textSub }]}>
+              {t(`siddur.group.${group}`)}
+            </Text>
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {ids.map(row)}
+            </View>
           </View>
         ))}
       </ScrollView>

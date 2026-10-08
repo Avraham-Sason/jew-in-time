@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Linking,
   Modal,
@@ -21,12 +21,16 @@ import {
   syncNotificationPermissionStatus,
 } from '@/services/NotificationScheduler';
 import { AppResetService } from '@/services/AppResetService';
+import { openBatteryOptimizationSettings, supportsBatteryOptimizationSettings } from '@/services/deviceSettings';
 import {
-  openBatteryOptimizationSettings,
-  supportsBatteryOptimizationSettings,
-} from '@/services/deviceSettings';
-import { chooseGender, chooseMaritalStatus, chooseNusach, setTaharahTracking, taharahOffered } from '@/stores/taharahOptIn';
+  chooseGender,
+  chooseMaritalStatus,
+  chooseNusach,
+  setTaharahTracking,
+  taharahOffered,
+} from '@/stores/taharahOptIn';
 import { useUserStore } from '@/stores/useUserStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ChipRow } from '@/components/ChipRow';
 import { ThemeSwatchRow } from '@/components/ThemeSwatchRow';
@@ -50,7 +54,37 @@ export default function SettingsScreen() {
   const quiet = useQuietBlock() !== null;
   const { t, language } = useI18n();
   const router = useRouter();
-  const user = useUserStore();
+  // One shallow slice: subscribing to the whole store re-rendered every section on each permission
+  // sync, font-size tap or scroll-speed step.
+  const user = useUserStore(
+    useShallow((s) => ({
+      profileName: s.profileName,
+      profilePhone: s.profilePhone,
+      gender: s.gender,
+      maritalStatus: s.maritalStatus,
+      notificationsEnabled: s.notificationsEnabled,
+      notificationPermission: s.notificationPermission,
+      nusach: s.nusach,
+      siddurAutoScroll: s.siddurAutoScroll,
+      siddurScrollSpeed: s.siddurScrollSpeed,
+      taharahEnabled: s.taharahEnabled,
+      location: s.location,
+      locationStatus: s.locationStatus,
+      theme: s.theme,
+      language: s.language,
+      halachicOpinions: s.halachicOpinions,
+      setLocationState: s.setLocationState,
+      setLocationStatus: s.setLocationStatus,
+      setNotificationsEnabled: s.setNotificationsEnabled,
+      setProfileName: s.setProfileName,
+      setProfilePhone: s.setProfilePhone,
+      setSiddurAutoScroll: s.setSiddurAutoScroll,
+      setSiddurScrollSpeed: s.setSiddurScrollSpeed,
+      setTheme: s.setTheme,
+      setLanguage: s.setLanguage,
+      setKsOpinion: s.setKsOpinion,
+    })),
+  );
   // Held locally and committed on blur. Bound straight to the store, every keystroke serialised
   // the whole user store to MMKV and re-rendered the entire settings tree.
   const [nameDraft, setNameDraft] = useState(user.profileName);
@@ -140,7 +174,6 @@ export default function SettingsScreen() {
                 color: colors.text,
                 borderColor: colors.border,
                 writingDirection: language === 'he' ? 'rtl' : 'ltr',
-                textAlign: language === 'he' ? 'right' : 'left',
               },
             ]}
             autoCapitalize="words"
@@ -162,13 +195,21 @@ export default function SettingsScreen() {
                 color: colors.text,
                 borderColor: colors.border,
                 writingDirection: language === 'he' ? 'rtl' : 'ltr',
-                textAlign: language === 'he' ? 'right' : 'left',
               },
             ]}
           />
-          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 12, marginBottom: 8 }]}>{t('profile.gender')}</Text>
-          <ChipRow values={GENDERS} selected={user.gender} onSelect={chooseGender} renderLabel={(value) => t(`profile.gender.${value}`)} />
-          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 12, marginBottom: 8 }]}>{t('profile.maritalStatus')}</Text>
+          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 12, marginBottom: 8 }]}>
+            {t('profile.gender')}
+          </Text>
+          <ChipRow
+            values={GENDERS}
+            selected={user.gender}
+            onSelect={chooseGender}
+            renderLabel={(value) => t(`profile.gender.${value}`)}
+          />
+          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 12, marginBottom: 8 }]}>
+            {t('profile.maritalStatus')}
+          </Text>
           <ChipRow
             values={MARITAL_STATUSES}
             selected={user.maritalStatus}
@@ -180,15 +221,13 @@ export default function SettingsScreen() {
         <SettingsSection title={t('settings.notifications')}>
           <View style={styles.switchRow}>
             <View style={{ flex: 1, paddingEnd: 12 }}>
-              <Text style={[typography.bodyBold, { color: colors.text }]}>
-                {t('settings.notificationsToggle')}
-              </Text>
+              <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.notificationsToggle')}</Text>
               <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
                 {notifActive
                   ? t('settings.notificationsActiveHint')
                   : user.notificationsEnabled && !permGranted
-                  ? t('settings.notificationsBlockedHint')
-                  : t('settings.notificationsOffHint')}
+                    ? t('settings.notificationsBlockedHint')
+                    : t('settings.notificationsOffHint')}
               </Text>
             </View>
             <Switch
@@ -204,15 +243,11 @@ export default function SettingsScreen() {
           />
           {!permGranted ? (
             <Pressable onPress={openOsSettings} style={[styles.primaryBtn, { backgroundColor: colors.gold }]}>
-              <Text style={[typography.bodyBold, { color: colors.onGold }]}>
-                {t('settings.openOsSettings')}
-              </Text>
+              <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.openOsSettings')}</Text>
             </Pressable>
           ) : null}
           <Pressable onPress={refreshPermStatus} style={[styles.primaryBtn, { backgroundColor: colors.surface2 }]}>
-            <Text style={[typography.bodyBold, { color: colors.text }]}>
-              {t('settings.refreshPermStatus')}
-            </Text>
+            <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.refreshPermStatus')}</Text>
           </Pressable>
           <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>
             {Platform.OS === 'ios' ? t('settings.iosHint') : t('settings.androidHint')}
@@ -235,14 +270,21 @@ export default function SettingsScreen() {
         ) : null}
 
         <SettingsSection title={t('settings.nusach')}>
-          <ChipRow values={NUSACHAOT} selected={user.nusach} onSelect={chooseNusach} renderLabel={(value) => t(`nusach.${value}`)} />
+          <ChipRow
+            values={NUSACHAOT}
+            selected={user.nusach}
+            onSelect={chooseNusach}
+            renderLabel={(value) => t(`nusach.${value}`)}
+          />
         </SettingsSection>
 
         <SettingsSection title={t('settings.reading')}>
           <View style={styles.switchRow}>
             <View style={{ flex: 1, paddingEnd: 12 }}>
               <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.autoScroll')}</Text>
-              <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>{t('settings.autoScrollHint')}</Text>
+              <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
+                {t('settings.autoScrollHint')}
+              </Text>
             </View>
             <Switch
               value={user.siddurAutoScroll}
@@ -294,8 +336,12 @@ export default function SettingsScreen() {
           <Pressable onPress={refreshLocation} style={[styles.primaryBtn, { backgroundColor: colors.gold }]}>
             <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.useCurrentLocation')}</Text>
           </Pressable>
-          {statusText ? <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>{statusText}</Text> : null}
-          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 14, marginBottom: 8 }]}>{t('settings.pickCity')}</Text>
+          {statusText ? (
+            <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>{statusText}</Text>
+          ) : null}
+          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 14, marginBottom: 8 }]}>
+            {t('settings.pickCity')}
+          </Text>
           <ChipRow
             values={CITY_INDEXES}
             selected={CITIES.findIndex((city) => city.name === user.location.name)}
@@ -340,10 +386,14 @@ export default function SettingsScreen() {
         <Text style={[typography.small, styles.versionText, { color: colors.textMuted }]}>
           {t('settings.version', { version: appVersionLabel() })}
         </Text>
-
       </ScrollView>
 
-      <Modal animationType="fade" transparent visible={resetVisible && !quiet} onRequestClose={() => setResetVisible(false)}>
+      <Modal
+        animationType="fade"
+        transparent
+        visible={resetVisible && !quiet}
+        onRequestClose={() => setResetVisible(false)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[typography.heading, { color: colors.text, marginBottom: 8 }]}>
@@ -365,7 +415,9 @@ export default function SettingsScreen() {
                 disabled={resetting}
                 style={[styles.modalBtn, { backgroundColor: colors.urgent, opacity: resetting ? 0.6 : 1 }]}
               >
-                <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.logoutConfirmAction')}</Text>
+                <Text style={[typography.bodyBold, { color: colors.onUrgent }]}>
+                  {t('settings.logoutConfirmAction')}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -380,7 +432,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <View style={[styles.row, { marginTop: 12 }]}>
       <Text style={[typography.bodyBold, { color: colors.text }]}>{label}</Text>
-      <Text style={[typography.body, { color: colors.gold }]}>{value}</Text>
+      <Text style={[typography.body, { color: colors.goldText }]}>{value}</Text>
     </View>
   );
 }

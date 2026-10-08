@@ -21,7 +21,13 @@ import {
 
 const JERUSALEM = CITIES[0];
 const NEW_YORK = CITIES.find((c) => c.nameEn === 'New York')!;
-const LONGYEARBYEN: Location = { name: 'Longyearbyen', lat: 78.2232, lng: 15.6267, tz: 'Arctic/Longyearbyen', inIsrael: false };
+const LONGYEARBYEN: Location = {
+  name: 'Longyearbyen',
+  lat: 78.2232,
+  lng: 15.6267,
+  tz: 'Arctic/Longyearbyen',
+  inIsrael: false,
+};
 
 const absOf = (y: number, m: number, d: number) => new HDate(new Date(y, m - 1, d)).abs();
 // 9 Cheshvan 5787, a Tuesday.
@@ -36,15 +42,24 @@ describe('taharah onot', () => {
 
   describe('onahAt', () => {
     it('puts midday on the day onah of the civil date', () => {
-      expect(onahAt(at(JERUSALEM, '2026-10-20T10:00'), JERUSALEM)).toEqual({ onah: { abs: O, kind: 'day' }, doubtful: false });
+      expect(onahAt(at(JERUSALEM, '2026-10-20T10:00'), JERUSALEM)).toEqual({
+        onah: { abs: O, kind: 'day' },
+        doubtful: false,
+      });
     });
 
     it('keeps the hours before sunrise on the night onah of the same Hebrew day', () => {
-      expect(onahAt(at(JERUSALEM, '2026-10-20T03:00'), JERUSALEM)).toEqual({ onah: { abs: O, kind: 'night' }, doubtful: false });
+      expect(onahAt(at(JERUSALEM, '2026-10-20T03:00'), JERUSALEM)).toEqual({
+        onah: { abs: O, kind: 'night' },
+        doubtful: false,
+      });
     });
 
     it('moves the evening to the night onah of the next Hebrew day', () => {
-      expect(onahAt(at(JERUSALEM, '2026-10-20T20:00'), JERUSALEM)).toEqual({ onah: { abs: O + 1, kind: 'night' }, doubtful: false });
+      expect(onahAt(at(JERUSALEM, '2026-10-20T20:00'), JERUSALEM)).toEqual({
+        onah: { abs: O + 1, kind: 'night' },
+        doubtful: false,
+      });
     });
 
     it('flags the stretch between shkia and tzeit as the doubtful end of the day onah', () => {
@@ -62,11 +77,20 @@ describe('taharah onot', () => {
       });
     });
 
-    it('takes the Hebrew day from the location\'s civil date, not the device\'s', () => {
-      expect(onahAt(at(NEW_YORK, '2026-10-20T10:00'), NEW_YORK)).toEqual({ onah: { abs: O, kind: 'day' }, doubtful: false });
-      expect(onahAt(at(NEW_YORK, '2026-10-20T03:00'), NEW_YORK)).toEqual({ onah: { abs: O, kind: 'night' }, doubtful: false });
+    it("takes the Hebrew day from the location's civil date, not the device's", () => {
+      expect(onahAt(at(NEW_YORK, '2026-10-20T10:00'), NEW_YORK)).toEqual({
+        onah: { abs: O, kind: 'day' },
+        doubtful: false,
+      });
+      expect(onahAt(at(NEW_YORK, '2026-10-20T03:00'), NEW_YORK)).toEqual({
+        onah: { abs: O, kind: 'night' },
+        doubtful: false,
+      });
       // Already the next morning in Jerusalem, so a device-local reading would name the next Hebrew day.
-      expect(onahAt(at(NEW_YORK, '2026-10-20T23:00'), NEW_YORK)).toEqual({ onah: { abs: O + 1, kind: 'night' }, doubtful: false });
+      expect(onahAt(at(NEW_YORK, '2026-10-20T23:00'), NEW_YORK)).toEqual({
+        onah: { abs: O + 1, kind: 'night' },
+        doubtful: false,
+      });
     });
 
     it('answers null where the sun neither rises nor sets', () => {
@@ -126,10 +150,13 @@ describe('taharah onot', () => {
       expect(onahIndex({ abs: O + 1, kind: 'night' })).toBe(O * 2 + 2);
     });
 
-    it.each([{ kind: 'night' as const }, { kind: 'day' as const }])('round-trips a $kind onah through its index', ({ kind }) => {
-      const onah = { abs: O + 17, kind };
-      expect(onahFromIndex(onahIndex(onah))).toEqual(onah);
-    });
+    it.each([{ kind: 'night' as const }, { kind: 'day' as const }])(
+      'round-trips a $kind onah through its index',
+      ({ kind }) => {
+        const onah = { abs: O + 17, kind };
+        expect(onahFromIndex(onahIndex(onah))).toEqual(onah);
+      },
+    );
 
     it('steps across the day boundary in both directions', () => {
       expect(addOnot({ abs: O, kind: 'day' }, 1)).toEqual({ abs: O + 1, kind: 'night' });
@@ -153,7 +180,7 @@ describe('taharah onot', () => {
   });
 
   describe('day lookups', () => {
-    it('names the Hebrew day whose daytime falls on the location\'s civil date', () => {
+    it("names the Hebrew day whose daytime falls on the location's civil date", () => {
       expect(hebrewDay(O).abs()).toBe(O);
       expect(civilHebrewDayAt(at(NEW_YORK, '2026-10-20T23:00'), NEW_YORK).abs()).toBe(O);
       expect(civilHebrewDayAt(at(JERUSALEM, '2026-10-20T03:00'), JERUSALEM).abs()).toBe(O);
@@ -162,12 +189,14 @@ describe('taharah onot', () => {
     it('resolves a Hebrew day to noon and zmanim at the location', () => {
       expect(dayNoon(O, JERUSALEM).getTime()).toBe(at(JERUSALEM, '2026-10-20T12:00').getTime());
       expect(dayNoon(O, NEW_YORK).getTime()).toBe(at(NEW_YORK, '2026-10-20T12:00').getTime());
-      expect(zmanimOfDay(O, JERUSALEM)!.shkia.getTime()).toBe(zmanimFor(at(JERUSALEM, '2026-10-20T12:00'), JERUSALEM).shkia.getTime());
+      expect(zmanimOfDay(O, JERUSALEM)!.shkia.getTime()).toBe(
+        zmanimFor(at(JERUSALEM, '2026-10-20T12:00'), JERUSALEM).shkia.getTime(),
+      );
     });
   });
 
   describe('tevila nights', () => {
-    it('forbids immersion on the night of Yom Kippur and of Tisha B\'Av', () => {
+    it("forbids immersion on the night of Yom Kippur and of Tisha B'Av", () => {
       expect(tevilaBlockedOnNight(absOf(2026, 9, 21), JERUSALEM)).toBe(true);
       expect(tevilaBlockedOnNight(absOf(2026, 7, 23), JERUSALEM)).toBe(true);
       // hebcal flags "Erev Tish'a B'Av" as a major fast too; 8 Av, erev Yom Kippur, and a Shabbat

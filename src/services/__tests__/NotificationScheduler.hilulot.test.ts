@@ -116,7 +116,10 @@ describe('NotificationScheduler hilula notices', () => {
   it('2 notifies at the shkia a day before the date opens and at the shkia that opens it, with no mark-done button', async () => {
     await NotificationScheduler.rebuild();
 
-    expect(hilulaPending().map((p) => p.identifier)).toEqual([`hilula:${CHESHVAN_3}:before`, `hilula:${CHESHVAN_3}:evening`]);
+    expect(hilulaPending().map((p) => p.identifier)).toEqual([
+      `hilula:${CHESHVAN_3}:before`,
+      `hilula:${CHESHVAN_3}:evening`,
+    ]);
 
     const before = pendingOf(`hilula:${CHESHVAN_3}:before`)!;
     expect(before.trigger!.date.getTime()).toBe(shkiaOn('2026-10-12').getTime());
@@ -180,7 +183,9 @@ describe('NotificationScheduler hilula notices', () => {
       expect(hilulaPending().map((p) => p.identifier)).toEqual([`hilula:${SIVAN_6}:before`]);
       expect(pendingOf(`hilula:${SIVAN_6}:before`)!.trigger!.date.getTime()).toBe(shkiaOn('2027-06-09').getTime());
       const notice = pendingOf('blockNotice:2027-06-11')!;
-      expect(notice.content.body!.split('\n')).toContain(t('holyBlock.notice.hilulaTonight', { names: 'דוד המלך, הבעל שם טוב' }));
+      expect(notice.content.body!.split('\n')).toContain(
+        t('holyBlock.notice.hilulaTonight', { names: 'דוד המלך, הבעל שם טוב' }),
+      );
     });
   });
 

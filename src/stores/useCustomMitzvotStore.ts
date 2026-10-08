@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from './zustandMiddleware';
 import { createZustandStorage } from '@/services/StorageService';
-import { STORE_VERSION, onRehydrateStorage } from './persistOptions';
+import { STORE_VERSION, migrate, onRehydrateStorage } from './persistOptions';
 import { CustomMitzvah } from '@/types/mitzvah';
 
 type CustomMitzvotState = {
@@ -17,8 +17,7 @@ export const useCustomMitzvotStore = create<CustomMitzvotState>()(
   persist(
     (set, get) => ({
       items: {},
-      add: (mitzvah) =>
-        set((s) => ({ items: { ...s.items, [mitzvah.id]: mitzvah } })),
+      add: (mitzvah) => set((s) => ({ items: { ...s.items, [mitzvah.id]: mitzvah } })),
       update: (id, patch) =>
         set((s) => {
           const cur = s.items[id];
@@ -38,6 +37,7 @@ export const useCustomMitzvotStore = create<CustomMitzvotState>()(
       name: 'custom-mitzvot-store',
       storage: createJSONStorage(() => createZustandStorage()),
       version: STORE_VERSION,
+      migrate,
       onRehydrateStorage: onRehydrateStorage('custom-mitzvot-store'),
     },
   ),

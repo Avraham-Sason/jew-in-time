@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useReducer, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -66,16 +66,16 @@ export default function TaharahLog() {
   const [reason, setReason] = useState<PauseReason | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const close = () => {
+  const close = useCallback(() => {
     if (router.canGoBack()) router.back();
     else router.replace('/taharah');
-  };
+  }, [router]);
 
   useEffect(() => {
     if (!saved) return undefined;
     const timeout = setTimeout(close, SAVED_DELAY_MS);
     return () => clearTimeout(timeout);
-  }, [saved]);
+  }, [saved, close]);
 
   const today = startOfDay(now);
   const isToday = date.getTime() === today.getTime();
@@ -111,10 +111,12 @@ export default function TaharahLog() {
     const resolved = onahAt(now, location);
     return resolved ? onahIndex(resolved.onah) + (resolved.doubtful ? 1 : 0) : onahIndex(currentOnah(now, location));
   }, [now, location]);
-  const onahInFuture = type === 'onset' && timeUnknown && resolution !== null && onahIndex(resolution.onah) > latestBegunOnah;
+  const onahInFuture =
+    type === 'onset' && timeUnknown && resolution !== null && onahIndex(resolution.onah) > latestBegunOnah;
 
   const hefsekVerdict = type === 'hefsek' ? hefsekOutcome(state, dayAbs, result) : 'accepted';
-  const hefsekEarliest = state.hefsekEarliestDay === null ? '' : formatDayLine(hebrewDay(state.hefsekEarliestDay).greg(), language);
+  const hefsekEarliest =
+    state.hefsekEarliestDay === null ? '' : formatDayLine(hebrewDay(state.hefsekEarliestDay).greg(), language);
   const hefsekBlockedKey = HEFSEK_BLOCKED_KEY[hefsekVerdict];
   const hefsekBlockedText =
     hefsekVerdict === 'tooEarly'
@@ -165,6 +167,7 @@ export default function TaharahLog() {
         <Pressable
           onPress={close}
           accessibilityRole="button"
+          hitSlop={10}
           style={[styles.backBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
         >
           <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
@@ -184,7 +187,12 @@ export default function TaharahLog() {
               {timeUnknown ? t('taharah.log.onahChoice') : t('taharah.log.time')}
             </Text>
             {timeUnknown ? (
-              <ChipRow values={ONAH_KINDS} selected={kind} onSelect={setKind} renderLabel={(value) => t(`taharah.onah.${value}`)} />
+              <ChipRow
+                values={ONAH_KINDS}
+                selected={kind}
+                onSelect={setKind}
+                renderLabel={(value) => t(`taharah.onah.${value}`)}
+              />
             ) : (
               <>
                 <TextInput
@@ -203,11 +211,15 @@ export default function TaharahLog() {
                     },
                   ]}
                 />
-                <Text style={[typography.small, { color: colors.textMuted, marginTop: 6 }]}>{t('custom.timeFormatHint')}</Text>
+                <Text style={[typography.small, { color: colors.textMuted, marginTop: 6 }]}>
+                  {t('custom.timeFormatHint')}
+                </Text>
               </>
             )}
             <View style={styles.switchRow}>
-              <Text style={[typography.bodyBold, styles.switchLabel, { color: colors.text }]}>{t('taharah.log.timeUnknown')}</Text>
+              <Text style={[typography.bodyBold, styles.switchLabel, { color: colors.text }]}>
+                {t('taharah.log.timeUnknown')}
+              </Text>
               <Switch
                 value={timeUnknown}
                 onValueChange={setTimeUnknown}
@@ -230,7 +242,9 @@ export default function TaharahLog() {
 
         {type === 'hefsek' ? (
           <>
-            <Text style={[typography.captionBold, styles.label, { color: colors.textSub }]}>{t('taharah.log.resultLabel')}</Text>
+            <Text style={[typography.captionBold, styles.label, { color: colors.textSub }]}>
+              {t('taharah.log.resultLabel')}
+            </Text>
             <ChipRow
               values={BEDIKA_RESULTS}
               selected={result}
@@ -238,7 +252,9 @@ export default function TaharahLog() {
               renderLabel={(value) => t(`taharah.bedika.result.${value}`)}
             />
             <View style={styles.switchRow}>
-              <Text style={[typography.bodyBold, styles.switchLabel, { color: colors.text }]}>{t('taharah.log.moch')}</Text>
+              <Text style={[typography.bodyBold, styles.switchLabel, { color: colors.text }]}>
+                {t('taharah.log.moch')}
+              </Text>
               <Switch
                 value={moch}
                 onValueChange={setMoch}
@@ -249,7 +265,9 @@ export default function TaharahLog() {
             <Text style={[typography.small, { color: colors.textMuted }]}>
               {`${t('taharah.rule.mochDachuk')}: ${t(`taharah.moch.${settings.rules.mochDachuk}`)}`}
             </Text>
-            {!moch && settings.rules.mochDachuk === 'required' ? <Notice tone="warning" text={t('taharah.log.mochRequired')} /> : null}
+            {!moch && settings.rules.mochDachuk === 'required' ? (
+              <Notice tone="warning" text={t('taharah.log.mochRequired')} />
+            ) : null}
             {hefsekBlockedText ? <Notice tone="urgent" text={hefsekBlockedText} /> : null}
             {hefsekVerdict === 'notClean' ? <Notice tone="warning" text={t('taharah.log.hefsekNotClean')} /> : null}
             {afterSunset ? <Notice tone="urgent" text={t('taharah.log.hefsekAfterSunset')} /> : null}
@@ -267,13 +285,17 @@ export default function TaharahLog() {
             {tevilaTooEarly && firstTevilaNight !== null ? (
               <Notice
                 tone="urgent"
-                text={t('taharah.log.tevilaTooEarly', { date: formatDayLine(hebrewDay(firstTevilaNight - 1).greg(), language) })}
+                text={t('taharah.log.tevilaTooEarly', {
+                  date: formatDayLine(hebrewDay(firstTevilaNight - 1).greg(), language),
+                })}
               />
             ) : null}
             {tevilaBeforeTzeit && tzeit !== null ? (
               <Notice
                 tone="urgent"
-                text={t('taharah.log.tevilaBeforeTzeit', { time: DateTime.fromJSDate(tzeit).setZone(location.tz).toFormat('HH:mm') })}
+                text={t('taharah.log.tevilaBeforeTzeit', {
+                  time: DateTime.fromJSDate(tzeit).setZone(location.tz).toFormat('HH:mm'),
+                })}
               />
             ) : null}
           </>
@@ -281,8 +303,15 @@ export default function TaharahLog() {
 
         {type === 'pause' ? (
           <>
-            <Text style={[typography.captionBold, styles.label, { color: colors.textSub }]}>{t('taharah.log.pauseReason')}</Text>
-            <ChipRow values={PAUSE_REASONS} selected={reason} onSelect={setReason} renderLabel={(value) => t(`taharah.pause.${value}`)} />
+            <Text style={[typography.captionBold, styles.label, { color: colors.textSub }]}>
+              {t('taharah.log.pauseReason')}
+            </Text>
+            <ChipRow
+              values={PAUSE_REASONS}
+              selected={reason}
+              onSelect={setReason}
+              renderLabel={(value) => t(`taharah.pause.${value}`)}
+            />
           </>
         ) : null}
       </ScrollView>

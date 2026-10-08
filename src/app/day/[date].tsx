@@ -58,14 +58,19 @@ export default function DayRoute() {
     return [...MITZVOT, ...customs].filter((m) => m.nuschaotSupported.includes(nusach));
   }, [customMap, nusach]);
 
-  const enabled = useMemo(() => allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled), [allMitzvot, activeMap]);
+  const enabled = useMemo(
+    () => allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled),
+    [allMitzvot, activeMap],
+  );
   const settings = useMemo(() => ({ nusach, halachicOpinions, inIsrael }), [nusach, halachicOpinions, inIsrael]);
   const date = useMemo(() => (valid ? parsed.toJSDate() : new Date()), [valid, parsed]);
   const displayCompletions = isFuture ? EMPTY_COMPLETIONS : completions;
   const items = useMemo(
     () =>
       valid
-        ? buildDayTimeline(date, enabled, displayCompletions, location, settings, language, t).filter((item) => item.type === 'mitzvah')
+        ? buildDayTimeline(date, enabled, displayCompletions, location, settings, language, t).filter(
+            (item) => item.type === 'mitzvah',
+          )
         : [],
     [valid, date, enabled, displayCompletions, location, settings, language, t],
   );
@@ -76,25 +81,42 @@ export default function DayRoute() {
   const pending = useMemo(() => {
     if (!valid) return new Set<string>();
     const enabledSince = enabledSinceOf(activeMap);
-    const checkIn = latestCheckIn({ mitzvot: enabled, completions, skipped, checkIns, enabledSince, location, settings });
+    const checkIn = latestCheckIn({
+      mitzvot: enabled,
+      completions,
+      skipped,
+      checkIns,
+      enabledSince,
+      location,
+      settings,
+    });
     return pendingCheckInIds(checkIn, dateParam);
   }, [valid, enabled, completions, skipped, checkIns, activeMap, location, settings, dateParam]);
 
-  const title = valid ? parsed.setLocale(language).toFormat(language === 'he' ? 'cccc d LLLL yyyy' : 'cccc, LLL d yyyy') : t('day.title');
+  const title = valid
+    ? parsed.setLocale(language).toFormat(language === 'he' ? 'cccc d LLLL yyyy' : 'cccc, LLL d yyyy')
+    : t('day.title');
   const bannerText = isPast ? t('day.readOnlyBanner') : isFuture ? t('day.futureReadOnlyBanner') : null;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
-        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]}>
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          hitSlop={10}
+          style={[styles.backBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
+        >
           <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
         </Pressable>
         <Text style={[typography.heading, { color: colors.headerText }]}>{t('day.title')}</Text>
         <Text style={[typography.caption, { color: colors.headerSub, marginTop: 2 }]}>{title}</Text>
       </View>
       {!valid ? (
-        <Text style={[typography.body, { color: colors.urgent, padding: 18, textAlign: 'center' }]}>{t('day.invalid')}</Text>
+        <Text style={[typography.body, { color: colors.urgent, padding: 18, textAlign: 'center' }]}>
+          {t('day.invalid')}
+        </Text>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           {pending.size ? (
@@ -103,7 +125,7 @@ export default function DayRoute() {
               accessibilityRole="button"
               style={[styles.banner, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}
             >
-              <Text style={[typography.captionBold, { color: colors.gold }]}>{t('day.pendingBanner')}</Text>
+              <Text style={[typography.captionBold, { color: colors.goldText }]}>{t('day.pendingBanner')}</Text>
             </Pressable>
           ) : bannerText ? (
             <View style={[styles.banner, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
@@ -120,7 +142,13 @@ export default function DayRoute() {
             });
             const waiting = !item.done && Boolean(item.mitzvahId && pending.has(item.mitzvahId));
             const missed = isPast && !item.done && !waiting;
-            const statusText = waiting ? t('checkin.pending') : missed ? t('day.missed') : isFuture ? timeRange : undefined;
+            const statusText = waiting
+              ? t('checkin.pending')
+              : missed
+                ? t('day.missed')
+                : isFuture
+                  ? timeRange
+                  : undefined;
             return (
               <MitzvahCard
                 key={item.id}
@@ -134,12 +162,16 @@ export default function DayRoute() {
                 statusTone={missed ? 'urgent' : 'muted'}
                 hideProgress={!isToday}
                 onComplete={isToday ? () => item.mitzvahId && markDone(item.mitzvahId, date) : undefined}
-                onPress={() => item.mitzvahId && router.push({ pathname: '/mitzvah/[id]', params: { id: item.mitzvahId } })}
+                onPress={() =>
+                  item.mitzvahId && router.push({ pathname: '/mitzvah/[id]', params: { id: item.mitzvahId } })
+                }
               />
             );
           })}
           {!items.length ? (
-            <Text style={[typography.body, { color: colors.textSub, textAlign: 'center', paddingTop: 28 }]}>{t('day.noItems')}</Text>
+            <Text style={[typography.body, { color: colors.textSub, textAlign: 'center', paddingTop: 28 }]}>
+              {t('day.noItems')}
+            </Text>
           ) : null}
         </ScrollView>
       )}

@@ -32,7 +32,13 @@ export function CompletedRow({ name, time, onPress, onUndo, undoLabel }: Props) 
     <Animated.View style={[styles.row, { borderBottomColor: colors.border }, animStyle]}>
       <View style={[styles.tick, { backgroundColor: colors.gold }]}>
         <Svg width={11} height={11} viewBox="0 0 11 11" fill="none">
-          <Path d="M1.5 5.5L4 8L9.5 3" stroke="#fff" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+          <Path
+            d="M1.5 5.5L4 8L9.5 3"
+            stroke={colors.onGold}
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </Svg>
       </View>
       <Text style={[typography.body, styles.name, { color: colors.textSub, textDecorationLine: 'line-through' }]}>
@@ -41,7 +47,7 @@ export function CompletedRow({ name, time, onPress, onUndo, undoLabel }: Props) 
       <Text style={[typography.small, { color: colors.textMuted }]}>{time}</Text>
       {onUndo ? (
         <Pressable onPress={onUndo} hitSlop={8} style={[styles.undoBtn, { borderColor: colors.border }]}>
-          <Text style={[typography.small, { color: colors.gold, fontFamily: 'Heebo_700Bold' }]}>
+          <Text style={[typography.small, { color: colors.goldText, fontFamily: 'Heebo_700Bold' }]}>
             {undoLabel ?? '↺'}
           </Text>
         </Pressable>

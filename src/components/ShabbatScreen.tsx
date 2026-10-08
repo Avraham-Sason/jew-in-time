@@ -49,11 +49,15 @@ export function ShabbatScreen({ block, subtitle }: Props) {
           <View style={[styles.iconWrap, { backgroundColor: colors.goldLight }]}>
             <Text style={[styles.icon, { color: colors.gold }]}>✦</Text>
           </View>
-          <Text style={[typography.display, styles.centered, { color: colors.text, marginTop: 18 }]}>{t(labels.title)}</Text>
+          <Text style={[typography.display, styles.centered, { color: colors.text, marginTop: 18 }]}>
+            {t(labels.title)}
+          </Text>
           {subtitle ? (
-            <Text style={[typography.caption, styles.centered, { color: colors.textMuted, marginTop: 6 }]}>{subtitle}</Text>
+            <Text style={[typography.caption, styles.centered, { color: colors.textMuted, marginTop: 6 }]}>
+              {subtitle}
+            </Text>
           ) : null}
-          <Text style={[typography.heading, styles.centered, { color: colors.gold, marginTop: 22 }]}>{until}</Text>
+          <Text style={[typography.heading, styles.centered, { color: colors.goldText, marginTop: 22 }]}>{until}</Text>
           <Text style={[typography.body, styles.centered, { color: colors.textSub, marginTop: 8 }]}>
             {t('holyBlock.screen.quiet')}
           </Text>
