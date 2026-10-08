@@ -1,8 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { THEMES, THEME_NAMES, ThemeName } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
-import { typography } from '@/theme/typography';
 
 type Props = {
   selected: ThemeName;
@@ -21,6 +20,7 @@ export function ThemeSwatchRow({ selected, onSelect, labelFor }: Props) {
           <Pressable
             key={name}
             onPress={() => onSelect(name)}
+            hitSlop={4}
             accessibilityRole="radio"
             accessibilityState={{ selected: active, checked: active }}
             accessibilityLabel={labelFor(name)}
@@ -31,7 +31,6 @@ export function ThemeSwatchRow({ selected, onSelect, labelFor }: Props) {
                 <View style={[styles.dot, { backgroundColor: palette.gold }]} />
               </View>
             </View>
-            <Text style={[typography.micro, { color: active ? colors.text : colors.textSub }]}>{labelFor(name)}</Text>
           </Pressable>
         );
       })}
@@ -43,30 +42,29 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
+    gap: 8,
   },
   item: {
-    alignItems: 'center',
-    gap: 6,
+    padding: 1,
   },
   ring: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 2.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   swatch: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 31,
+    height: 31,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
   },
 });

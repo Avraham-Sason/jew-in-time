@@ -28,9 +28,10 @@ export type ThemeColors = {
   bezel: string;
 };
 
-export type ThemeName = 'gold' | 'pink' | 'purple' | 'blue' | 'dark';
+export type ThemeName = 'gold' | 'pink' | 'purple' | 'blue' | 'dark' | 'plum';
 
-export const THEME_NAMES: readonly ThemeName[] = ['gold', 'pink', 'purple', 'blue', 'dark'];
+export const THEME_NAMES: readonly ThemeName[] = ['gold', 'pink', 'purple', 'blue', 'dark', 'plum'];
+export const DARK_THEMES: readonly ThemeName[] = ['dark', 'plum'];
 
 export const T_LIGHT: ThemeColors = {
   bg: '#F5EFE4',
@@ -183,12 +184,43 @@ export const T_DARK: ThemeColors = {
   bezel: '#050D18',
 };
 
+export const T_PLUM: ThemeColors = {
+  bg: '#1A1026',
+  surface: '#261735',
+  surface2: '#31204A',
+  text: '#F4E9F8',
+  textSub: '#BBA3CC',
+  textMuted: '#C4AED3',
+  border: '#3E2A56',
+  gold: '#F48FBC',
+  onGold: '#2A0F20',
+  goldLight: '#3C2238',
+  urgent: '#FF6B6B',
+  urgentBg: '#3A1A24',
+  urgentBorder: '#7F2A3A',
+  warning: '#F5B041',
+  safe: '#3DD598',
+  optional: '#9DD6E8',
+  optionalBg: '#1E3240',
+  minyan: '#C9A8EE',
+  headerBg: '#120A1C',
+  headerAccent: '#F48FBC',
+  headerText: '#F4E9F8',
+  headerSub: 'rgba(244,233,248,0.55)',
+  tabBg: '#261735',
+  tabBorder: '#3E2A56',
+  shadow: 'rgba(0,0,0,0.35)',
+  shadowStrong: 'rgba(0,0,0,0.60)',
+  bezel: '#0B0612',
+};
+
 export const THEMES: Record<ThemeName, ThemeColors> = {
   gold: T_LIGHT,
   pink: T_PINK,
   purple: T_PURPLE,
   blue: T_BLUE,
   dark: T_DARK,
+  plum: T_PLUM,
 };
 
-export const isDarkTheme = (name: ThemeName): boolean => name === 'dark';
+export const isDarkTheme = (name: ThemeName): boolean => DARK_THEMES.includes(name);

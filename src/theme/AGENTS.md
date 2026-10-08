@@ -7,7 +7,7 @@
 ## Ownership
 
 - [tokens.ts](tokens.ts), [colors.ts](colors.ts), [typography.ts](typography.ts), and [shadowStyle.ts](shadowStyle.ts) own theme primitives.
-- [colors.ts](colors.ts) owns the five palettes (`THEMES`, `THEME_NAMES`, `ThemeName`): gold (`T_LIGHT`), pink, purple, blue and dark.
+- [colors.ts](colors.ts) owns the six palettes (`THEMES`, `THEME_NAMES`, `ThemeName`): gold (`T_LIGHT`), pink, purple and blue on white, and two dark ones, dark (navy, gold accent) and plum (dark plum, rose accent), listed in `DARK_THEMES`, the one place `isDarkTheme()` reads.
 - [ThemeProvider.tsx](ThemeProvider.tsx) owns runtime theme access: it resolves `useUserStore.theme` to `{ colors, isDark, name }` and syncs the OS appearance through `Appearance.setColorScheme`, so alerts, the keyboard and switches follow the palette.
 - Theme tests live in [__tests__/](__tests__/).
 

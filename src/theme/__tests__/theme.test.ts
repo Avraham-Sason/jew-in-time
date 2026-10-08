@@ -1,4 +1,4 @@
-import { T_LIGHT, T_DARK, T_PINK, T_PURPLE, T_BLUE, THEMES, THEME_NAMES, isDarkTheme, ThemeColors } from '../colors';
+import { T_LIGHT, T_DARK, T_PINK, T_PURPLE, T_BLUE, T_PLUM, THEMES, THEME_NAMES, DARK_THEMES, isDarkTheme, ThemeColors } from '../colors';
 import { ribbonThresholds, durations, spacing, radius } from '../tokens';
 import he from '@/i18n/he.json';
 import en from '@/i18n/en.json';
@@ -39,13 +39,14 @@ const contrast = (a: string, b: string) => {
 
 describe('Theme', () => {
   it('THEMES lists exactly the named palettes, in order', () => {
-    expect(THEME_NAMES).toEqual(['gold', 'pink', 'purple', 'blue', 'dark']);
+    expect(THEME_NAMES).toEqual(['gold', 'pink', 'purple', 'blue', 'dark', 'plum']);
     expect(Object.keys(THEMES)).toEqual([...THEME_NAMES]);
     expect(THEMES.gold).toBe(T_LIGHT);
     expect(THEMES.pink).toBe(T_PINK);
     expect(THEMES.purple).toBe(T_PURPLE);
     expect(THEMES.blue).toBe(T_BLUE);
     expect(THEMES.dark).toBe(T_DARK);
+    expect(THEMES.plum).toBe(T_PLUM);
   });
 
   it('every palette has the same token set as gold', () => {
@@ -64,9 +65,10 @@ describe('Theme', () => {
     }
   });
 
-  it('only dark is dark', () => {
-    expect(isDarkTheme('dark')).toBe(true);
-    expect(THEME_NAMES.filter((name) => isDarkTheme(name))).toEqual(['dark']);
+  it('dark and plum are the dark palettes', () => {
+    expect(DARK_THEMES).toEqual(['dark', 'plum']);
+    expect(THEME_NAMES.filter((name) => isDarkTheme(name))).toEqual([...DARK_THEMES]);
+    expect(isDarkTheme('gold')).toBe(false);
   });
 
   it('the light palettes share the status colours and white surfaces', () => {

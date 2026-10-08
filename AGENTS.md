@@ -221,7 +221,7 @@ The web scheduler file is intentionally a no-op shim. If adding exported schedul
 
 All primary stores use Zustand with MMKV persistence through `StorageService.createZustandStorage()`, except `useTaharahStore`, which persists to its own encrypted instance.
 
-- `useUserStore` (`user-store`): nusach, location, theme (one of the five palette names), language, notification permission/toggle, profile fields, halachic opinions, in-Israel flag, onboarding flag, `gender` and `maritalStatus` (`married` or `single`), each `null` until answered, taharah opt-in.
+- `useUserStore` (`user-store`): nusach, location, theme (one of the six palette names), language, notification permission/toggle, profile fields, halachic opinions, in-Israel flag, onboarding flag, `gender` and `maritalStatus` (`married` or `single`), each `null` until answered, taharah opt-in.
 - `useMitzvotStore` (`mitzvot-store`): enabled state and custom reminders per mitzvah.
 - `useCompletionsStore` (`completions-store`): `completions[YYYY-MM-DD][mitzvahId] = timestamp` and parallel `skipped` map, `checkIns[firstHolyDay] = finishedAt`, and `archivedDays` — runs of kept days that retention pruned, so the streak reaches past 400 days.
 - `useCustomMitzvotStore` (`custom-mitzvot-store`): user-created mitzvah definitions.
@@ -235,7 +235,7 @@ All primary stores use Zustand with MMKV persistence through `StorageService.cre
 
 - The app loads Heebo font weights in [_layout.tsx](src/app/_layout.tsx).
 - Use `useTheme()` and `src/theme/*` tokens. Avoid hard-coded colors in new UI unless there is a narrow reason.
-- Five palettes live in [src/theme/colors.ts](src/theme/colors.ts): gold, pink, purple, blue and dark, chosen in Settings as colour circles. `gold` / `onGold` / `goldLight` are each palette's accent tokens, `headerAccent` is the accent drawn on the header, and `isDark` is true only for the dark palette.
+- Six palettes live in [src/theme/colors.ts](src/theme/colors.ts): gold, pink, purple, blue, dark and plum (dark plum with a rose accent), chosen in Settings as colour circles with no visible labels. `gold` / `onGold` / `goldLight` are each palette's accent tokens, `headerAccent` is the accent drawn on the header, and `isDark` is true for the two dark palettes (`DARK_THEMES`).
 - Translation tables are flat JSON dictionaries in [he.json](src/i18n/he.json) and [en.json](src/i18n/en.json); tests enforce key parity and non-empty values.
 - `setLocale()` and `useI18n()` are lightweight wrappers. The `i18n-js` package is installed but the current app does not rely on the normal `i18n-js` runtime API.
 - RTL is dynamic based on `useUserStore.language`. `_layout.tsx` calls `I18nManager.allowRTL/forceRTL`; native language direction changes can require a reload.
