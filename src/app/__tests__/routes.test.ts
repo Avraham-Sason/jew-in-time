@@ -27,6 +27,7 @@ describe('expo-router routes', () => {
     expect(routes).toContain('siddur/[id]');
     expect(routes).toContain('siddur/index');
     expect(routes).toContain('checkin');
+    expect(routes).toContain('hilulot');
   });
 
   it('discovers taharah routes', () => {

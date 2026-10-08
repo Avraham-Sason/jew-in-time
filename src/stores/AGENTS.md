@@ -6,7 +6,7 @@
 
 ## Ownership
 
-- [useUserStore.ts](useUserStore.ts) owns user profile, location, language, theme (a `ThemeName`, `gold` by default), permission, settings, onboarding state, the reader text size, the reader's auto-scroll (`siddurAutoScroll`, off by default, and `siddurScrollSpeed`, a 1-based level into `SIDDUR_SCROLL_SPEEDS`, lines per minute, that `scrollSpeedLevel()` keeps in range), `gender` and `maritalStatus` (`married` or `single`), each `null` until answered, and the `taharahEnabled` opt-in.
+- [useUserStore.ts](useUserStore.ts) owns user profile, location, language, theme (a `ThemeName`, `gold` by default), permission, settings, onboarding state, the reader text size, the reader's auto-scroll (`siddurAutoScroll`, off by default, and `siddurScrollSpeed`, a 1-based level into `SIDDUR_SCROLL_SPEEDS`, lines per minute, that `scrollSpeedLevel()` keeps in range), the `hilulotEnabled` switch for hilula notices (off by default), `gender` and `maritalStatus` (`married` or `single`), each `null` until answered, and the `taharahEnabled` opt-in.
 - [useMitzvotStore.ts](useMitzvotStore.ts) owns enabled mitzvot and custom reminders, and `enabledAt`, the moment each was last switched on (`enabledSinceOf()`), so switching a mitzvah on never turns earlier days into misses. A missing `enabledAt` means since before it was recorded.
 - [useCompletionsStore.ts](useCompletionsStore.ts) owns completions and skipped maps, finished check-ins (`checkIns`, keyed by a block's first holy day) and `archivedDays`, the runs of kept days that retention dropped.
 - [useCustomMitzvotStore.ts](useCustomMitzvotStore.ts) owns user-created mitzvah definitions.

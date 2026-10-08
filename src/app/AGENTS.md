@@ -17,6 +17,7 @@
 - [siddur/AGENTS.md](siddur/AGENTS.md) owns the nusach reader route and the siddur catalog.
 - [taharah/AGENTS.md](taharah/AGENTS.md) owns the taharat hamishpacha dashboard, log, calendar and settings routes.
 - [custom-mitzvah.tsx](custom-mitzvah.tsx) owns custom mitzvah create/edit UI.
+- [hilulot.tsx](hilulot.tsx) owns the hilulot screen: the `hilulotEnabled` switch and every hilula on its next day from the Hebrew day in effect now (`upcomingHilulot()`), with its Hebrew and civil date and how far off it is. The library row and a hilula notice open it.
 - [checkin.tsx](checkin.tsx) owns the post-block check-in: the route that lists a block's past days for marking, because they could not be marked while they happened (the reader's "סיימתי" still marks its own window date). It keeps the block it opened with on screen after the last mark, refuses marks once the deadline has passed, and marks from a tap anywhere on a card, so a screen reader can mark too. Leaving with everything marked finishes the check-in. The root layout opens it by itself once per block, the first time the app is open after the block ends and onboarding is done; only the screen records `CHECK_IN_PROMPTED_KEY`, so a push that never landed is retried.
 
 ## Local Contracts

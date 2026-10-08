@@ -7,10 +7,13 @@ import { MITZVOT } from "@/data/mitzvot";
 import { customToMitzvah } from "@/data/customMitzvotAdapter";
 import { useCustomMitzvotStore } from "@/stores/useCustomMitzvotStore";
 import { useMitzvotStore } from "@/stores/useMitzvotStore";
+import { useUserStore } from "@/stores/useUserStore";
 import { useTheme } from "@/theme/ThemeProvider";
 import { typography } from "@/theme/typography";
 import { useI18n } from "@/i18n";
 import { Mitzvah, MitzvahCategory } from "@/types/mitzvah";
+
+const HILULOT_CATEGORY: MitzvahCategory = "seasonal";
 
 export default function LibraryScreen() {
     const { colors } = useTheme();
@@ -19,6 +22,8 @@ export default function LibraryScreen() {
     const active = useMitzvotStore((s) => s.activeMitzvot);
     const setEnabled = useMitzvotStore((s) => s.setEnabled);
     const customItems = useCustomMitzvotStore((s) => s.items);
+    const hilulotEnabled = useUserStore((s) => s.hilulotEnabled);
+    const setHilulotEnabled = useUserStore((s) => s.setHilulotEnabled);
     const [visibility, setVisibility] = useState<"active" | "available">("active");
     const [category, setCategory] = useState<MitzvahCategory | "all">("all");
 
@@ -42,6 +47,9 @@ export default function LibraryScreen() {
             return true;
         });
     }, [allMitzvot, active, category, visibility]);
+    // Hilulot are a notification setting, not a mitzvah: listed here as the user asked, but kept out
+    // of the registry so they never reach history, home or the check-in.
+    const showHilulot = (visibility === "active") === hilulotEnabled && (category === "all" || category === HILULOT_CATEGORY);
 
     return (
         <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={["top"]}>
@@ -106,52 +114,81 @@ export default function LibraryScreen() {
             <ScrollView style={styles.listScroll} contentContainerStyle={styles.list}>
                 {items.map((item) => {
                     const enabled = active[item.id]?.enabled ?? false;
-                    const label = language === "en" && item.name.en ? item.name.en : item.name.he;
                     return (
-                        <Pressable
+                        <LibraryRow
                             key={item.id}
+                            label={language === "en" && item.name.en ? item.name.en : item.name.he}
+                            caption={t(`library.category.${item.category}`)}
+                            enabled={enabled}
                             onPress={() =>
                                 item.isCustom
                                     ? router.push({ pathname: "/custom-mitzvah", params: { id: item.id } })
                                     : router.push(`/mitzvah/${item.id}`)
                             }
-                            style={[styles.row, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
-                        >
-                            <View style={[styles.icon, { backgroundColor: enabled ? colors.goldLight : colors.surface2 }]}>
-                                <Text style={{ fontSize: 17, color: enabled ? colors.gold : colors.textMuted }}>✦</Text>
-                            </View>
-                            <View style={styles.rowMeta}>
-                                <Text style={[typography.bodyBold, { color: enabled ? colors.text : colors.textMuted }]}>{label}</Text>
-                                <Text style={[typography.small, { color: colors.textMuted, marginTop: 2 }]}>
-                                    {t(`library.category.${item.category}`)}
-                                </Text>
-                            </View>
-                            <Pressable
-                                accessibilityRole="switch"
-                                accessibilityState={{ checked: enabled }}
-                                onPress={() => setEnabled(item.id, !enabled)}
-                                style={[
-                                    styles.toggle,
-                                    {
-                                        backgroundColor: enabled ? colors.gold : colors.surface2,
-                                        borderColor: enabled ? colors.gold : colors.border,
-                                    },
-                                ]}
-                            >
-                                {/* Direction-relative, so Yoga resolves it from the real layout direction. The old
-                                    version rotated the track by `language` while positioning the thumb by physical
-                                    `right`, which RN only swaps by `I18nManager.isRTL` — two sources of truth that
-                                    disagree on first launch and render every row inverted. */}
-                                <View style={[styles.toggleThumb, enabled ? { end: 2 } : { end: 22 }]} />
-                            </Pressable>
-                        </Pressable>
+                            onToggle={() => setEnabled(item.id, !enabled)}
+                        />
                     );
                 })}
-                {!items.length ? (
+                {showHilulot ? (
+                    <LibraryRow
+                        label={t("hilulot.title")}
+                        caption={t("hilulot.caption")}
+                        enabled={hilulotEnabled}
+                        onPress={() => router.push("/hilulot")}
+                        onToggle={() => setHilulotEnabled(!hilulotEnabled)}
+                    />
+                ) : null}
+                {!items.length && !showHilulot ? (
                     <Text style={[typography.body, { color: colors.textSub, textAlign: "center", paddingTop: 28 }]}>{t("library.empty")}</Text>
                 ) : null}
             </ScrollView>
         </SafeAreaView>
+    );
+}
+
+function LibraryRow({
+    label,
+    caption,
+    enabled,
+    onPress,
+    onToggle,
+}: {
+    label: string;
+    caption: string;
+    enabled: boolean;
+    onPress: () => void;
+    onToggle: () => void;
+}) {
+    const { colors } = useTheme();
+    return (
+        <Pressable onPress={onPress} style={[styles.row, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <View style={[styles.icon, { backgroundColor: enabled ? colors.goldLight : colors.surface2 }]}>
+                <Text style={{ fontSize: 17, color: enabled ? colors.gold : colors.textMuted }}>✦</Text>
+            </View>
+            <View style={styles.rowMeta}>
+                <Text style={[typography.bodyBold, { color: enabled ? colors.text : colors.textMuted }]}>{label}</Text>
+                <Text style={[typography.small, { color: colors.textMuted, marginTop: 2 }]}>{caption}</Text>
+            </View>
+            <Pressable
+                accessibilityRole="switch"
+                accessibilityLabel={label}
+                accessibilityState={{ checked: enabled }}
+                onPress={onToggle}
+                style={[
+                    styles.toggle,
+                    {
+                        backgroundColor: enabled ? colors.gold : colors.surface2,
+                        borderColor: enabled ? colors.gold : colors.border,
+                    },
+                ]}
+            >
+                {/* Direction-relative, so Yoga resolves it from the real layout direction. The old
+                    version rotated the track by `language` while positioning the thumb by physical
+                    `right`, which RN only swaps by `I18nManager.isRTL` — two sources of truth that
+                    disagree on first launch and render every row inverted. */}
+                <View style={[styles.toggleThumb, enabled ? { end: 2 } : { end: 22 }]} />
+            </Pressable>
+        </Pressable>
     );
 }
 

@@ -205,6 +205,7 @@ function RootInner() {
             <Stack.Screen name="day/[date]" options={{ presentation: 'card' }} />
             <Stack.Screen name="custom-mitzvah" options={{ presentation: 'card' }} />
             <Stack.Screen name="checkin" options={{ presentation: 'card' }} />
+            <Stack.Screen name="hilulot" options={{ presentation: 'card' }} />
             <Stack.Screen name="taharah/index" options={{ presentation: 'card' }} />
             <Stack.Screen name="taharah/log" options={{ presentation: 'card' }} />
             <Stack.Screen name="taharah/settings" options={{ presentation: 'card' }} />

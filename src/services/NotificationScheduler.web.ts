@@ -17,8 +17,9 @@ const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
 const SCHEDULE_FORMAT_KEY = 'notifications:schedule-format';
 
 export type PendingNotificationMeta = {
-  kind?: 'blockNotice' | 'checkin' | typeof TAHARAH_KIND | typeof UPDATE_KIND;
+  kind?: 'blockNotice' | 'checkin' | typeof TAHARAH_KIND | typeof UPDATE_KIND | 'hilula';
   taharah?: { task: TaharahTaskKind | 'tevilaPrep' | 'postBlock' | 'preBlock'; day: number; onah?: OnahKind };
+  hilula?: { day: number; when: 'before' | 'evening' };
   blockId?: string;
   updateId?: string;
   updateCreatedAt?: string;

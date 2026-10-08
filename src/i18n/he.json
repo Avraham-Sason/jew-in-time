@@ -528,5 +528,20 @@
   "settings.reading": "קריאה בסידור",
   "settings.autoScroll": "גלילה אוטומטית",
   "settings.autoScrollHint": "הנוסח נגלל מעצמו בקצב שבחרת. גרירה של הטקסט עוצרת לרגע, והגלילה ממשיכה מהמקום החדש. אפשר להפעיל ולעצור גם מראש המסך בזמן הקריאה.",
-  "settings.autoScrollSpeed": "מהירות גלילה"
+  "settings.autoScrollSpeed": "מהירות גלילה",
+  "hilulot.title": "הילולות צדיקים",
+  "hilulot.caption": "התראה ערב לפני ובערב ההילולה",
+  "hilulot.subtitle": "ימי פטירה של צדיקים, לפי הלוח העברי",
+  "hilulot.notifications": "התראות על הילולות",
+  "hilulot.notificationsHint": "התראה בשקיעה יום לפני שיום ההילולה נכנס, ושוב בשקיעה שבה הוא נכנס. מה שנופל בשבת או בחג מופיע בהודעה שלפני כניסתם.",
+  "hilulot.upcoming": "הילולות קרובות",
+  "hilulot.today": "היום",
+  "hilulot.tomorrow": "מחר",
+  "hilulot.inDays": "בעוד %{count} ימים",
+  "hilulot.notice.before.title": "מחר בערב: הילולת %{names}",
+  "hilulot.notice.before.body": "יום ההילולה, %{date}, נכנס מחר בשקיעה.",
+  "hilulot.notice.evening.title": "הערב: הילולת %{names}",
+  "hilulot.notice.evening.body": "יום ההילולה, %{date}, נכנס עכשיו עם השקיעה.",
+  "holyBlock.notice.hilulaTonight": "הערב נכנסת הילולת %{names}",
+  "holyBlock.notice.hilulaOn": "הילולת %{names} נכנסת ב%{day} בערב"
 }

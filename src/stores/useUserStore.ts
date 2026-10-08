@@ -42,6 +42,7 @@ type UserState = {
   siddurFontSize: number;
   siddurAutoScroll: boolean;
   siddurScrollSpeed: number;
+  hilulotEnabled: boolean;
   gender: Gender | null;
   maritalStatus: MaritalStatus | null;
   taharahEnabled: boolean;
@@ -61,6 +62,7 @@ type UserState = {
   setSiddurFontSize: (size: number) => void;
   setSiddurAutoScroll: (v: boolean) => void;
   setSiddurScrollSpeed: (level: number) => void;
+  setHilulotEnabled: (v: boolean) => void;
   setGender: (g: Gender | null) => void;
   setMaritalStatus: (m: MaritalStatus | null) => void;
   setTaharahEnabled: (v: boolean) => void;
@@ -104,6 +106,7 @@ export const useUserStore = create<UserState>()(
       siddurFontSize: DEFAULT_SIDDUR_FONT_SIZE,
       siddurAutoScroll: false,
       siddurScrollSpeed: DEFAULT_SIDDUR_SCROLL_SPEED,
+      hilulotEnabled: false,
       gender: null,
       maritalStatus: null,
       taharahEnabled: false,
@@ -125,6 +128,7 @@ export const useUserStore = create<UserState>()(
       setSiddurFontSize: (size) => set({ siddurFontSize: size }),
       setSiddurAutoScroll: (v) => set({ siddurAutoScroll: v }),
       setSiddurScrollSpeed: (level) => set({ siddurScrollSpeed: scrollSpeedLevel(level) }),
+      setHilulotEnabled: (v) => set({ hilulotEnabled: v }),
       setGender: (g) => set({ gender: g }),
       setMaritalStatus: (m) => set({ maritalStatus: m }),
       setTaharahEnabled: (v) => set({ taharahEnabled: v }),
@@ -146,6 +150,7 @@ export const useUserStore = create<UserState>()(
           siddurFontSize: DEFAULT_SIDDUR_FONT_SIZE,
           siddurAutoScroll: false,
           siddurScrollSpeed: DEFAULT_SIDDUR_SCROLL_SPEED,
+          hilulotEnabled: false,
           gender: null,
           maritalStatus: null,
           taharahEnabled: false,

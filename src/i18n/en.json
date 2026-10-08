@@ -528,5 +528,20 @@
   "settings.reading": "Siddur reading",
   "settings.autoScroll": "Auto-scroll",
   "settings.autoScrollHint": "The text scrolls by itself at the pace you set. Dragging it pauses for a moment, and scrolling resumes from the new spot. You can also start and stop it from the top of the screen while reading.",
-  "settings.autoScrollSpeed": "Scroll speed"
+  "settings.autoScrollSpeed": "Scroll speed",
+  "hilulot.title": "Hilulot of tzaddikim",
+  "hilulot.caption": "A notice the evening before and as it begins",
+  "hilulot.subtitle": "Yahrzeits of tzaddikim on the Hebrew calendar",
+  "hilulot.notifications": "Hilula notifications",
+  "hilulot.notificationsHint": "A notice at sunset a day before the hilula begins, and again at the sunset that begins it. Anything that falls on Shabbat or Yom Tov appears in the notice before they begin.",
+  "hilulot.upcoming": "Coming up",
+  "hilulot.today": "Today",
+  "hilulot.tomorrow": "Tomorrow",
+  "hilulot.inDays": "In %{count} days",
+  "hilulot.notice.before.title": "Tomorrow evening: hilula of %{names}",
+  "hilulot.notice.before.body": "The hilula, %{date}, begins tomorrow at sunset.",
+  "hilulot.notice.evening.title": "Tonight: hilula of %{names}",
+  "hilulot.notice.evening.body": "The hilula, %{date}, begins now at sunset.",
+  "holyBlock.notice.hilulaTonight": "The hilula of %{names} begins tonight",
+  "holyBlock.notice.hilulaOn": "The hilula of %{names} begins %{day} evening"
 }

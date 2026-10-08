@@ -109,6 +109,14 @@ describe('useUserStore auto-scroll', () => {
     expect(scrollSpeedLevel(10)).toBe(10);
   });
 
+  it('keeps hilula notices off until switched on, and reset turns them off', () => {
+    expect(useUserStore.getState().hilulotEnabled).toBe(false);
+    useUserStore.getState().setHilulotEnabled(true);
+    expect(useUserStore.getState().hilulotEnabled).toBe(true);
+    useUserStore.getState().reset();
+    expect(useUserStore.getState().hilulotEnabled).toBe(false);
+  });
+
   it('offers speeds that rise from level to level', () => {
     SIDDUR_SCROLL_SPEEDS.forEach((pace, index) => {
       if (index > 0) expect(pace).toBeGreaterThan(SIDDUR_SCROLL_SPEEDS[index - 1]);

@@ -3,10 +3,12 @@ import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import { DateTime } from 'luxon';
+import { HDate } from '@hebcal/core';
 import { ComputeContext, ContentBlock, Mitzvah, Reminder, UserSettings } from '@/types/mitzvah';
 import { HolyBlock, Location } from '@/types/zmanim';
 import type { CycleState, OnahKind, TaharahTask, TaharahTaskKind } from '@/types/taharah';
 import { getAllMitzvot } from '@/data/customMitzvotAdapter';
+import { Hilula, hilulaDateLabel, hilulotOn } from '@/data/hilulot';
 import { omerDayFor } from '@/data/mitzvot';
 import { hasSiddurText, siddurPlace } from '@/data/siddur';
 import { HebcalService } from '@/services/HebcalService';
@@ -40,7 +42,7 @@ const IOS_MAX = 64;
 const IOS_HEADROOM = 4;
 const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
 const SCHEDULE_FORMAT_KEY = 'notifications:schedule-format';
-const SCHEDULE_FORMAT = 5;
+const SCHEDULE_FORMAT = 6;
 const BLOCK_NOTICE_KIND = 'blockNotice';
 const BLOCK_NOTICE_LEAD_MIN = 60;
 const CHECK_IN_KIND = 'checkin';
@@ -55,6 +57,7 @@ const TAHARAH_BEDIKA_VESET_LEAD_MIN = 60;
 const TAHARAH_EXPECT_ONSET_HOUR = 10;
 const TAHARAH_BEFORE_QUIET_MIN = 10;
 const TAHARAH_POST_BLOCK_DELAY_MIN = 15;
+const HILULA_KIND = 'hilula';
 const REBUILD_HOUR = 0;
 const REBUILD_MINUTE = 15;
 const BACKGROUND_NOTIFICATION_RESULT = {
@@ -74,8 +77,9 @@ function parseId(id: string): { mitzvahId: string; date: string; idx: number } |
 }
 
 export type PendingNotificationMeta = {
-  kind?: typeof BLOCK_NOTICE_KIND | typeof CHECK_IN_KIND | typeof TAHARAH_KIND | typeof UPDATE_KIND;
+  kind?: typeof BLOCK_NOTICE_KIND | typeof CHECK_IN_KIND | typeof TAHARAH_KIND | typeof UPDATE_KIND | typeof HILULA_KIND;
   taharah?: { task: TaharahTaskKind | 'tevilaPrep' | 'postBlock' | 'preBlock'; day: number; onah?: OnahKind };
+  hilula?: { day: number; when: HilulaWhen };
   blockId?: string;
   updateId?: string;
   updateCreatedAt?: string;
@@ -576,6 +580,83 @@ function omerLine(block: HolyBlock, nights: OmerNight[]): string | null {
   return t('holyBlock.notice.omerNights', { counts: counts.join(', ') });
 }
 
+type HilulaWhen = 'before' | 'evening';
+type HilulaNotice = { trigger: Date; day: HDate; when: HilulaWhen; hilulot: Hilula[] };
+
+// A hilula's Hebrew date opens at shkia, so its notices fire at the shkia that opens it and at the
+// shkia a day before. `day` is a calendar day as the horizon holds it. Its Hebrew day comes from
+// the civil date, not from the hour: in an Arctic winter shkia comes before noon.
+function hilulaNoticesOn(day: Date, location: Location, inIsrael: boolean): HilulaNotice[] {
+  const noon = locationNoon(day, location);
+  const shkia = ZmanimService.getZmanim(noon, location)?.shkia;
+  if (!shkia) return [];
+  const tonight = civilHebrewDayAt(noon, location).next();
+  const notices: [HilulaWhen, HDate][] = [
+    ['evening', tonight],
+    ['before', tonight.next()],
+  ];
+  return notices.flatMap(([when, date]) => {
+    const hilulot = hilulotOn(date, inIsrael);
+    return hilulot.length ? [{ trigger: shkia, day: date, when, hilulot }] : [];
+  });
+}
+
+function hilulaNames(hilulot: Hilula[]): string {
+  return hilulot.map((hilula) => (isEnglish() ? hilula.name.en : hilula.name.he)).join(', ');
+}
+
+function hilulaCandidate({ trigger, day, when, hilulot }: HilulaNotice): ScheduleCandidate {
+  return {
+    trigger,
+    input: {
+      identifier: `${HILULA_KIND}:${day.abs()}:${when}`,
+      content: {
+        title: t(`hilulot.notice.${when}.title`, { names: hilulaNames(hilulot) }),
+        body: t(`hilulot.notice.${when}.body`, { date: hilulaDateLabel(day, isEnglish() ? 'en' : 'he') }),
+        data: { kind: HILULA_KIND, hilula: { day: day.abs(), when } },
+        autoDismiss: true,
+        sticky: false,
+        sound: 'default',
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: trigger,
+        channelId: ANDROID_CHANNEL_ID,
+      },
+    },
+  };
+}
+
+// A notice that would fire inside a holy block is named in that block's pre-block notice instead.
+function hilulaCandidates(days: Date[], location: Location, now: Date): ScheduleCandidate[] {
+  const { hilulotEnabled, inIsrael } = useUserStore.getState();
+  if (!hilulotEnabled) return [];
+  return days
+    .flatMap((day) => hilulaNoticesOn(day, location, inIsrael))
+    .filter((notice) => notice.trigger.getTime() > now.getTime() && !isQuietAt(notice.trigger, location))
+    .map(hilulaCandidate);
+}
+
+// One line per hilula whose notice the block swallows, naming the evening its date opens.
+function hilulaLines(block: HolyBlock, location: Location, inIsrael: boolean): string[] {
+  const erev = DateTime.fromISO(block.days[0], { zone: location.tz }).minus({ days: 1 });
+  const evenings = [erev, ...block.days.map((day) => DateTime.fromISO(day, { zone: location.tz }))];
+  const swallowed = new Map<number, HilulaNotice>();
+  for (const evening of evenings) {
+    for (const notice of hilulaNoticesOn(new Date(evening.year, evening.month - 1, evening.day), location, inIsrael)) {
+      if (isQuietAt(notice.trigger, location) && !swallowed.has(notice.day.abs())) swallowed.set(notice.day.abs(), notice);
+    }
+  }
+  const locale = isEnglish() ? 'en' : 'he';
+  return [...swallowed.values()].map(({ day, hilulot }) => {
+    const opens = DateTime.fromJSDate(day.prev().greg());
+    const names = hilulaNames(hilulot);
+    return opens.toISODate() === erev.toISODate()
+      ? t('holyBlock.notice.hilulaTonight', { names })
+      : t('holyBlock.notice.hilulaOn', { names, day: opens.setLocale(locale).toFormat('cccc') });
+  });
+}
+
 function blockNoticeCandidate(block: HolyBlock, location: Location, countsOmer: boolean): ScheduleCandidate | null {
   const trigger = new Date(block.start.getTime() - BLOCK_NOTICE_LEAD_MIN * 60_000);
   if (trigger.getTime() <= Date.now()) return null;
@@ -583,6 +664,8 @@ function blockNoticeCandidate(block: HolyBlock, location: Location, countsOmer: 
   const lines = [t('holyBlock.notice.body', { start: formatClock(block.start), exit: t(labels.exit), end: formatClock(block.end) })];
   const omer = countsOmer ? omerLine(block, omerNightsWithin(block, location)) : null;
   if (omer) lines.push(omer);
+  const { hilulotEnabled, inIsrael } = useUserStore.getState();
+  if (hilulotEnabled) lines.push(...hilulaLines(block, location, inIsrael));
   const identifier = `${BLOCK_NOTICE_KIND}:${block.days[0]}`;
   return {
     trigger,
@@ -918,6 +1001,11 @@ async function scheduleAllImpl(
   } catch (err) {
     if (__DEV__) console.warn('[notifications] taharah reminders failed', err);
   }
+  try {
+    candidates.push(...hilulaCandidates(days, location, now));
+  } catch (err) {
+    if (__DEV__) console.warn('[notifications] hilula notices failed', err);
+  }
   for (const d of days) {
     for (const m of activeMitzvot) {
       // Isolate per mitzvah: one failure must never abort the rest of the batch, or a single
@@ -1193,7 +1281,8 @@ export function initNotificationHandlers(): () => void {
       state.nusach !== prev.nusach ||
       state.halachicOpinions !== prev.halachicOpinions ||
       state.inIsrael !== prev.inIsrael ||
-      state.taharahEnabled !== prev.taharahEnabled
+      state.taharahEnabled !== prev.taharahEnabled ||
+      state.hilulotEnabled !== prev.hilulotEnabled
     ) {
       NotificationScheduler.rebuild().catch(() => {});
     }

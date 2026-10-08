@@ -217,6 +217,17 @@ describe('notificationResponseHandler', () => {
     expect(mockMarkDoneFromNotificationData).not.toHaveBeenCalled();
   });
 
+  it('opens the hilulot screen from a hilula notice, never a mitzvah lookup', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+    listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'hilula', hilula: { day: 739900, when: 'evening' } }, 'hilula:739900:evening'));
+
+    expect(mockRouterNavigate).toHaveBeenCalledWith('/hilulot');
+    expect(mockRouterPush).not.toHaveBeenCalled();
+    expect(mockMarkDoneFromNotificationData).not.toHaveBeenCalled();
+  });
+
   it('hands the mark-done button of a bedika reminder to the scheduler with its taharah payload', () => {
     initNotificationResponseHandler();
     const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
@@ -336,6 +347,7 @@ describe('notificationResponseHandler', () => {
       listener(
         response(DEFAULT_NOTIFICATION_ACTION, { kind: 'taharah', taharah: { task: 'hefsek', day: 739931 } }, 'taharah:hefsek:739931'),
       );
+      listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'hilula', hilula: { day: 739900, when: 'before' } }, 'hilula:739900:before'));
       expect(mockRouterPush).not.toHaveBeenCalled();
       expect(mockRouterNavigate).not.toHaveBeenCalled();
 
