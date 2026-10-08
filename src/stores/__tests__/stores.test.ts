@@ -21,7 +21,7 @@ jest.mock('expo-background-fetch', () => ({
 }));
 
 import { STORE_VERSION } from '../persistOptions';
-import { useUserStore } from '../useUserStore';
+import { SIDDUR_SCROLL_SPEEDS, scrollSpeedLevel, useUserStore } from '../useUserStore';
 import { useMitzvotStore } from '../useMitzvotStore';
 import { useCompletionsStore, dateKey } from '../useCompletionsStore';
 
@@ -74,6 +74,45 @@ describe('stores', () => {
     expect(useCompletionsStore.getState().isSkipped('tefillin', today)).toBe(true);
     expect(useCompletionsStore.getState().isDone('tefillin', today)).toBe(false);
     expect(useCompletionsStore.getState().countForDate(today)).toBe(0);
+  });
+});
+
+describe('useUserStore auto-scroll', () => {
+  beforeEach(() => useUserStore.getState().reset());
+
+  it('starts off at the middle speed and resets to it', () => {
+    expect(useUserStore.getState().siddurAutoScroll).toBe(false);
+    expect(useUserStore.getState().siddurScrollSpeed).toBe(5);
+    useUserStore.getState().setSiddurAutoScroll(true);
+    useUserStore.getState().setSiddurScrollSpeed(8);
+    expect(useUserStore.getState().siddurAutoScroll).toBe(true);
+    expect(useUserStore.getState().siddurScrollSpeed).toBe(8);
+    useUserStore.getState().reset();
+    expect(useUserStore.getState().siddurAutoScroll).toBe(false);
+    expect(useUserStore.getState().siddurScrollSpeed).toBe(5);
+  });
+
+  it('keeps a stored speed inside the offered levels', () => {
+    useUserStore.getState().setSiddurScrollSpeed(0);
+    expect(useUserStore.getState().siddurScrollSpeed).toBe(1);
+    useUserStore.getState().setSiddurScrollSpeed(SIDDUR_SCROLL_SPEEDS.length + 3);
+    expect(useUserStore.getState().siddurScrollSpeed).toBe(SIDDUR_SCROLL_SPEEDS.length);
+    useUserStore.getState().setSiddurScrollSpeed(3.4);
+    expect(useUserStore.getState().siddurScrollSpeed).toBe(3);
+    useUserStore.getState().setSiddurScrollSpeed(Number.NaN);
+    expect(useUserStore.getState().siddurScrollSpeed).toBe(5);
+  });
+
+  it('reads any saved speed as an offered level', () => {
+    expect(scrollSpeedLevel(Number.POSITIVE_INFINITY)).toBe(5);
+    expect(scrollSpeedLevel(-4)).toBe(1);
+    expect(scrollSpeedLevel(10)).toBe(10);
+  });
+
+  it('offers speeds that rise from level to level', () => {
+    SIDDUR_SCROLL_SPEEDS.forEach((pace, index) => {
+      if (index > 0) expect(pace).toBeGreaterThan(SIDDUR_SCROLL_SPEEDS[index - 1]);
+    });
   });
 });
 

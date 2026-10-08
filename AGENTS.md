@@ -93,7 +93,7 @@ Store copy lives in [release/](release).
 - [src/app/onboarding/](src/app/onboarding) - Onboarding flow: welcome, profile (gender, marital status and the taharah opt-in), nusach, location/notifications, ready.
 - [src/app/taharah/](src/app/taharah) - Taharat hamishpacha: dashboard, event log, calendar and minhag settings, behind the biometric lock in its `_layout.tsx`.
 - [src/app/mitzvah/[id].tsx](<src/app/mitzvah/[id].tsx>) - Static and custom mitzvah details, reminders, content blocks.
-- [src/app/siddur/[id].tsx](<src/app/siddur/[id].tsx>) - Nusach reader: a mitzvah's or a standalone text in the user's nusach and language, resolved for the day.
+- [src/app/siddur/[id].tsx](<src/app/siddur/[id].tsx>) - Nusach reader: a mitzvah's or a standalone text in the user's nusach and language, resolved for the day, with optional auto-scroll.
 - [src/app/siddur/index.tsx](src/app/siddur/index.tsx) - Siddur catalog: the twelve standalone texts (meals, blessings, travel, night, festivals and celebrations) by group, each greyed out on a day it is not said, opened from home and the library header.
 - [src/app/day/[date].tsx](<src/app/day/[date].tsx>) - Read-only per-day route for schedule/history drilldown.
 - [src/app/custom-mitzvah.tsx](src/app/custom-mitzvah.tsx) - Create/edit custom mitzvot.
@@ -222,7 +222,7 @@ The web scheduler file is intentionally a no-op shim. If adding exported schedul
 
 All primary stores use Zustand with MMKV persistence through `StorageService.createZustandStorage()`, except `useTaharahStore`, which persists to its own encrypted instance.
 
-- `useUserStore` (`user-store`): nusach, location, theme (one of the six palette names), language, notification permission/toggle, profile fields, halachic opinions, in-Israel flag, onboarding flag, `gender` and `maritalStatus` (`married` or `single`), each `null` until answered, taharah opt-in.
+- `useUserStore` (`user-store`): nusach, location, theme (one of the six palette names), language, notification permission/toggle, profile fields, halachic opinions, in-Israel flag, onboarding flag, the reader's text size and auto-scroll (`siddurAutoScroll`, off by default, and `siddurScrollSpeed`, a level into `SIDDUR_SCROLL_SPEEDS`), `gender` and `maritalStatus` (`married` or `single`), each `null` until answered, taharah opt-in.
 - `useMitzvotStore` (`mitzvot-store`): enabled state and custom reminders per mitzvah.
 - `useCompletionsStore` (`completions-store`): `completions[YYYY-MM-DD][mitzvahId] = timestamp` and parallel `skipped` map, `checkIns[firstHolyDay] = finishedAt`, and `archivedDays` — runs of kept days that retention pruned, so the streak reaches past 400 days.
 - `useCustomMitzvotStore` (`custom-mitzvot-store`): user-created mitzvah definitions.
@@ -241,7 +241,7 @@ All primary stores use Zustand with MMKV persistence through `StorageService.cre
 - `setLocale()` and `useI18n()` are lightweight wrappers. The `i18n-js` package is installed but the current app does not rely on the normal `i18n-js` runtime API.
 - RTL is dynamic based on `useUserStore.language`. `_layout.tsx` calls `I18nManager.allowRTL/forceRTL`; native language direction changes can require a reload.
 - Web also sets `document.documentElement.dir/lang` and `body.dir`.
-- Main reusable UI components: `MitzvahCard`, `CompletedRow`, `ReminderEditor`, `TimeRibbon`, `BottomTabs`, `NavBar`, `HebrewDate`, `AppLogo`, `ShabbatScreen`, `ChipRow`, `SettingsSection`, `DayStepper`, `OnboardingDots`, `ChoiceRow`, `ThemeSwatchRow` and `TaharahLock`.
+- Main reusable UI components: `MitzvahCard`, `CompletedRow`, `ReminderEditor`, `TimeRibbon`, `BottomTabs`, `NavBar`, `HebrewDate`, `AppLogo`, `ShabbatScreen`, `ChipRow`, `SettingsSection`, `DayStepper`, `OnboardingDots`, `ChoiceRow`, `ThemeSwatchRow`, `ScrollSpeedStepper` and `TaharahLock`.
 
 ## Tests
 

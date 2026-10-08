@@ -520,5 +520,13 @@
   "taharah.log.tevilaBeforeTzeit": "הטבילה הלילה אפשרית רק מצאת הכוכבים ב-%{time}",
   "taharah.log.onahInFuture": "העונה שנבחרה עדיין לא התחילה",
   "taharah.stage.tevilaEstimated.hint": "ליל טבילה משוער, לפי הפסק ביום המוקדם ביותר — מצאת הכוכבים ב-%{time}",
-  "taharah.log.mochRequired": "לפי המנהג שנבחר נדרש מוך דחוק בהפסק הטהרה. אם לא הונח — לשאול רב."
+  "taharah.log.mochRequired": "לפי המנהג שנבחר נדרש מוך דחוק בהפסק הטהרה. אם לא הונח — לשאול רב.",
+  "siddur.autoScroll": "גלילה אוטומטית",
+  "siddur.scrollSlower": "האט גלילה",
+  "siddur.scrollFaster": "האץ גלילה",
+  "siddur.scrollSpeed": "מהירות %{level} מתוך %{max}",
+  "settings.reading": "קריאה בסידור",
+  "settings.autoScroll": "גלילה אוטומטית",
+  "settings.autoScrollHint": "הנוסח נגלל מעצמו בקצב שבחרת. גרירה של הטקסט עוצרת לרגע, והגלילה ממשיכה מהמקום החדש. אפשר להפעיל ולעצור גם מראש המסך בזמן הקריאה.",
+  "settings.autoScrollSpeed": "מהירות גלילה"
 }

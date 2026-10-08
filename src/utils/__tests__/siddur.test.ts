@@ -1,5 +1,13 @@
 import { HDate, months } from '@hebcal/core';
-import { dayFeatures, liturgicalDay, matchesCondition, resolveSiddurText, segmentBlocks } from '../siddur';
+import {
+  autoScrollPixelsPerSecond,
+  dayFeatures,
+  liturgicalDay,
+  matchesCondition,
+  resolveSiddurText,
+  segmentBlocks,
+  siddurLineHeight,
+} from '../siddur';
 import { DayFeatures, DayFlag, PassageLabel, Place, SiddurText } from '@/types/siddur';
 
 const ISRAEL: Place = { inIsrael: true, jerusalem: false };
@@ -16,6 +24,26 @@ function hasNone(flags: ReadonlySet<DayFlag>, expected: DayFlag[]): boolean {
 function features(flags: DayFlag[], omerDay: number | null = null): DayFeatures {
   return { flags: new Set(flags), omerDay };
 }
+
+describe('auto-scroll pace', () => {
+  it('sets the Hebrew line height the reader draws', () => {
+    expect(siddurLineHeight(18)).toBe(32);
+    expect(siddurLineHeight(22)).toBe(39);
+    expect(siddurLineHeight(32)).toBe(56);
+  });
+
+  it('turns lines per minute into pixels per second at the line height', () => {
+    expect(autoScrollPixelsPerSecond(15, 22)).toBe(9.75);
+    expect(autoScrollPixelsPerSecond(60, 18)).toBe(32);
+    expect(autoScrollPixelsPerSecond(48, 32)).toBeCloseTo(44.8, 10);
+  });
+
+  it('keeps the same pace in lines whatever the text size', () => {
+    for (const fontSize of [18, 20, 22, 25, 28, 32]) {
+      expect(autoScrollPixelsPerSecond(12, fontSize) / siddurLineHeight(fontSize)).toBeCloseTo(12 / 60, 10);
+    }
+  });
+});
 
 describe('liturgicalDay', () => {
   const friday = new Date(2026, 9, 9);

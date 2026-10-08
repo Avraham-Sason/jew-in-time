@@ -31,6 +31,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { ChipRow } from '@/components/ChipRow';
 import { ThemeSwatchRow } from '@/components/ThemeSwatchRow';
 import { SettingsSection } from '@/components/SettingsSection';
+import { ScrollSpeedStepper } from '@/components/ScrollSpeedStepper';
 import { useQuietBlock } from '@/components/ShabbatScreen';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
@@ -235,6 +236,25 @@ export default function SettingsScreen() {
 
         <SettingsSection title={t('settings.nusach')}>
           <ChipRow values={NUSACHAOT} selected={user.nusach} onSelect={chooseNusach} renderLabel={(value) => t(`nusach.${value}`)} />
+        </SettingsSection>
+
+        <SettingsSection title={t('settings.reading')}>
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1, paddingEnd: 12 }}>
+              <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.autoScroll')}</Text>
+              <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>{t('settings.autoScrollHint')}</Text>
+            </View>
+            <Switch
+              value={user.siddurAutoScroll}
+              onValueChange={user.setSiddurAutoScroll}
+              thumbColor="#fff"
+              trackColor={{ false: colors.border, true: colors.gold }}
+            />
+          </View>
+          <View style={[styles.row, { marginTop: 14 }]}>
+            <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.autoScrollSpeed')}</Text>
+            <ScrollSpeedStepper tone="surface" level={user.siddurScrollSpeed} onChange={user.setSiddurScrollSpeed} />
+          </View>
         </SettingsSection>
 
         {taharahOffered(user) ? (

@@ -1,0 +1,74 @@
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SIDDUR_SCROLL_SPEEDS, scrollSpeedLevel } from '@/stores/useUserStore';
+import { useTheme } from '@/theme/ThemeProvider';
+import { typography } from '@/theme/typography';
+import { useI18n } from '@/i18n';
+
+type Props = {
+  level: number;
+  onChange: (level: number) => void;
+  tone: 'header' | 'surface';
+};
+
+export function ScrollSpeedStepper({ level, onChange, tone }: Props) {
+  const { colors } = useTheme();
+  const { t } = useI18n();
+  const current = scrollSpeedLevel(level);
+  const max = SIDDUR_SCROLL_SPEEDS.length;
+  const onHeader = tone === 'header';
+  const textColor = onHeader ? colors.headerText : colors.text;
+  const step = (label: string, accessibilityLabel: string, next: number) => {
+    const disabled = next < 1 || next > max;
+    return (
+      <Pressable
+        onPress={() => onChange(next)}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityState={{ disabled }}
+        hitSlop={4}
+        style={({ pressed }) => [styles.step, { opacity: disabled ? 0.4 : pressed ? 0.6 : 1 }]}
+      >
+        <Text style={[typography.bodyBold, { color: textColor }]}>{label}</Text>
+      </Pressable>
+    );
+  };
+  return (
+    <View
+      style={[
+        styles.group,
+        onHeader
+          ? { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' }
+          : { backgroundColor: colors.surface2, borderColor: colors.border },
+      ]}
+    >
+      {step('−', t('siddur.scrollSlower'), current - 1)}
+      <Text
+        style={[typography.captionBold, styles.level, { color: textColor }]}
+        accessibilityLabel={t('siddur.scrollSpeed', { level: current, max })}
+      >
+        {current}
+      </Text>
+      {step('+', t('siddur.scrollFaster'), current + 1)}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  group: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  step: {
+    minWidth: 32,
+    paddingVertical: 4,
+    alignItems: 'center',
+  },
+  level: {
+    minWidth: 18,
+    textAlign: 'center',
+  },
+});

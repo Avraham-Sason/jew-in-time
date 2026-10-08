@@ -520,5 +520,13 @@
   "taharah.log.tevilaBeforeTzeit": "Tonight's immersion is possible only from nightfall at %{time}",
   "taharah.log.onahInFuture": "The chosen onah has not begun yet",
   "taharah.stage.tevilaEstimated.hint": "Estimated mikveh night, assuming the earliest hefsek, from nightfall at %{time}",
-  "taharah.log.mochRequired": "The chosen custom requires a moch dachuk with the hefsek tahara. If none was placed, ask a rav."
+  "taharah.log.mochRequired": "The chosen custom requires a moch dachuk with the hefsek tahara. If none was placed, ask a rav.",
+  "siddur.autoScroll": "Auto-scroll",
+  "siddur.scrollSlower": "Scroll slower",
+  "siddur.scrollFaster": "Scroll faster",
+  "siddur.scrollSpeed": "Speed %{level} of %{max}",
+  "settings.reading": "Siddur reading",
+  "settings.autoScroll": "Auto-scroll",
+  "settings.autoScrollHint": "The text scrolls by itself at the pace you set. Dragging it pauses for a moment, and scrolling resumes from the new spot. You can also start and stop it from the top of the screen while reading.",
+  "settings.autoScrollSpeed": "Scroll speed"
 }

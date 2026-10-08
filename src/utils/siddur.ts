@@ -235,6 +235,15 @@ export function resolveSiddurText(text: SiddurText, features: DayFeatures): Sidd
     .filter((section) => section.segments.length > 0);
 }
 
+export function siddurLineHeight(fontSize: number): number {
+  return Math.round(fontSize * 1.75);
+}
+
+// Auto-scroll keeps its pace in lines of Hebrew text, so a larger text size scrolls more pixels.
+export function autoScrollPixelsPerSecond(linesPerMinute: number, fontSize: number): number {
+  return (linesPerMinute * siddurLineHeight(fontSize)) / 60;
+}
+
 export function segmentBlocks(segments: SiddurSegment[], field: keyof Labeled, offset = 0): SegmentBlock[] {
   const blocks: SegmentBlock[] = [];
   segments.forEach((segment, index) => {

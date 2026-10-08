@@ -1,7 +1,34 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, I18nManager, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View, ViewToken } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  ActivityIndicator,
+  FlatList,
+  I18nManager,
+  LayoutChangeEvent,
+  Linking,
+  Modal,
+  PixelRatio,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  ViewToken,
+} from 'react-native';
+import Animated, {
+  AnimatedRef,
+  FrameInfo,
+  runOnJS,
+  scrollTo,
+  useAnimatedProps,
+  useAnimatedRef,
+  useAnimatedScrollHandler,
+  useFrameCallback,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Haptics from 'expo-haptics';
 import { DateTime } from 'luxon';
@@ -23,13 +50,21 @@ import { HDate } from '@hebcal/core';
 import { loadSiddurText } from '@/services/SiddurService';
 import { HebcalService } from '@/services/HebcalService';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
-import { SIDDUR_FONT_SIZES, useUserStore } from '@/stores/useUserStore';
+import { SIDDUR_FONT_SIZES, SIDDUR_SCROLL_SPEEDS, scrollSpeedLevel, useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useQuietBlock } from '@/components/ShabbatScreen';
+import { ScrollSpeedStepper } from '@/components/ScrollSpeedStepper';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { fontFamilies, typography } from '@/theme/typography';
 import { PassageLabel, Run, SegmentBlock, SiddurSection, SiddurSegment, SiddurText } from '@/types/siddur';
-import { dayFeatures, liturgicalDay, resolveSiddurText, segmentBlocks } from '@/utils/siddur';
+import {
+  autoScrollPixelsPerSecond,
+  dayFeatures,
+  liturgicalDay,
+  resolveSiddurText,
+  segmentBlocks,
+  siddurLineHeight,
+} from '@/utils/siddur';
 import { useI18n } from '@/i18n';
 
 const KEEP_AWAKE_TAG = 'siddur-reader';
@@ -39,6 +74,14 @@ const LEFT_EDGE = I18nManager.isRTL ? ('right' as const) : ('left' as const);
 const SECTION_VIEWABILITY = { viewAreaCoveragePercentThreshold: 2 };
 const JUMP_RETRY_MS = 50;
 const JUMP_TIMEOUT_MS = 5000;
+const AUTO_SCROLL_START_MS = 1000;
+const AUTO_SCROLL_RESUME_MS = 700;
+const AUTO_SCROLL_DRIFT_PX = 24;
+const AUTO_SCROLL_MAX_FRAME_MS = 100;
+const PIXEL_RATIO = PixelRatio.get();
+// iOS reports every non-animated scrollTo as the end of a fling, and the JS ScrollView then counts
+// itself as animating and swallows the next tap. Moving the contentOffset prop scrolls without that.
+const SCROLLS_BY_PROP = Platform.OS === 'ios';
 
 type LoadState = { status: 'loading' } | { status: 'ready'; text: SiddurText } | { status: 'error' };
 
@@ -60,6 +103,134 @@ function isAddedForToday(segment: SiddurSegment, section: SiddurSection): boolea
   return flagsOf(segment).some((flag) => !sharedFlags.includes(flag));
 }
 
+// Scrolls on the UI thread, so the pace holds while the JS thread renders more sections. A drag, a
+// fling or any scroll it did not make itself pauses it, and it resumes from wherever the text was left.
+function useAutoScroll(
+  listRef: AnimatedRef<FlatList<SiddurSection>>,
+  running: boolean,
+  pixelsPerSecond: number,
+  onDragStart: () => void,
+) {
+  const speed = useSharedValue(pixelsPerSecond);
+  const offset = useSharedValue(0);
+  const end = useSharedValue(0);
+  const position = useSharedValue(-1);
+  const sentPixel = useSharedValue(-1);
+  const propOffset = useSharedValue(-1);
+  const holdMs = useSharedValue(0);
+  const pressed = useSharedValue(false);
+  const dragging = useSharedValue(false);
+  const flinging = useSharedValue(false);
+  const sizes = useRef({ content: 0, viewport: 0 });
+
+  const advance = useCallback(
+    (frame: FrameInfo) => {
+      'worklet';
+      const elapsed = Math.min(frame.timeSincePreviousFrame ?? 0, AUTO_SCROLL_MAX_FRAME_MS);
+      if (position.value >= 0 && Math.abs(offset.value - position.value) > AUTO_SCROLL_DRIFT_PX) {
+        holdMs.value = Math.max(holdMs.value, AUTO_SCROLL_RESUME_MS);
+      }
+      const held = pressed.value || dragging.value || flinging.value;
+      if (held || holdMs.value > 0) {
+        if (!held) holdMs.value -= elapsed;
+        position.value = -1;
+        return;
+      }
+      if (position.value < 0) position.value = offset.value;
+      if (position.value >= end.value) return;
+      position.value = Math.min(end.value, position.value + (speed.value * elapsed) / 1000);
+      const pixel = Math.round(position.value * PIXEL_RATIO);
+      if (pixel === sentPixel.value) return;
+      sentPixel.value = pixel;
+      if (SCROLLS_BY_PROP) propOffset.value = pixel / PIXEL_RATIO;
+      else scrollTo(listRef, 0, pixel / PIXEL_RATIO, false);
+    },
+    [listRef, speed, offset, end, position, sentPixel, propOffset, holdMs, pressed, dragging, flinging],
+  );
+  const frame = useFrameCallback(advance, false);
+  const animatedProps = useAnimatedProps<{ contentOffset: { x: number; y: number } }>(() =>
+    propOffset.value < 0 ? {} : { contentOffset: { x: 0, y: propOffset.value } },
+  );
+
+  useEffect(() => {
+    speed.value = pixelsPerSecond;
+  }, [speed, pixelsPerSecond]);
+
+  useEffect(() => {
+    if (!running) return undefined;
+    holdMs.value = AUTO_SCROLL_START_MS;
+    position.value = -1;
+    frame.setActive(true);
+    return () => frame.setActive(false);
+  }, [running, frame, holdMs, position]);
+
+  const scrollHandler = useAnimatedScrollHandler(
+    {
+      onScroll: (event) => {
+        offset.value = event.contentOffset.y;
+        end.value = Math.max(0, event.contentSize.height - event.layoutMeasurement.height);
+      },
+      onBeginDrag: () => {
+        dragging.value = true;
+        flinging.value = false;
+        runOnJS(onDragStart)();
+      },
+      onEndDrag: () => {
+        dragging.value = false;
+        holdMs.value = AUTO_SCROLL_RESUME_MS;
+      },
+      onMomentumBegin: () => {
+        flinging.value = true;
+      },
+      // iOS also reports a momentum end after every programmatic scroll, with no begin before it.
+      onMomentumEnd: () => {
+        if (!flinging.value) return;
+        flinging.value = false;
+        holdMs.value = AUTO_SCROLL_RESUME_MS;
+      },
+    },
+    [onDragStart],
+  );
+  const updateEnd = () => {
+    end.value = Math.max(0, sizes.current.content - sizes.current.viewport);
+  };
+  const release = () => {
+    pressed.value = false;
+    holdMs.value = AUTO_SCROLL_RESUME_MS;
+  };
+  // react-native-web sends no drag or momentum events, so a touch or a wheel pauses it instead.
+  const webInput =
+    Platform.OS === 'web'
+      ? {
+          onWheel: () => {
+            holdMs.value = AUTO_SCROLL_RESUME_MS;
+          },
+          onTouchStart: () => {
+            pressed.value = true;
+            onDragStart();
+          },
+          onTouchEnd: release,
+          onTouchCancel: release,
+        }
+      : {};
+  return {
+    scrollHandler,
+    animatedProps: SCROLLS_BY_PROP ? animatedProps : undefined,
+    webInput,
+    hold: (ms: number) => {
+      holdMs.value = ms;
+    },
+    onLayout: (event: LayoutChangeEvent) => {
+      sizes.current.viewport = event.nativeEvent.layout.height;
+      updateEnd();
+    },
+    onContentSizeChange: (_width: number, height: number) => {
+      sizes.current.content = height;
+      updateEnd();
+    },
+  };
+}
+
 export default function SiddurScreen() {
   const { colors } = useTheme();
   const quiet = useQuietBlock() !== null;
@@ -72,6 +243,10 @@ export default function SiddurScreen() {
   const inIsrael = useUserStore((s) => s.inIsrael);
   const fontSize = useUserStore((s) => s.siddurFontSize);
   const setFontSize = useUserStore((s) => s.setSiddurFontSize);
+  const autoScrollOn = useUserStore((s) => s.siddurAutoScroll);
+  const setAutoScroll = useUserStore((s) => s.setSiddurAutoScroll);
+  const scrollSpeed = useUserStore((s) => s.siddurScrollSpeed);
+  const setScrollSpeed = useUserStore((s) => s.setSiddurScrollSpeed);
   const standalone = mitzvah ? null : standaloneTextId(params.id);
   const requestedDate = useMemo(() => parseDateParam(params.date), [params.date]);
   const windowDate = useMemo(() => requestedDate ?? new Date(), [requestedDate]);
@@ -95,7 +270,7 @@ export default function SiddurScreen() {
   const markDone = useCompletionsStore((s) => s.markDone);
   const [attempt, setAttempt] = useState(0);
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
-  const listRef = useRef<FlatList<SiddurSection>>(null);
+  const listRef = useAnimatedRef<FlatList<SiddurSection>>();
   const pickerRef = useRef<ScrollView>(null);
   const [shownSection, setShownSection] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -109,10 +284,17 @@ export default function SiddurScreen() {
       if (!next.delete(key)) next.add(key);
       return next;
     });
+  const cancelJump = useCallback(() => {
+    clearTimeout(jumpTimer.current);
+    setRenderingAll(false);
+  }, []);
   const onViewableSectionsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken<SiddurSection>[] }) => {
     const top = viewableItems[0]?.index;
     if (top != null) setShownSection(top);
   }).current;
+
+  const [focused, setFocused] = useState(true);
+  const [screenReader, setScreenReader] = useState(false);
 
   useEffect(() => {
     activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
@@ -120,6 +302,22 @@ export default function SiddurScreen() {
       deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
       clearTimeout(jumpTimer.current);
     };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+
+  // A screen reader scrolls by page, which a running auto-scroll would cut short. react-native-web
+  // always answers that one is on, so only native asks.
+  useEffect(() => {
+    if (Platform.OS === 'web') return undefined;
+    AccessibilityInfo.isScreenReaderEnabled().then(setScreenReader).catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener('screenReaderChanged', setScreenReader);
+    return () => subscription.remove();
   }, []);
 
   useEffect(() => {
@@ -215,14 +413,11 @@ export default function SiddurScreen() {
       ];
     });
   const currentSection = sections[Math.min(shownSection, sections.length - 1)];
-  const cancelJump = () => {
-    clearTimeout(jumpTimer.current);
-    setRenderingAll(false);
-  };
   const jumpTo = (index: number, deadline = Date.now() + JUMP_TIMEOUT_MS) => {
     const list = listRef.current;
     clearTimeout(jumpTimer.current);
     if (!list) return;
+    autoScroll.hold(AUTO_SCROLL_RESUME_MS);
     jumpMissed.current = false;
     list.scrollToIndex({ index, animated: false });
     if (!jumpMissed.current) {
@@ -234,6 +429,10 @@ export default function SiddurScreen() {
     } else {
       setRenderingAll(false);
     }
+  };
+  const toggleAutoScroll = () => {
+    Haptics.selectionAsync().catch(() => {});
+    setAutoScroll(!autoScrollOn);
   };
   const sizeIndex = SIDDUR_FONT_SIZES.findIndex((size) => size >= fontSize);
   const currentIndex = sizeIndex === -1 ? SIDDUR_FONT_SIZES.length - 1 : sizeIndex;
@@ -266,6 +465,12 @@ export default function SiddurScreen() {
     if (!sections.length) return <Message text={t('siddur.unavailable')} />;
     return null;
   })();
+  const autoScroll = useAutoScroll(
+    listRef,
+    autoScrollOn && focused && !screenReader && !body && !pickerOpen && !quiet,
+    autoScrollPixelsPerSecond(SIDDUR_SCROLL_SPEEDS[scrollSpeedLevel(scrollSpeed) - 1], fontSize),
+    cancelJump,
+  );
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
@@ -293,7 +498,37 @@ export default function SiddurScreen() {
             </Svg>
             <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
           </Pressable>
-          <View style={styles.sizeControls}>
+          <View style={styles.headerControls}>
+            <Pressable
+              onPress={toggleAutoScroll}
+              accessibilityRole="switch"
+              accessibilityLabel={t('siddur.autoScroll')}
+              accessibilityState={{ checked: autoScrollOn }}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.autoScrollBtn,
+                autoScrollOn
+                  ? { backgroundColor: colors.gold, borderColor: colors.gold }
+                  : { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' },
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Svg width={14} height={14} viewBox="0 0 24 24">
+                <Path
+                  d={autoScrollOn ? 'M6.5 5h4v14h-4zM13.5 5h4v14h-4z' : 'M8 5v14l11-7z'}
+                  fill={autoScrollOn ? colors.onGold : colors.headerText}
+                />
+              </Svg>
+            </Pressable>
+            <ScrollSpeedStepper tone="header" level={scrollSpeed} onChange={setScrollSpeed} />
+          </View>
+        </View>
+        <View style={styles.titleRow}>
+          <View style={styles.titleBlock}>
+            <Text style={[typography.title, { color: colors.headerText }]}>{name}</Text>
+            <Text style={[typography.caption, { color: colors.headerSub, marginTop: 2 }]}>{subtitle}</Text>
+          </View>
+          <View style={styles.headerControls}>
             <SizeButton
               label="A−"
               accessibilityLabel={t('siddur.smaller')}
@@ -308,8 +543,6 @@ export default function SiddurScreen() {
             />
           </View>
         </View>
-        <Text style={[typography.title, { color: colors.headerText, marginTop: 10 }]}>{name}</Text>
-        <Text style={[typography.caption, { color: colors.headerSub, marginTop: 2 }]}>{subtitle}</Text>
         {sections.length > 1 && currentSection ? (
           <Pressable
             onPress={() => setPickerOpen(true)}
@@ -331,7 +564,7 @@ export default function SiddurScreen() {
       </View>
 
       {body ?? (
-        <FlatList
+        <Animated.FlatList
           ref={listRef}
           data={sections}
           extraData={listExtraData}
@@ -344,7 +577,12 @@ export default function SiddurScreen() {
           onScrollToIndexFailed={() => {
             jumpMissed.current = true;
           }}
-          onScrollBeginDrag={cancelJump}
+          onScroll={autoScroll.scrollHandler}
+          animatedProps={autoScroll.animatedProps}
+          {...autoScroll.webInput}
+          scrollEventThrottle={16}
+          onLayout={autoScroll.onLayout}
+          onContentSizeChange={autoScroll.onContentSizeChange}
           renderItem={({ item: section }) => {
             const expanded = openedOptional.has(section.title.he);
             return (
@@ -546,7 +784,7 @@ function SegmentView({
           key={index}
           style={[
             styles.hebrew,
-            { fontFamily: fontFamilies.siddur.regular, fontSize, lineHeight: Math.round(fontSize * 1.75), color },
+            { fontFamily: fontFamilies.siddur.regular, fontSize, lineHeight: siddurLineHeight(fontSize), color },
           ]}
         >
           {runs.map((run, runIndex) => (
@@ -594,9 +832,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
   },
-  sizeControls: {
+  headerControls: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
+  },
+  autoScrollBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginTop: 10,
+  },
+  titleBlock: {
+    flex: 1,
   },
   sizeBtn: {
     minWidth: 40,

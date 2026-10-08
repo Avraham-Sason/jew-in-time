@@ -16,6 +16,14 @@ export type MaritalStatus = 'married' | 'single';
 
 export const SIDDUR_FONT_SIZES = [18, 20, 22, 25, 28, 32] as const;
 const DEFAULT_SIDDUR_FONT_SIZE = 22;
+// Reading pace of each auto-scroll speed level, in lines per minute, slowest first.
+export const SIDDUR_SCROLL_SPEEDS = [5, 7, 9, 12, 15, 19, 24, 30, 38, 48] as const;
+const DEFAULT_SIDDUR_SCROLL_SPEED = 5;
+
+export function scrollSpeedLevel(level: number): number {
+  if (!Number.isFinite(level)) return DEFAULT_SIDDUR_SCROLL_SPEED;
+  return Math.min(SIDDUR_SCROLL_SPEEDS.length, Math.max(1, Math.round(level)));
+}
 
 type UserState = {
   nusach: Nusach;
@@ -32,6 +40,8 @@ type UserState = {
   inIsrael: boolean;
   isOnboarded: boolean;
   siddurFontSize: number;
+  siddurAutoScroll: boolean;
+  siddurScrollSpeed: number;
   gender: Gender | null;
   maritalStatus: MaritalStatus | null;
   taharahEnabled: boolean;
@@ -49,6 +59,8 @@ type UserState = {
   setInIsrael: (v: boolean) => void;
   setOnboarded: (v: boolean) => void;
   setSiddurFontSize: (size: number) => void;
+  setSiddurAutoScroll: (v: boolean) => void;
+  setSiddurScrollSpeed: (level: number) => void;
   setGender: (g: Gender | null) => void;
   setMaritalStatus: (m: MaritalStatus | null) => void;
   setTaharahEnabled: (v: boolean) => void;
@@ -90,6 +102,8 @@ export const useUserStore = create<UserState>()(
       inIsrael: true,
       isOnboarded: false,
       siddurFontSize: DEFAULT_SIDDUR_FONT_SIZE,
+      siddurAutoScroll: false,
+      siddurScrollSpeed: DEFAULT_SIDDUR_SCROLL_SPEED,
       gender: null,
       maritalStatus: null,
       taharahEnabled: false,
@@ -109,6 +123,8 @@ export const useUserStore = create<UserState>()(
       setInIsrael: (v) => set({ inIsrael: v }),
       setOnboarded: (v) => set({ isOnboarded: v }),
       setSiddurFontSize: (size) => set({ siddurFontSize: size }),
+      setSiddurAutoScroll: (v) => set({ siddurAutoScroll: v }),
+      setSiddurScrollSpeed: (level) => set({ siddurScrollSpeed: scrollSpeedLevel(level) }),
       setGender: (g) => set({ gender: g }),
       setMaritalStatus: (m) => set({ maritalStatus: m }),
       setTaharahEnabled: (v) => set({ taharahEnabled: v }),
@@ -128,6 +144,8 @@ export const useUserStore = create<UserState>()(
           inIsrael: true,
           isOnboarded: false,
           siddurFontSize: DEFAULT_SIDDUR_FONT_SIZE,
+          siddurAutoScroll: false,
+          siddurScrollSpeed: DEFAULT_SIDDUR_SCROLL_SPEED,
           gender: null,
           maritalStatus: null,
           taharahEnabled: false,
