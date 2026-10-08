@@ -6,6 +6,8 @@ const NOTIFICATION_ACTION_TASK = 'jew-in-time-notification-actions';
 const MITZVAH_REMINDER_CATEGORY = 'mitzvah_reminder';
 const MITZVAH_TEXT_CATEGORY = 'mitzvah_reminder_text';
 const TAHARAH_KIND = 'taharah';
+const UPDATE_KIND = 'update';
+const UPDATE_NOTIFIED_KEY = 'notifications:update-notified';
 const TAHARAH_BEDIKA_CATEGORY = 'taharah_bedika';
 const MARK_DONE_ACTION = 'MARK_DONE';
 const OPEN_TEXT_ACTION = 'OPEN_TEXT';
@@ -15,9 +17,11 @@ const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
 const SCHEDULE_FORMAT_KEY = 'notifications:schedule-format';
 
 export type PendingNotificationMeta = {
-  kind?: 'blockNotice' | 'checkin' | typeof TAHARAH_KIND;
+  kind?: 'blockNotice' | 'checkin' | typeof TAHARAH_KIND | typeof UPDATE_KIND;
   taharah?: { task: TaharahTaskKind | 'tevilaPrep' | 'postBlock' | 'preBlock'; day: number; onah?: OnahKind };
   blockId?: string;
+  updateId?: string;
+  updateCreatedAt?: string;
   mitzvahId?: string;
   dateKey?: string;
   reminderIndex?: number;
@@ -73,6 +77,10 @@ export async function registerNotificationActionTask(): Promise<void> {}
 
 export async function refreshSchedulingOnForeground(): Promise<void> {}
 
+export async function notifyIfUpdateReady(_now?: Date): Promise<boolean> {
+  return false;
+}
+
 export function pickBodyForReminder(reminder: { label: string }): string {
   return reminder.label;
 }
@@ -108,6 +116,8 @@ export {
   MITZVAH_TEXT_CATEGORY,
   TAHARAH_KIND,
   TAHARAH_BEDIKA_CATEGORY,
+  UPDATE_KIND,
+  UPDATE_NOTIFIED_KEY,
   MARK_DONE_ACTION,
   OPEN_TEXT_ACTION,
 };

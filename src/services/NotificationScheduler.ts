@@ -12,6 +12,7 @@ import { hasSiddurText, siddurPlace } from '@/data/siddur';
 import { HebcalService } from '@/services/HebcalService';
 import { ZmanimService } from '@/services/ZmanimService';
 import { StorageService } from '@/services/StorageService';
+import { downloadNewUpdate, isUpdateApplied } from '@/services/appUpdates';
 import { holyBlockLabelKeys, isQuietAt, isSkippedAt, opensQuietBlock, quietBlockAt, reminderFires } from '@/utils/skipRules';
 import { CheckInInput, blockForDay, blockOfCheckIn, checkInFor, checkInPhraseKey } from '@/utils/checkIn';
 import { locationNoon } from '@/utils/locationDay';
@@ -43,6 +44,8 @@ const SCHEDULE_FORMAT = 5;
 const BLOCK_NOTICE_KIND = 'blockNotice';
 const BLOCK_NOTICE_LEAD_MIN = 60;
 const CHECK_IN_KIND = 'checkin';
+const UPDATE_KIND = 'update';
+const UPDATE_NOTIFIED_KEY = 'notifications:update-notified';
 const CHECK_IN_SECOND_NUDGE_MIN = 120;
 const CHECK_IN_LAST_CALL_HOUR = 20;
 const CHECK_IN_LAST_CALL_LEAD_MIN = 30;
@@ -71,9 +74,11 @@ function parseId(id: string): { mitzvahId: string; date: string; idx: number } |
 }
 
 export type PendingNotificationMeta = {
-  kind?: typeof BLOCK_NOTICE_KIND | typeof CHECK_IN_KIND | typeof TAHARAH_KIND;
+  kind?: typeof BLOCK_NOTICE_KIND | typeof CHECK_IN_KIND | typeof TAHARAH_KIND | typeof UPDATE_KIND;
   taharah?: { task: TaharahTaskKind | 'tevilaPrep' | 'postBlock' | 'preBlock'; day: number; onah?: OnahKind };
   blockId?: string;
+  updateId?: string;
+  updateCreatedAt?: string;
   mitzvahId?: string;
   dateKey?: string;
   reminderIndex?: number;
@@ -413,8 +418,13 @@ export function taharahNotificationSettled(data: PendingNotificationMeta): boole
   }
 }
 
+function isStaleUpdateNotice(data: PendingNotificationMeta): boolean {
+  return data.kind === UPDATE_KIND && isUpdateApplied(data);
+}
+
 function shouldSuppressForCompletion(data: PendingNotificationMeta, notificationId?: string): boolean {
   if (isFinishedCheckIn(data)) return true;
+  if (isStaleUpdateNotice(data)) return true;
   if (data.kind === TAHARAH_KIND) return taharahNotificationSettled(data);
   if (!data.skipIfDone) return false;
   const target = notificationTargetFromData(data, notificationId);
@@ -436,9 +446,35 @@ export async function dismissCompletedPresentedNotifications(): Promise<void> {
     if (target && (completions.isDone(target.mitzvahId, target.date) || completions.isSkipped(target.mitzvahId, target.date))) {
       ids.push(id);
     }
-    if (isFinishedCheckIn(data) || taharahNotificationSettled(data)) ids.push(id);
+    if (isFinishedCheckIn(data) || taharahNotificationSettled(data) || isStaleUpdateNotice(data)) ids.push(id);
   }
   await dismissNotificationIds(ids);
+}
+
+export async function notifyIfUpdateReady(now: Date = new Date()): Promise<boolean> {
+  const update = await downloadNewUpdate();
+  if (!update) return false;
+  const previous = StorageService.get<string>(UPDATE_NOTIFIED_KEY);
+  if (previous === update.id) return false;
+  if (!hasNotificationPermission()) return false;
+  const { isOnboarded, location } = useUserStore.getState();
+  if (isOnboarded && isQuietAt(now, location)) return false;
+  await ensureAndroidChannel();
+  if (previous) await dismissNotificationIds([`${UPDATE_KIND}:${previous}`]);
+  await Notifications.scheduleNotificationAsync({
+    identifier: `${UPDATE_KIND}:${update.id}`,
+    content: {
+      title: t('update.notice.title'),
+      body: t('home.updateReady'),
+      data: { kind: UPDATE_KIND, updateId: update.id, updateCreatedAt: update.createdAt },
+      autoDismiss: true,
+      sticky: false,
+      sound: 'default',
+    },
+    trigger: Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL_ID } : null,
+  });
+  StorageService.set(UPDATE_NOTIFIED_KEY, update.id);
+  return true;
 }
 
 // Only a bedika can be marked from the notification: "done" on a hefsek or an immersion must be a
@@ -1065,6 +1101,10 @@ TaskManager.defineTask(DAILY_REBUILD_TASK, async () => {
     if (shouldRunDailyRebuild()) {
       await NotificationScheduler.rebuildForNewDay();
     }
+    await notifyIfUpdateReady().catch((err) => {
+      console.warn('[updates] background check failed', err);
+      return false;
+    });
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (err) {
     console.warn('[daily-rebuild] failed', err);
@@ -1227,6 +1267,8 @@ export {
   MITZVAH_TEXT_CATEGORY,
   TAHARAH_KIND,
   TAHARAH_BEDIKA_CATEGORY,
+  UPDATE_KIND,
+  UPDATE_NOTIFIED_KEY,
   MARK_DONE_ACTION,
   OPEN_TEXT_ACTION,
   shouldSuppressForCompletion,

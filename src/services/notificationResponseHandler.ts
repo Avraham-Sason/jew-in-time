@@ -8,6 +8,7 @@ import {
   pendingNotificationMetaFromContent,
   PendingNotificationMeta,
 } from '@/services/NotificationScheduler';
+import { isUpdateApplied, reloadIntoUpdate } from '@/services/appUpdates';
 import { useUserStore } from '@/stores/useUserStore';
 import { isQuietAt } from '@/utils/skipRules';
 
@@ -93,6 +94,13 @@ export function handleNotificationResponse(response: Notifications.NotificationR
 
   if (data.kind === 'taharah') {
     if (response.actionIdentifier === DEFAULT_NOTIFICATION_ACTION) navigate(() => router.navigate('/taharah'));
+    return;
+  }
+
+  if (data.kind === 'update') {
+    if (response.actionIdentifier !== DEFAULT_NOTIFICATION_ACTION) return;
+    if (isUpdateApplied(data)) navigate(() => router.navigate('/(tabs)/home'));
+    else reloadIntoUpdate();
     return;
   }
 

@@ -38,6 +38,7 @@
   "home.gpsTimeout": "GPS לא ענה בזמן. כרגע מוצגת העיר השמורה.",
   "home.zmanimUnavailable": "לא ניתן לחשב זמני היום במיקום הזה בתאריך הזה. בחר עיר אחרת בהגדרות.",
   "home.updateReady": "גרסה חדשה של האפליקציה מוכנה. לחץ כדי לטעון אותה.",
+  "update.notice.title": "עדכון חדש מוכן",
   "home.quick.details": "פרטים",
   "home.quick.skipToday": "דלג היום",
   "home.quick.edit": "עריכה",

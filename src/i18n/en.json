@@ -38,6 +38,7 @@
   "home.gpsTimeout": "GPS timed out. Showing your saved city for now.",
   "home.zmanimUnavailable": "Zmanim cannot be calculated for this location on this date. Pick another city in Settings.",
   "home.updateReady": "A new version of the app is ready. Tap to load it.",
+  "update.notice.title": "Update ready",
   "home.quick.details": "Details",
   "home.quick.skipToday": "Skip today",
   "home.quick.edit": "Edit",

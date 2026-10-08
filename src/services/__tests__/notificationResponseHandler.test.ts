@@ -2,6 +2,29 @@ const mockAddNotificationResponseReceivedListener = jest.fn();
 const mockMarkDoneFromNotificationData = jest.fn<Promise<boolean>, [unknown, string?]>(async () => true);
 const mockRouterPush = jest.fn();
 const mockRouterNavigate = jest.fn();
+const mockCheck = jest.fn();
+const mockFetch = jest.fn(async () => ({ isNew: true }));
+const mockReload = jest.fn(async () => {});
+const mockUpdates: { isEnabled: boolean; updateId: string | null; createdAt: Date | null } = {
+  isEnabled: true,
+  updateId: 'running-id',
+  createdAt: new Date('2026-10-08T12:00:00.000Z'),
+};
+
+jest.mock('expo-updates', () => ({
+  get isEnabled() {
+    return mockUpdates.isEnabled;
+  },
+  get updateId() {
+    return mockUpdates.updateId;
+  },
+  get createdAt() {
+    return mockUpdates.createdAt;
+  },
+  checkForUpdateAsync: () => mockCheck(),
+  fetchUpdateAsync: () => mockFetch(),
+  reloadAsync: () => mockReload(),
+}));
 
 jest.mock('react-native-mmkv', () => {
   const { createMockMMKV } = require('react-native-mmkv/lib/commonjs/createMMKV.mock');
@@ -203,6 +226,87 @@ describe('notificationResponseHandler', () => {
 
     expect(mockMarkDoneFromNotificationData).toHaveBeenCalledWith(data, 'taharah:bedikaMorning:739931');
     expect(mockRouterNavigate).not.toHaveBeenCalled();
+  });
+
+  describe('update notice tap', () => {
+    beforeEach(() => {
+      mockReload.mockClear();
+      mockUpdates.updateId = 'running-id';
+      useUserStore.getState().reset();
+    });
+    afterEach(() => useUserStore.getState().reset());
+
+    it('reloads into a downloaded update that is not running yet', () => {
+      initNotificationResponseHandler();
+      const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+      listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'update', updateId: 'u1' }, 'update:u1'));
+
+      expect(mockReload).toHaveBeenCalledTimes(1);
+      expect(mockRouterNavigate).not.toHaveBeenCalled();
+      expect(mockRouterPush).not.toHaveBeenCalled();
+      expect(mockMarkDoneFromNotificationData).not.toHaveBeenCalled();
+    });
+
+    it('opens home when the tapped update is already running', () => {
+      initNotificationResponseHandler();
+      const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+      listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'update', updateId: 'running-id' }, 'update:running-id'));
+
+      expect(mockRouterNavigate).toHaveBeenCalledTimes(1);
+      expect(mockRouterNavigate).toHaveBeenCalledWith('/(tabs)/home');
+      expect(mockReload).not.toHaveBeenCalled();
+    });
+
+    it('opens home when a newer update than the tapped one is already running', () => {
+      initNotificationResponseHandler();
+      const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+      listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'update', updateId: 'u0', updateCreatedAt: '2026-10-08T11:00:00.000Z' }, 'update:u0'));
+
+      expect(mockRouterNavigate).toHaveBeenCalledWith('/(tabs)/home');
+      expect(mockReload).not.toHaveBeenCalled();
+    });
+
+    it('ignores other actions on an update notice', () => {
+      initNotificationResponseHandler();
+      const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+      listener(response('SOMETHING_ELSE', { kind: 'update', updateId: 'u1' }, 'update:u1'));
+      listener(response('SOMETHING_ELSE', { kind: 'update', updateId: 'running-id' }, 'update:running-id'));
+
+      expect(mockReload).not.toHaveBeenCalled();
+      expect(mockRouterNavigate).not.toHaveBeenCalled();
+      expect(mockRouterPush).not.toHaveBeenCalled();
+    });
+
+    describe('inside a Shabbat block', () => {
+      const jerusalem = CITIES[0];
+      beforeAll(() => {
+        jest.useFakeTimers({
+          now: at(jerusalem, '2026-11-14T10:00'),
+          doNotFake: ['nextTick', 'queueMicrotask', 'setImmediate', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'],
+        });
+      });
+      afterAll(() => jest.useRealTimers());
+      beforeEach(() => {
+        useUserStore.getState().setLocation(jerusalem);
+        useUserStore.getState().setOnboarded(true);
+      });
+
+      it('does nothing', () => {
+        initNotificationResponseHandler();
+        const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+        listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'update', updateId: 'u1' }, 'update:u1'));
+        listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'update', updateId: 'running-id' }, 'update:running-id'));
+
+        expect(mockReload).not.toHaveBeenCalled();
+        expect(mockRouterNavigate).not.toHaveBeenCalled();
+        expect(mockRouterPush).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('inside a Shabbat block', () => {
