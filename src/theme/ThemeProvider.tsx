@@ -1,26 +1,23 @@
-import React, { createContext, useContext, useMemo } from 'react';
-import { useColorScheme } from 'react-native';
-import { T_DARK, T_LIGHT, ThemeColors } from './colors';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import { Appearance } from 'react-native';
+import { THEMES, ThemeColors, ThemeName, isDarkTheme } from './colors';
 import { useUserStore } from '@/stores/useUserStore';
-
-type ThemeMode = 'light' | 'dark' | 'system';
 
 type ThemeContextValue = {
   colors: ThemeColors;
   isDark: boolean;
-  mode: ThemeMode;
+  name: ThemeName;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const system = useColorScheme();
-  const mode = useUserStore((s) => s.theme);
-  const isDark = mode === 'system' ? system === 'dark' : mode === 'dark';
-  const value = useMemo<ThemeContextValue>(
-    () => ({ colors: isDark ? T_DARK : T_LIGHT, isDark, mode }),
-    [isDark, mode],
-  );
+  const name = useUserStore((s) => s.theme);
+  const isDark = isDarkTheme(name);
+  useEffect(() => {
+    if (typeof Appearance.setColorScheme === 'function') Appearance.setColorScheme(isDark ? 'dark' : 'light');
+  }, [isDark]);
+  const value = useMemo<ThemeContextValue>(() => ({ colors: THEMES[name], isDark, name }), [name, isDark]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 

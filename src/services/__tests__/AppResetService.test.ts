@@ -37,6 +37,7 @@ describe('AppResetService.reset', () => {
 
   it('wipes the taharah log, settings and persisted bytes, and replaces the key', async () => {
     useUserStore.getState().setNusach('chabad');
+    useUserStore.getState().setTheme('blue');
     useUserStore.getState().setGender('female');
     useUserStore.getState().setMaritalStatus('married');
     useUserStore.getState().setTaharahEnabled(true);
@@ -48,6 +49,7 @@ describe('AppResetService.reset', () => {
     await AppResetService.reset();
 
     expect(useUserStore.getState().nusach).toBe('ashkenaz');
+    expect(useUserStore.getState().theme).toBe('gold');
     expect(useUserStore.getState().gender).toBeNull();
     expect(useUserStore.getState().maritalStatus).toBeNull();
     expect(useUserStore.getState().taharahEnabled).toBe(false);

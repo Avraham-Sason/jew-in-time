@@ -19,7 +19,7 @@ import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 
 export default function WelcomeScreen() {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { t, language } = useI18n();
   const router = useRouter();
   const profileName = useUserStore((s) => s.profileName);
@@ -55,7 +55,7 @@ export default function WelcomeScreen() {
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <AppLogo size={64} isDark={isDark} />
+            <AppLogo size={64} />
             <Text style={[typography.title, { color: colors.text, marginTop: 12 }]}>
               {t('onboarding.registerTitle')}
             </Text>

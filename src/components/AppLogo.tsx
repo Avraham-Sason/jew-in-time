@@ -2,13 +2,12 @@ import React from 'react';
 import Svg, { Circle, Polygon, Path } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 
-type Props = { size?: number; isDark?: boolean };
+type Props = { size?: number };
 
-export function AppLogo({ size = 32, isDark: isDarkProp }: Props) {
-  const { isDark: ctxDark } = useTheme();
-  const isDark = isDarkProp ?? ctxDark;
-  const fill = isDark ? '#D4A030' : '#1C2B4A';
-  const stroke = isDark ? '#0D1925' : '#C9922A';
+export function AppLogo({ size = 32 }: Props) {
+  const { colors, isDark } = useTheme();
+  const fill = isDark ? colors.gold : colors.text;
+  const stroke = isDark ? colors.bg : colors.headerAccent;
   return (
     <Svg width={size} height={size} viewBox="0 0 48 48" fill="none">
       <Circle cx={24} cy={24} r={24} fill={fill} />

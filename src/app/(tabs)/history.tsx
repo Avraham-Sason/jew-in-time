@@ -98,7 +98,7 @@ export default function HistoryScreen() {
       <NavBar title={t('history.title')} subtitle={t('history.gridTitle')} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.streakCard, { backgroundColor: colors.headerBg }]}>
-          <Text style={[styles.streakNumber, { color: colors.gold }]}>{stats.streak}</Text>
+          <Text style={[styles.streakNumber, { color: colors.headerAccent }]}>{stats.streak}</Text>
           <Text style={[typography.subheading, { color: colors.headerText }]}>{t('history.streak', { count: stats.streak })}</Text>
         </View>
 

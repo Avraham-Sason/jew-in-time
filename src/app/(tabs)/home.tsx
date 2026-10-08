@@ -53,7 +53,7 @@ import {
   dismissCompletedPresentedNotifications,
   refreshSchedulingOnForeground,
 } from '@/services/NotificationScheduler';
-import { downloadNewUpdate } from '@/services/appUpdates';
+import { downloadNewUpdate, reloadIntoUpdate } from '@/services/appUpdates';
 import { useI18n, t as translate } from '@/i18n';
 
 type LiveItem = {
@@ -343,8 +343,8 @@ export default function HomeScreen() {
         title={hebrewTitle}
         subtitle={subtitle}
         left={
-          <View style={[styles.counter, { backgroundColor: `${colors.gold}22` }]}>
-            <Text style={[typography.small, { color: colors.gold, fontFamily: 'Heebo_700Bold' }]}>
+          <View style={[styles.counter, { backgroundColor: `${colors.headerAccent}22` }]}>
+            <Text style={[typography.small, { color: colors.headerAccent, fontFamily: 'Heebo_700Bold' }]}>
               {doneCount}/{Math.max(totalActive, doneCount)}
             </Text>
           </View>
@@ -390,7 +390,7 @@ export default function HomeScreen() {
             text={t('home.updateReady')}
             color={colors.safe}
             background={`${colors.safe}18`}
-            onPress={() => Updates.reloadAsync().catch(() => {})}
+            onPress={() => reloadIntoUpdate()}
           />
         ) : null}
         {isOnboarded && (gender === null || maritalStatus === null) && !introDismissed ? (

@@ -12,11 +12,11 @@ type Props = {
 };
 
 export function NavBar({ title, subtitle, left, right }: Props) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <View style={[styles.wrap, { backgroundColor: colors.headerBg }]}>
-      {right ?? <AppLogo size={28} isDark={isDark} />}
+      {right ?? <AppLogo size={28} />}
       <View style={styles.center}>
         <Text style={[typography.subheading, styles.title, { color: colors.headerText }]} numberOfLines={1}>
           {title}

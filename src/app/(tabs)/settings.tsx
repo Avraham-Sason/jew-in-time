@@ -29,6 +29,7 @@ import { chooseGender, chooseMaritalStatus, chooseNusach, setTaharahTracking, ta
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ChipRow } from '@/components/ChipRow';
+import { ThemeSwatchRow } from '@/components/ThemeSwatchRow';
 import { SettingsSection } from '@/components/SettingsSection';
 import { useQuietBlock } from '@/components/ShabbatScreen';
 import { typography } from '@/theme/typography';
@@ -37,7 +38,6 @@ import { CITIES, getLocationName } from '@/data/cities';
 import { Nusach } from '@/types/mitzvah';
 
 const NUSACHAOT: Nusach[] = ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'];
-const THEMES = ['system', 'light', 'dark'] as const;
 const LANGS = ['he', 'en'] as const;
 const OPINIONS = ['GRA', 'MA'] as const;
 const GENDERS = ['male', 'female'] as const;
@@ -285,11 +285,10 @@ export default function SettingsScreen() {
         </SettingsSection>
 
         <SettingsSection title={t('settings.theme')}>
-          <ChipRow
-            values={THEMES}
+          <ThemeSwatchRow
             selected={user.theme}
             onSelect={(value) => user.setTheme(value)}
-            renderLabel={(value) => t(`settings.theme.${value}`)}
+            labelFor={(value) => t(`settings.theme.${value}`)}
           />
         </SettingsSection>
 

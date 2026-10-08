@@ -1,3 +1,4 @@
+import { Appearance } from 'react-native';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from './zustandMiddleware';
 import { createZustandStorage } from '@/services/StorageService';
@@ -6,8 +7,8 @@ import { Nusach, HalachicOpinion } from '@/types/mitzvah';
 import { Location } from '@/types/zmanim';
 import { CITIES } from '@/data/cities';
 import type { LocationSource, LocationStatus } from '@/services/LocationService';
+import { THEME_NAMES, ThemeName } from '@/theme/colors';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
 export type Language = 'he' | 'en';
 export type NotificationPermissionStatus = 'unknown' | 'granted' | 'denied';
 export type Gender = 'male' | 'female';
@@ -21,7 +22,7 @@ type UserState = {
   location: Location;
   locationStatus: LocationStatus;
   locationSource: LocationSource;
-  theme: ThemeMode;
+  theme: ThemeName;
   language: Language;
   notificationPermission: NotificationPermissionStatus;
   notificationsEnabled: boolean;
@@ -38,7 +39,7 @@ type UserState = {
   setLocation: (l: Location) => void;
   setLocationState: (l: Location, status: LocationStatus, source: LocationSource) => void;
   setLocationStatus: (status: LocationStatus) => void;
-  setTheme: (t: ThemeMode) => void;
+  setTheme: (t: ThemeName) => void;
   setLanguage: (l: Language) => void;
   setNotificationPermission: (status: NotificationPermissionStatus) => void;
   setNotificationsEnabled: (v: boolean) => void;
@@ -54,13 +55,20 @@ type UserState = {
   reset: () => void;
 };
 
-type PersistedUserState = Partial<Pick<UserState, 'taharahEnabled' | 'maritalStatus'>>;
+type PersistedUserState = Partial<Pick<UserState, 'taharahEnabled' | 'maritalStatus'>> & { theme?: unknown };
 
 const DEFAULT_LOCATION = CITIES[0];
+const DEFAULT_THEME: ThemeName = 'gold';
 
-const mergeWithInferredMaritalStatus = (persisted: unknown, current: UserState): UserState => {
-  const saved = (persisted ?? {}) as PersistedUserState;
-  const merged = { ...current, ...saved };
+const savedThemeName = (saved: unknown): ThemeName => {
+  if (THEME_NAMES.includes(saved as ThemeName)) return saved as ThemeName;
+  if (saved === 'system' && Appearance.getColorScheme() === 'dark') return 'dark';
+  return DEFAULT_THEME;
+};
+
+const mergeSavedUserState = (persisted: unknown, current: UserState): UserState => {
+  const { theme, ...saved } = (persisted ?? {}) as PersistedUserState;
+  const merged = { ...current, ...saved, theme: theme === undefined ? current.theme : savedThemeName(theme) };
   if (merged.taharahEnabled && merged.maritalStatus == null) merged.maritalStatus = 'married';
   return merged;
 };
@@ -72,7 +80,7 @@ export const useUserStore = create<UserState>()(
       location: DEFAULT_LOCATION,
       locationStatus: 'ready',
       locationSource: 'manual',
-      theme: 'system',
+      theme: DEFAULT_THEME,
       language: 'he',
       notificationPermission: 'unknown',
       notificationsEnabled: true,
@@ -110,7 +118,7 @@ export const useUserStore = create<UserState>()(
           location: DEFAULT_LOCATION,
           locationStatus: 'ready',
           locationSource: 'manual',
-          theme: 'system',
+          theme: DEFAULT_THEME,
           language: 'he',
           notificationPermission: 'unknown',
           notificationsEnabled: true,
@@ -129,7 +137,7 @@ export const useUserStore = create<UserState>()(
       name: 'user-store',
       storage: createJSONStorage(() => createZustandStorage()),
       version: STORE_VERSION,
-      merge: mergeWithInferredMaritalStatus,
+      merge: mergeSavedUserState,
       onRehydrateStorage: onRehydrateStorage('user-store'),
     },
   ),

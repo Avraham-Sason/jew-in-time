@@ -7,12 +7,17 @@
 ## Ownership
 
 - [tokens.ts](tokens.ts), [colors.ts](colors.ts), [typography.ts](typography.ts), and [shadowStyle.ts](shadowStyle.ts) own theme primitives.
-- [ThemeProvider.tsx](ThemeProvider.tsx) owns runtime theme access.
+- [colors.ts](colors.ts) owns the five palettes (`THEMES`, `THEME_NAMES`, `ThemeName`): gold (`T_LIGHT`), pink, purple, blue and dark.
+- [ThemeProvider.tsx](ThemeProvider.tsx) owns runtime theme access: it resolves `useUserStore.theme` to `{ colors, isDark, name }` and syncs the OS appearance through `Appearance.setColorScheme`, so alerts, the keyboard and switches follow the palette.
 - Theme tests live in [__tests__/](__tests__/).
 
 ## Local Contracts
 
-- Update both light and dark theme surfaces when adding tokens.
+- A new token is added to every palette in `THEMES`; the theme test pins identical key sets.
+- `gold`, `onGold` and `goldLight` are the accent tokens of every palette, pink in the pink theme and so on, so a screen never assumes they are yellow. `headerAccent` is the accent as drawn on `headerBg` (the home counter, the history streak, the schedule view toggle, the logo star): the same value as `gold` in the gold and dark palettes and a pale tint in the others, because `gold` on the tinted headers reads under 2:1.
+- The light palettes keep white surfaces and the shared status colours (urgent, warning, safe) and differ in `bg`, `border`, accent and header.
+- The theme test also pins WCAG contrast floors (text/bg, text/surface, textMuted/surface, onGold/gold, headerText/headerBg and headerAccent/headerBg at 4.5 or more, textSub/surface at 4.0 or more), so a palette edit that breaks readability fails the suite; it reads hex tokens only, so `headerSub` (rgba) is checked by hand when a header changes. Every palette name has a `settings.theme.<name>` label in both dictionaries, pinned by the same suite.
+- The theme picker is [ThemeSwatchRow](../components/ThemeSwatchRow.tsx), never a local copy.
 - Keep typography compatible with the Heebo and Noto Serif Hebrew font loading in [../app/_layout.tsx](../app/_layout.tsx). Noto Serif Hebrew is the prayer-text family because it covers every nikud and cantillation mark; Heebo does not.
 - New UI should use theme tokens and `useTheme()` instead of one-off styling.
 

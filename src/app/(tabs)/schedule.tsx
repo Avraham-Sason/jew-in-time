@@ -152,11 +152,11 @@ export default function ScheduleScreen() {
               style={[
                 styles.toggle,
                 {
-                  backgroundColor: view === value ? colors.gold : 'transparent',
+                  backgroundColor: view === value ? colors.headerAccent : 'transparent',
                 },
               ]}
             >
-              <Text style={[typography.small, { color: view === value ? '#fff' : 'rgba(255,255,255,0.5)' }]}>
+              <Text style={[typography.small, { color: view === value ? colors.headerBg : colors.headerSub }]}>
                 {t(`schedule.${value}`)}
               </Text>
             </Pressable>

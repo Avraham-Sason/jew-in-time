@@ -61,7 +61,7 @@ Settings shows `<version>-<n>`: `n` counts the updates published on that channel
 
 - `pnpm update:*` runs [scripts/publish-update.js](scripts/publish-update.js), which takes the next `n` from EAS and publishes with it. Never publish with `npx eas-cli update` directly: the update would carry no number and the next one would repeat a number.
 - `n` starts each EAS message (`1.0.16-5: …`), so the dashboard and `eas update:list` show the same label as the phone. The first numbered update on 1.0.16 was 5, because four updates had shipped on it before numbering began.
-- Home offers a reload banner once an update is downloaded. The app checks for one at launch (expo-updates) and on every return to the foreground.
+- Home offers a reload banner once an update is downloaded. The app checks for one at launch (expo-updates) and on every return to the foreground. The hourly background task (`jew-in-time-daily-rebuild`) checks as well and, outside development, holy blocks and a switched-off notifications setting, presents one `update:<update id>` notification per downloaded update (`notifyIfUpdateReady()` in [src/services/NotificationScheduler.ts](src/services/NotificationScheduler.ts)); a tap reloads into the update, or opens home when it, or a newer one, is already running. Background fetch runs when the OS allows, so the notice can trail the publish by an hour or more on Android and by longer on iOS.
 - Launches, failed launches and unique users of an update: `npx eas-cli update:insights <group-id>`, or the update's Insights tab on expo.dev.
 - Roll back by republishing the last good group, which keeps its number on the phone: `npx eas-cli update:republish --group <group-id> --message "Rollback to <version>-<n>" --non-interactive`. `npx eas-cli update:roll-back-to-embedded` returns every install to its build's bundle (`-0`).
 
@@ -191,13 +191,13 @@ Important constants and contracts:
 
 - Categories: `mitzvah_reminder` (mark-done only) and `mitzvah_reminder_text` (open text + mark done), chosen per reminder by `hasSiddurText()`, except that a trigger on a block's opening edge (candle lighting) gets mark-done only: every screen it could open is behind the Shabbat screen
 - Actions: `MARK_DONE` (background) and `OPEN_TEXT` (opens the app to `/siddur/[id]?date=`)
-- Scheduled identifier format: `${mitzvahId}__${YYYY-MM-DD}__${reminderIndex}`. A notification not tied to a mitzvah uses an id without `__` and carries `data.kind`: the pre-block notice is `blockNotice:<first holy day>`, with no category.
+- Scheduled identifier format: `${mitzvahId}__${YYYY-MM-DD}__${reminderIndex}`. A notification not tied to a mitzvah uses an id without `__` and carries `data.kind`: the pre-block notice is `blockNotice:<first holy day>`, with no category. The update notice is `update:<update id>`, `data.kind = 'update'` with `data.updateId`, presented at once, with no category.
 - Pending guard: `PENDING_LIMIT = 60`, `IOS_MAX = 64`
 - Horizon: the location's calendar days from today and tomorrow, then on through any holy block that is reached or starts the next day, up to the first weekday after it. Each step is the device-local midnight of that location date with its zmanim read at the location's noon, so ids and completion keys name the window's own day and a DST change in either zone cannot skip or repeat one. Candidates are ordered by trigger time and capped at `IOS_MAX - 4` on iOS / `PENDING_LIMIT` elsewhere, so an overflow drops the furthest-out reminders rather than all of tomorrow.
 - Check-in reminders (`checkin:<firstHolyDay>:<0|1|2>`, `data.kind = 'checkin'`, no category) fire at a block's tzeit, two hours later, and at 20:00 the next day — or half an hour before the next block's candle lighting when that evening is already holy — until the check-in is finished or everything in it is marked or skipped. A mark that settles the check-in withdraws them at once (`settleCheckIn()`). `cancelCheckIn()` withdraws them and clears the tray; the foreground handler suppresses one for a finished check-in.
 - The pre-block notice fires an hour before candle lighting for every user with notifications on: title by block kind, lighting and exit times, and the Omer counts of the block's nights when `sefirat_haomer` is enabled.
 - Taharah reminders (`taharah:<task>:<hebrew abs day>[:<onah>]`, `data.kind = 'taharah'`) are built from `taharahTasksFor()` for every horizon day when the feature is on: hefsek before shkia, the two daily bedikot (category `taharah_bedika`, whose `MARK_DONE` records a clean bedika), tevila prep and tevila at tzeit, perisha onot, the onah-beinonit bedika, "did the period arrive", a `postBlock` nudge after a block with unrecorded bedikot, and one merged `preBlock` notification for everything a block would have swallowed. Discreet wording is the default. [src/services/AGENTS.md](src/services/AGENTS.md) holds the details.
-- Daily rebuild task: `jew-in-time-daily-rebuild`, gated by `notifications:last-rebuild-date` and intended to run once per local day at/after 00:15.
+- Daily rebuild task: `jew-in-time-daily-rebuild`, registered hourly. Its rebuild is gated by `notifications:last-rebuild-date` and intended to run once per local day at/after 00:15; every run also calls `notifyIfUpdateReady()`.
 - Background notification action task: `jew-in-time-notification-actions`.
 - Delivery must stay EXACT. expo-notifications only calls `setExactAndAllowWhileIdle` when `AlarmManager.canScheduleExactAlarms()` is true, and there is no JS API to detect the fallback — so the manifest is the only guarantee. `USE_EXACT_ALARM` covers API 33+, `SCHEDULE_EXACT_ALARM` (capped at `maxSdkVersion=32` by [scripts/withExactAlarmPermissions.js](scripts/withExactAlarmPermissions.js)) covers Android 12. Pinned by [exactAlarmConfig.test.ts](src/services/__tests__/exactAlarmConfig.test.ts).
 
@@ -211,7 +211,7 @@ Behavior to preserve:
 - `SCHEDULE_FORMAT` is raised whenever a scheduled notification changes shape, so the first foreground after an update rebuilds once.
 - `useCompletionsStore.markDone`, `markSkipped`, and `unmark` also trigger notification cancellation/rebuild through a queued `require()` to avoid import cycles.
 - `initNotificationHandlers()` is called from [_layout.tsx](src/app/_layout.tsx) after fonts load and returns a teardown the layout runs on unmount. It also calls `refreshSchedulingOnForeground()`, which home repeats on `AppState 'active'` so the horizon cannot silently expire. It sets the foreground handler, registers category/action tasks, syncs permission, dismisses already-completed presented notifications, subscribes to store changes, and registers the daily rebuild task.
-- Tapping the notification body routes to `/mitzvah/[id]`; tapping `OPEN_TEXT` routes to `/siddur/[id]` with the notification's `dateKey`, buffered like the body tap on a cold start; tapping `MARK_DONE` marks completion without foregrounding the app. The pre-block notice opens home, and a check-in reminder opens `/checkin`. Inside a holy block a tap opens nothing (only `MARK_DONE` still runs), and a tap buffered on a cold start before the block is dropped rather than replayed into it.
+- Tapping the notification body routes to `/mitzvah/[id]`; tapping `OPEN_TEXT` routes to `/siddur/[id]` with the notification's `dateKey`, buffered like the body tap on a cold start; tapping `MARK_DONE` marks completion without foregrounding the app. The pre-block notice opens home, a check-in reminder opens `/checkin`, and an update notice reloads into its update, or opens home when that update, or a newer one, is already running (`isUpdateApplied()`). Inside a holy block a tap opens nothing (only `MARK_DONE` still runs), and a tap buffered on a cold start before the block is dropped rather than replayed into it.
 - [withMitzvahNotificationAction.js](scripts/withMitzvahNotificationAction.js) is an Expo config plugin that writes an Android Kotlin service to dismiss a notification after the mark-done action. Keep this in mind when changing notification action IDs.
 - Both `TaskManager.defineTask` calls live at [NotificationScheduler.ts](src/services/NotificationScheduler.ts) module scope, and the bundle entry is the root [index.js](index.js) (the `main` field in [package.json](package.json)), which imports that module. A killed-state `MARK_DONE` tap and background fetch arrive as headless launches that never load route modules — a `defineTask` reachable only through the router tree never runs and the OS-invoked event is silently dropped. Pinned by [backgroundTaskEntry.test.ts](src/services/__tests__/backgroundTaskEntry.test.ts).
 
@@ -221,7 +221,7 @@ The web scheduler file is intentionally a no-op shim. If adding exported schedul
 
 All primary stores use Zustand with MMKV persistence through `StorageService.createZustandStorage()`, except `useTaharahStore`, which persists to its own encrypted instance.
 
-- `useUserStore` (`user-store`): nusach, location, theme, language, notification permission/toggle, profile fields, halachic opinions, in-Israel flag, onboarding flag, `gender` and `maritalStatus` (`married` or `single`), each `null` until answered, taharah opt-in.
+- `useUserStore` (`user-store`): nusach, location, theme (one of the five palette names), language, notification permission/toggle, profile fields, halachic opinions, in-Israel flag, onboarding flag, `gender` and `maritalStatus` (`married` or `single`), each `null` until answered, taharah opt-in.
 - `useMitzvotStore` (`mitzvot-store`): enabled state and custom reminders per mitzvah.
 - `useCompletionsStore` (`completions-store`): `completions[YYYY-MM-DD][mitzvahId] = timestamp` and parallel `skipped` map, `checkIns[firstHolyDay] = finishedAt`, and `archivedDays` — runs of kept days that retention pruned, so the streak reaches past 400 days.
 - `useCustomMitzvotStore` (`custom-mitzvot-store`): user-created mitzvah definitions.
@@ -235,11 +235,12 @@ All primary stores use Zustand with MMKV persistence through `StorageService.cre
 
 - The app loads Heebo font weights in [_layout.tsx](src/app/_layout.tsx).
 - Use `useTheme()` and `src/theme/*` tokens. Avoid hard-coded colors in new UI unless there is a narrow reason.
+- Five palettes live in [src/theme/colors.ts](src/theme/colors.ts): gold, pink, purple, blue and dark, chosen in Settings as colour circles. `gold` / `onGold` / `goldLight` are each palette's accent tokens, `headerAccent` is the accent drawn on the header, and `isDark` is true only for the dark palette.
 - Translation tables are flat JSON dictionaries in [he.json](src/i18n/he.json) and [en.json](src/i18n/en.json); tests enforce key parity and non-empty values.
 - `setLocale()` and `useI18n()` are lightweight wrappers. The `i18n-js` package is installed but the current app does not rely on the normal `i18n-js` runtime API.
 - RTL is dynamic based on `useUserStore.language`. `_layout.tsx` calls `I18nManager.allowRTL/forceRTL`; native language direction changes can require a reload.
 - Web also sets `document.documentElement.dir/lang` and `body.dir`.
-- Main reusable UI components: `MitzvahCard`, `CompletedRow`, `ReminderEditor`, `TimeRibbon`, `BottomTabs`, `NavBar`, `HebrewDate`, `AppLogo`, `ShabbatScreen`, `ChipRow`, `SettingsSection`, `DayStepper`, `OnboardingDots`, `ChoiceRow` and `TaharahLock`.
+- Main reusable UI components: `MitzvahCard`, `CompletedRow`, `ReminderEditor`, `TimeRibbon`, `BottomTabs`, `NavBar`, `HebrewDate`, `AppLogo`, `ShabbatScreen`, `ChipRow`, `SettingsSection`, `DayStepper`, `OnboardingDots`, `ChoiceRow`, `ThemeSwatchRow` and `TaharahLock`.
 
 ## Tests
 
@@ -289,7 +290,7 @@ pnpm typecheck
 
 - New route: add the file under [src/app/](src/app), update navigation/tabs if needed, then update [routes.test.ts](src/app/__tests__/routes.test.ts).
 - New UI copy: update both [he.json](src/i18n/he.json) and [en.json](src/i18n/en.json), then run i18n tests.
-- New theme token: update both `T_LIGHT` and `T_DARK` in [colors.ts](src/theme/colors.ts), then run theme tests.
+- New theme token: add it to every palette in `THEMES` in [colors.ts](src/theme/colors.ts), then run theme tests.
 - New mitzvah: update the registry, default enabled behavior, detail/schedule/history expectations, and tests. A mitzvah added after release needs the `merge` in [useMitzvotStore.ts](src/stores/useMitzvotStore.ts) to reach existing users.
 - New scheduler export: update [NotificationScheduler.web.ts](src/services/NotificationScheduler.web.ts) too; [schedulerWebParity.test.ts](src/services/__tests__/schedulerWebParity.test.ts) enforces it.
 - New notification action/category ID: update scheduler constants, response handling, the [Android config plugin](scripts/withMitzvahNotificationAction.js), and notification tests.

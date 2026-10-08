@@ -20,6 +20,7 @@ jest.mock('expo-background-fetch', () => ({
   BackgroundFetchResult: { NewData: 1, Failed: 2 },
 }));
 
+import { STORE_VERSION } from '../persistOptions';
 import { useUserStore } from '../useUserStore';
 import { useMitzvotStore } from '../useMitzvotStore';
 import { useCompletionsStore, dateKey } from '../useCompletionsStore';
@@ -73,5 +74,62 @@ describe('stores', () => {
     expect(useCompletionsStore.getState().isSkipped('tefillin', today)).toBe(true);
     expect(useCompletionsStore.getState().isDone('tefillin', today)).toBe(false);
     expect(useCompletionsStore.getState().countForDate(today)).toBe(0);
+  });
+});
+
+describe('useUserStore theme', () => {
+  beforeEach(() => useUserStore.getState().reset());
+
+  const coldStart = (state: object, colorScheme: 'light' | 'dark' | null = null) => {
+    let started: ReturnType<typeof useUserStore.getState> | undefined;
+    jest.isolateModules(() => {
+      const { Appearance } = require('react-native');
+      const appearance = jest.spyOn(Appearance, 'getColorScheme').mockReturnValue(colorScheme);
+      try {
+        const { storage: freshStorage } = require('@/services/StorageService');
+        freshStorage.set('user-store', JSON.stringify({ version: STORE_VERSION, state }));
+        started = require('../useUserStore').useUserStore.getState();
+      } finally {
+        appearance.mockRestore();
+      }
+    });
+    return started!;
+  };
+
+  it('defaults to gold and resets to it', () => {
+    expect(useUserStore.getState().theme).toBe('gold');
+    useUserStore.getState().setTheme('pink');
+    expect(useUserStore.getState().theme).toBe('pink');
+    useUserStore.getState().reset();
+    expect(useUserStore.getState().theme).toBe('gold');
+  });
+
+  it('a cold start keeps a saved palette name', () => {
+    expect(coldStart({ theme: 'purple' }).theme).toBe('purple');
+  });
+
+  it('a cold start maps the legacy light theme to gold', () => {
+    expect(coldStart({ theme: 'light' }, 'dark').theme).toBe('gold');
+  });
+
+  it('a cold start keeps the legacy dark theme', () => {
+    expect(coldStart({ theme: 'dark' }, 'light').theme).toBe('dark');
+  });
+
+  it('a cold start maps the legacy system theme by the OS appearance', () => {
+    expect(coldStart({ theme: 'system' }, 'dark').theme).toBe('dark');
+    expect(coldStart({ theme: 'system' }, 'light').theme).toBe('gold');
+  });
+
+  it('a cold start maps an unknown theme to gold', () => {
+    expect(coldStart({ theme: 'neon' }).theme).toBe('gold');
+    expect(coldStart({ theme: 'toString' }).theme).toBe('gold');
+    expect(coldStart({ theme: 7 }).theme).toBe('gold');
+  });
+
+  it('a payload without a theme keeps the default', () => {
+    const started = coldStart({ nusach: 'sefard' });
+    expect(started.theme).toBe('gold');
+    expect(started.nusach).toBe('sefard');
   });
 });
