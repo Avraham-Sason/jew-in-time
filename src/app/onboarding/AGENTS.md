@@ -7,14 +7,14 @@
 ## Ownership
 
 - [index.tsx](index.tsx) owns the onboarding entry route.
-- [profile.tsx](profile.tsx) owns the second step: gender, and the opt-in to taharat hamishpacha tracking.
+- [profile.tsx](profile.tsx) owns the second step: gender, marital status, and the opt-in to taharat hamishpacha tracking.
 - [nusach.tsx](nusach.tsx), [location.tsx](location.tsx), and [ready.tsx](ready.tsx) own their respective onboarding steps.
 - Every step draws its progress with [OnboardingDots](../../components/OnboardingDots.tsx) and `ONBOARDING_STEPS`; a new step raises that constant and shifts the later steps' indexes.
 
 ## Local Contracts
 
 - Onboarding state is stored through [../../stores/AGENTS.md](../../stores/AGENTS.md).
-- Continue on the profile step stays disabled until a gender is chosen. The gender, the tracking switch and the nusach choice go through [taharahOptIn.ts](../../stores/taharahOptIn.ts) (`chooseGender`, `setTaharahTracking`, `chooseNusach`), never straight to the stores: switching tracking on sets the taharah role from the gender and the preset from the nusach chosen so far; changing the gender while tracking is on updates the role; picking a nusach with tracking on adopts its preset. The guard that protects a worked preset lives in `useTaharahStore` (no events and rules identical to the current preset's), so a later nusach pick never overwrites a recorded cycle or a hand-edited rule.
+- Continue on the profile step stays disabled until a gender and a marital status are both chosen. The status label follows the gender, the key `profile.maritalStatus.<status>.<gender>`, with `neutral` in place of the gender until one is chosen. The opt-in card shows only while `taharahOffered()` holds, so a single user never sees it. The gender, the marital status, the tracking switch and the nusach choice go through [taharahOptIn.ts](../../stores/taharahOptIn.ts) (`chooseGender`, `chooseMaritalStatus`, `setTaharahTracking`, `chooseNusach`), never straight to the stores: choosing single while tracking is on switches it off; switching tracking on sets the taharah role from the gender and the preset from the nusach chosen so far; changing the gender while tracking is on updates the role; picking a nusach with tracking on adopts its preset. The guard that protects a worked preset lives in `useTaharahStore` (no events and rules identical to the current preset's), so a later nusach pick never overwrites a recorded cycle or a hand-edited rule.
 - Location and notification permission behavior must use [../../services/AGENTS.md](../../services/AGENTS.md) wrappers.
 - User-facing copy must stay in [../../i18n/AGENTS.md](../../i18n/AGENTS.md).
 
@@ -22,6 +22,7 @@
 
 - Keep permission explanations accurate to [../../../app.json](../../../app.json) native permission strings and actual local/offline behavior.
 - Do not assume Expo Go can verify native notification/MMKV behavior.
+- A selectable option on a step is [ChoiceRow](../../components/ChoiceRow.tsx), as the profile and nusach steps use it; no step hand-rolls the row.
 
 ## Verification
 

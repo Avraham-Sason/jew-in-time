@@ -364,8 +364,9 @@ describe('useTaharahStore', () => {
 describe('useUserStore taharah fields', () => {
   beforeEach(() => useUserStore.getState().reset());
 
-  it('defaults gender to not answered and taharah off', () => {
+  it('defaults gender and marital status to not answered and taharah off', () => {
     expect(useUserStore.getState().gender).toBeNull();
+    expect(useUserStore.getState().maritalStatus).toBeNull();
     expect(useUserStore.getState().taharahEnabled).toBe(false);
   });
 
@@ -378,18 +379,29 @@ describe('useUserStore taharah fields', () => {
     expect(useUserStore.getState().gender).toBeNull();
   });
 
+  it('sets and clears maritalStatus', () => {
+    useUserStore.getState().setMaritalStatus('married');
+    expect(useUserStore.getState().maritalStatus).toBe('married');
+    useUserStore.getState().setMaritalStatus('single');
+    expect(useUserStore.getState().maritalStatus).toBe('single');
+    useUserStore.getState().setMaritalStatus(null);
+    expect(useUserStore.getState().maritalStatus).toBeNull();
+  });
+
   it('sets taharahEnabled', () => {
     useUserStore.getState().setTaharahEnabled(true);
     expect(useUserStore.getState().taharahEnabled).toBe(true);
   });
 
-  it('reset clears both', () => {
+  it('reset clears all three', () => {
     useUserStore.getState().setGender('female');
+    useUserStore.getState().setMaritalStatus('married');
     useUserStore.getState().setTaharahEnabled(true);
 
     useUserStore.getState().reset();
 
     expect(useUserStore.getState().gender).toBeNull();
+    expect(useUserStore.getState().maritalStatus).toBeNull();
     expect(useUserStore.getState().taharahEnabled).toBe(false);
   });
 
@@ -403,7 +415,56 @@ describe('useUserStore taharah fields', () => {
       expect(coldStart.getState().nusach).toBe('sefard');
       expect(coldStart.getState().isOnboarded).toBe(true);
       expect(coldStart.getState().gender).toBeNull();
+      expect(coldStart.getState().maritalStatus).toBeNull();
       expect(coldStart.getState().taharahEnabled).toBe(false);
+    });
+  });
+
+  it('a cold start on a payload with tracking on and no marital status infers married', () => {
+    jest.isolateModules(() => {
+      const { storage: freshStorage } = require('@/services/StorageService');
+      freshStorage.set(
+        'user-store',
+        JSON.stringify({
+          version: 1,
+          state: { nusach: 'sefard', isOnboarded: true, gender: 'female', taharahEnabled: true },
+        }),
+      );
+
+      const { useUserStore: coldStart } = require('../useUserStore');
+
+      expect(coldStart.getState().maritalStatus).toBe('married');
+      expect(coldStart.getState().taharahEnabled).toBe(true);
+      expect(coldStart.getState().gender).toBe('female');
+    });
+  });
+
+  it('a cold start on a payload with tracking off and no marital status keeps it unanswered', () => {
+    jest.isolateModules(() => {
+      const { storage: freshStorage } = require('@/services/StorageService');
+      freshStorage.set(
+        'user-store',
+        JSON.stringify({ version: 1, state: { isOnboarded: true, gender: 'male', taharahEnabled: false } }),
+      );
+
+      const { useUserStore: coldStart } = require('../useUserStore');
+
+      expect(coldStart.getState().maritalStatus).toBeNull();
+      expect(coldStart.getState().taharahEnabled).toBe(false);
+    });
+  });
+
+  it('a cold start keeps a saved single status', () => {
+    jest.isolateModules(() => {
+      const { storage: freshStorage } = require('@/services/StorageService');
+      freshStorage.set(
+        'user-store',
+        JSON.stringify({ version: 1, state: { taharahEnabled: false, maritalStatus: 'single' } }),
+      );
+
+      const { useUserStore: coldStart } = require('../useUserStore');
+
+      expect(coldStart.getState().maritalStatus).toBe('single');
     });
   });
 });

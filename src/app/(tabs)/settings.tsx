@@ -25,7 +25,7 @@ import {
   openBatteryOptimizationSettings,
   supportsBatteryOptimizationSettings,
 } from '@/services/deviceSettings';
-import { chooseGender, chooseNusach, setTaharahTracking } from '@/stores/taharahOptIn';
+import { chooseGender, chooseMaritalStatus, chooseNusach, setTaharahTracking, taharahOffered } from '@/stores/taharahOptIn';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ChipRow } from '@/components/ChipRow';
@@ -41,6 +41,7 @@ const THEMES = ['system', 'light', 'dark'] as const;
 const LANGS = ['he', 'en'] as const;
 const OPINIONS = ['GRA', 'MA'] as const;
 const GENDERS = ['male', 'female'] as const;
+const MARITAL_STATUSES = ['married', 'single'] as const;
 const CITY_INDEXES = CITIES.map((_, index) => index);
 
 export default function SettingsScreen() {
@@ -164,6 +165,15 @@ export default function SettingsScreen() {
               },
             ]}
           />
+          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 12, marginBottom: 8 }]}>{t('profile.gender')}</Text>
+          <ChipRow values={GENDERS} selected={user.gender} onSelect={chooseGender} renderLabel={(value) => t(`profile.gender.${value}`)} />
+          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 12, marginBottom: 8 }]}>{t('profile.maritalStatus')}</Text>
+          <ChipRow
+            values={MARITAL_STATUSES}
+            selected={user.maritalStatus}
+            onSelect={chooseMaritalStatus}
+            renderLabel={(value) => t(`profile.maritalStatus.${value}.${user.gender ?? 'neutral'}`)}
+          />
         </SettingsSection>
 
         <SettingsSection title={t('settings.notifications')}>
@@ -227,37 +237,34 @@ export default function SettingsScreen() {
           <ChipRow values={NUSACHAOT} selected={user.nusach} onSelect={chooseNusach} renderLabel={(value) => t(`nusach.${value}`)} />
         </SettingsSection>
 
-        <SettingsSection title={t('settings.taharah')}>
-          <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 8 }]}>{t('profile.gender')}</Text>
-          <ChipRow values={GENDERS} selected={user.gender} onSelect={chooseGender} renderLabel={(value) => t(`profile.gender.${value}`)} />
-          <View style={[styles.switchRow, { marginTop: 14 }]}>
-            <View style={{ flex: 1, paddingEnd: 12 }}>
-              <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.taharahEnabled')}</Text>
-              {user.gender ? (
+        {taharahOffered(user) ? (
+          <SettingsSection title={t('settings.taharah')}>
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1, paddingEnd: 12 }}>
+                <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.taharahEnabled')}</Text>
                 <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
                   {t(user.gender === 'female' ? 'taharah.optIn.woman.body' : 'taharah.optIn.husband.body')}
                 </Text>
-              ) : null}
+              </View>
+              <Switch
+                value={user.taharahEnabled}
+                onValueChange={setTaharahTracking}
+                thumbColor="#fff"
+                trackColor={{ false: colors.border, true: colors.gold }}
+              />
             </View>
-            <Switch
-              value={user.taharahEnabled}
-              onValueChange={setTaharahTracking}
-              disabled={!user.gender}
-              thumbColor="#fff"
-              trackColor={{ false: colors.border, true: colors.gold }}
-            />
-          </View>
-          {user.taharahEnabled ? (
-            <Pressable
-              onPress={() => router.push('/taharah/settings')}
-              accessibilityRole="button"
-              style={[styles.primaryBtn, { backgroundColor: colors.gold }]}
-            >
-              <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.taharahOpen')}</Text>
-            </Pressable>
-          ) : null}
-          <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>{t('taharah.disclaimer')}</Text>
-        </SettingsSection>
+            {user.taharahEnabled ? (
+              <Pressable
+                onPress={() => router.push('/taharah/settings')}
+                accessibilityRole="button"
+                style={[styles.primaryBtn, { backgroundColor: colors.gold }]}
+              >
+                <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.taharahOpen')}</Text>
+              </Pressable>
+            ) : null}
+            <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>{t('taharah.disclaimer')}</Text>
+          </SettingsSection>
+        ) : null}
 
         <SettingsSection title={t('settings.location')}>
           <Text style={[typography.bodyBold, { color: colors.text }]}>{getLocationName(user.location, language)}</Text>

@@ -2,21 +2,25 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
+import { ChoiceRow } from '@/components/ChoiceRow';
 import { ONBOARDING_STEPS, OnboardingDots } from '@/components/OnboardingDots';
-import { chooseGender, setTaharahTracking } from '@/stores/taharahOptIn';
+import { chooseGender, chooseMaritalStatus, setTaharahTracking, taharahOffered } from '@/stores/taharahOptIn';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 
 const GENDERS = ['male', 'female'] as const;
+const MARITAL_STATUSES = ['married', 'single'] as const;
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
   const { t } = useI18n();
   const router = useRouter();
   const gender = useUserStore((s) => s.gender);
+  const maritalStatus = useUserStore((s) => s.maritalStatus);
   const taharahEnabled = useUserStore((s) => s.taharahEnabled);
+  const complete = gender !== null && maritalStatus !== null;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
@@ -24,33 +28,27 @@ export default function ProfileScreen() {
       <Text style={[typography.title, { color: colors.text }]}>{t('onboarding.profileTitle')}</Text>
       <Text style={[typography.body, { color: colors.textSub, marginTop: 4 }]}>{t('onboarding.profileBody')}</Text>
       <ScrollView contentContainerStyle={styles.list}>
-        {GENDERS.map((option) => {
-          const isSelected = gender === option;
-          return (
-            <Pressable
-              key={option}
-              onPress={() => chooseGender(option)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isSelected }}
-              style={[
-                styles.option,
-                {
-                  borderColor: isSelected ? colors.gold : colors.border,
-                  backgroundColor: isSelected ? colors.goldLight : colors.surface,
-                },
-              ]}
-            >
-              <Text style={[typography.bodyBold, { color: isSelected ? colors.gold : colors.text }]}>{t(`profile.gender.${option}`)}</Text>
-              {isSelected ? (
-                <View style={[styles.tick, { backgroundColor: colors.gold }]}>
-                  <Text style={[typography.micro, { color: colors.onGold }]}>✓</Text>
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        })}
+        <Text style={[typography.captionBold, { color: colors.textSub }]}>{t('profile.gender')}</Text>
+        {GENDERS.map((option) => (
+          <ChoiceRow
+            key={option}
+            label={t(`profile.gender.${option}`)}
+            selected={gender === option}
+            onPress={() => chooseGender(option)}
+          />
+        ))}
 
-        {gender ? (
+        <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 10 }]}>{t('profile.maritalStatus')}</Text>
+        {MARITAL_STATUSES.map((option) => (
+          <ChoiceRow
+            key={option}
+            label={t(`profile.maritalStatus.${option}.${gender ?? 'neutral'}`)}
+            selected={maritalStatus === option}
+            onPress={() => chooseMaritalStatus(option)}
+          />
+        ))}
+
+        {taharahOffered({ gender, maritalStatus }) ? (
           <View style={[styles.card, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}>
             <Text style={[typography.subheading, { color: colors.text }]}>
               {t(gender === 'female' ? 'taharah.optIn.woman.title' : 'taharah.optIn.husband.title')}
@@ -74,9 +72,9 @@ export default function ProfileScreen() {
       <OnboardingDots step={1} total={ONBOARDING_STEPS} style={styles.dots} />
       <Pressable
         onPress={() => router.push('/onboarding/nusach')}
-        disabled={!gender}
+        disabled={!complete}
         accessibilityRole="button"
-        style={[styles.cta, { backgroundColor: colors.gold, opacity: gender ? 1 : 0.5 }]}
+        style={[styles.cta, { backgroundColor: colors.gold, opacity: complete ? 1 : 0.5 }]}
       >
         <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.continue')}</Text>
       </Pressable>
@@ -96,22 +94,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     gap: 8,
     flexGrow: 1,
-  },
-  option: {
-    borderRadius: 13,
-    borderWidth: 1.5,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  tick: {
-    width: 22,
-    height: 22,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   card: {
     borderRadius: 14,

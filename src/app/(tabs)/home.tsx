@@ -67,7 +67,7 @@ type LiveItem = {
 };
 
 const EMPTY_DAY_STATE = Object.freeze({}) as Record<string, number>;
-const TAHARAH_INTRO_KEY = 'taharah:intro-dismissed';
+const PROFILE_INTRO_KEY = 'profile:intro-dismissed';
 
 type Translate = (scope: string, options?: Record<string, unknown>) => string;
 type TaharahCardData = { title: string; caption: string; concealed: boolean };
@@ -136,6 +136,7 @@ export default function HomeScreen() {
   const inIsrael = useUserStore((s) => s.inIsrael);
   const isOnboarded = useUserStore((s) => s.isOnboarded);
   const gender = useUserStore((s) => s.gender);
+  const maritalStatus = useUserStore((s) => s.maritalStatus);
   const taharahEnabled = useUserStore((s) => s.taharahEnabled);
   const taharahEvents = useTaharahStore((s) => s.events);
   const taharahSettings = useTaharahStore((s) => s.settings);
@@ -153,7 +154,7 @@ export default function HomeScreen() {
   const tickedAt = useNow();
   const [stampingId, setStampingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [introDismissed, setIntroDismissed] = useState(() => StorageService.get<boolean>(TAHARAH_INTRO_KEY) === true);
+  const [introDismissed, setIntroDismissed] = useState(() => StorageService.get<boolean>(PROFILE_INTRO_KEY) === true);
   const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { current, missed, completed, nextUp, totalActive, doneCount, hebrewTitle, subtitle, zmanimUnavailable, checkIn, taharahCard } = useMemo(() => {
@@ -286,8 +287,8 @@ export default function HomeScreen() {
     await CompletionService.unmark(id).catch(() => {});
   };
 
-  const openTaharahIntro = () => {
-    StorageService.set(TAHARAH_INTRO_KEY, true);
+  const openProfileIntro = () => {
+    StorageService.set(PROFILE_INTRO_KEY, true);
     setIntroDismissed(true);
     router.push('/(tabs)/settings');
   };
@@ -392,12 +393,12 @@ export default function HomeScreen() {
             onPress={() => Updates.reloadAsync().catch(() => {})}
           />
         ) : null}
-        {isOnboarded && gender === null && !introDismissed ? (
+        {isOnboarded && (gender === null || maritalStatus === null) && !introDismissed ? (
           <Banner
-            text={t('taharah.home.intro')}
+            text={t('home.completeProfile')}
             color={colors.gold}
             background={colors.goldLight}
-            onPress={openTaharahIntro}
+            onPress={openProfileIntro}
           />
         ) : null}
 

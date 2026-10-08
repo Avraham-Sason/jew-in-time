@@ -3,7 +3,7 @@ jest.mock('react-native-mmkv', () => {
   return { MMKV: jest.fn(() => createMockMMKV()) };
 });
 
-import { chooseGender, chooseNusach, setTaharahTracking } from '../taharahOptIn';
+import { chooseGender, chooseMaritalStatus, chooseNusach, setTaharahTracking, taharahOffered } from '../taharahOptIn';
 import { useTaharahStore } from '../useTaharahStore';
 import { useUserStore } from '../useUserStore';
 import { rulesFor } from '@/data/taharahPresets';
@@ -40,9 +40,61 @@ describe('taharahOptIn', () => {
     });
   });
 
+  describe('taharahOffered', () => {
+    it('is offered only to a married user who answered the gender question', () => {
+      expect(taharahOffered({ gender: 'female', maritalStatus: 'married' })).toBe(true);
+      expect(taharahOffered({ gender: 'male', maritalStatus: 'married' })).toBe(true);
+      expect(taharahOffered({ gender: null, maritalStatus: 'married' })).toBe(false);
+      expect(taharahOffered({ gender: 'female', maritalStatus: 'single' })).toBe(false);
+      expect(taharahOffered({ gender: 'female', maritalStatus: null })).toBe(false);
+      expect(taharahOffered({ gender: null, maritalStatus: null })).toBe(false);
+    });
+  });
+
+  describe('chooseMaritalStatus', () => {
+    it('stores the status', () => {
+      chooseMaritalStatus('married');
+      expect(user().maritalStatus).toBe('married');
+
+      chooseMaritalStatus('single');
+      expect(user().maritalStatus).toBe('single');
+    });
+
+    it('choosing single while tracking is on switches tracking off and keeps the taharah log', () => {
+      user().setGender('female');
+      user().setMaritalStatus('married');
+      setTaharahTracking(true);
+      taharah().addEvent({ type: 'onset', onah: { abs: 740000, kind: 'night' } });
+      taharah().setRule('ohrZarua', true);
+      expect(user().taharahEnabled).toBe(true);
+
+      chooseMaritalStatus('single');
+
+      expect(user().taharahEnabled).toBe(false);
+      expect(user().maritalStatus).toBe('single');
+      expect(taharah().events.length).toBe(1);
+      expect(taharah().settings.rules.ohrZarua).toBe(true);
+      expect(taharah().settings.role).toBe('woman');
+    });
+
+    it('choosing married leaves tracking as it is', () => {
+      user().setGender('female');
+      user().setMaritalStatus('married');
+      setTaharahTracking(true);
+
+      chooseMaritalStatus('married');
+      expect(user().taharahEnabled).toBe(true);
+
+      setTaharahTracking(false);
+      chooseMaritalStatus('married');
+      expect(user().taharahEnabled).toBe(false);
+    });
+  });
+
   describe('setTaharahTracking', () => {
     it('switching on sets the role from the gender and the preset from the nusach', () => {
       user().setGender('male');
+      user().setMaritalStatus('married');
       user().setNusach('sefard');
 
       setTaharahTracking(true);
@@ -55,6 +107,7 @@ describe('taharahOptIn', () => {
 
     it('switching on as a woman with the default nusach keeps ashkenaz', () => {
       user().setGender('female');
+      user().setMaritalStatus('married');
 
       setTaharahTracking(true);
 
@@ -66,6 +119,7 @@ describe('taharahOptIn', () => {
       taharah().setPreset('chabad');
       taharah().addEvent({ type: 'onset', onah: { abs: 740000, kind: 'night' } });
       user().setGender('female');
+      user().setMaritalStatus('married');
       user().setNusach('edot_hamizrach');
 
       setTaharahTracking(true);
@@ -74,17 +128,24 @@ describe('taharahOptIn', () => {
       expect(taharah().settings.role).toBe('woman');
     });
 
-    it('switching on without a gender only enables the flag', () => {
+    it.each([
+      ['no marital status', 'female', null],
+      ['a single status', 'female', 'single'],
+      ['no gender', null, 'married'],
+    ] as const)('switching on is ignored with %s', (_label, gender, maritalStatus) => {
+      user().setGender(gender);
+      user().setMaritalStatus(maritalStatus);
       user().setNusach('chabad');
 
       setTaharahTracking(true);
 
-      expect(user().taharahEnabled).toBe(true);
+      expect(user().taharahEnabled).toBe(false);
       expect(taharah().settings).toEqual(useTaharahStore.getInitialState().settings);
     });
 
     it('switching off touches only the user store', () => {
       user().setGender('female');
+      user().setMaritalStatus('married');
       setTaharahTracking(true);
       taharah().setRole('husband');
 
@@ -92,6 +153,14 @@ describe('taharahOptIn', () => {
 
       expect(user().taharahEnabled).toBe(false);
       expect(taharah().settings.role).toBe('husband');
+    });
+
+    it('switching off is never ignored', () => {
+      user().setTaharahEnabled(true);
+
+      setTaharahTracking(false);
+
+      expect(user().taharahEnabled).toBe(false);
     });
   });
 

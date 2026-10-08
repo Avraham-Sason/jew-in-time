@@ -11,6 +11,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export type Language = 'he' | 'en';
 export type NotificationPermissionStatus = 'unknown' | 'granted' | 'denied';
 export type Gender = 'male' | 'female';
+export type MaritalStatus = 'married' | 'single';
 
 export const SIDDUR_FONT_SIZES = [18, 20, 22, 25, 28, 32] as const;
 const DEFAULT_SIDDUR_FONT_SIZE = 22;
@@ -31,6 +32,7 @@ type UserState = {
   isOnboarded: boolean;
   siddurFontSize: number;
   gender: Gender | null;
+  maritalStatus: MaritalStatus | null;
   taharahEnabled: boolean;
   setNusach: (n: Nusach) => void;
   setLocation: (l: Location) => void;
@@ -47,11 +49,21 @@ type UserState = {
   setOnboarded: (v: boolean) => void;
   setSiddurFontSize: (size: number) => void;
   setGender: (g: Gender | null) => void;
+  setMaritalStatus: (m: MaritalStatus | null) => void;
   setTaharahEnabled: (v: boolean) => void;
   reset: () => void;
 };
 
+type PersistedUserState = Partial<Pick<UserState, 'taharahEnabled' | 'maritalStatus'>>;
+
 const DEFAULT_LOCATION = CITIES[0];
+
+const mergeWithInferredMaritalStatus = (persisted: unknown, current: UserState): UserState => {
+  const saved = (persisted ?? {}) as PersistedUserState;
+  const merged = { ...current, ...saved };
+  if (merged.taharahEnabled && merged.maritalStatus == null) merged.maritalStatus = 'married';
+  return merged;
+};
 
 export const useUserStore = create<UserState>()(
   persist(
@@ -71,6 +83,7 @@ export const useUserStore = create<UserState>()(
       isOnboarded: false,
       siddurFontSize: DEFAULT_SIDDUR_FONT_SIZE,
       gender: null,
+      maritalStatus: null,
       taharahEnabled: false,
       setNusach: (n) => set({ nusach: n }),
       setLocation: (l) => set({ location: l, inIsrael: l.inIsrael }),
@@ -89,6 +102,7 @@ export const useUserStore = create<UserState>()(
       setOnboarded: (v) => set({ isOnboarded: v }),
       setSiddurFontSize: (size) => set({ siddurFontSize: size }),
       setGender: (g) => set({ gender: g }),
+      setMaritalStatus: (m) => set({ maritalStatus: m }),
       setTaharahEnabled: (v) => set({ taharahEnabled: v }),
       reset: () =>
         set({
@@ -107,6 +121,7 @@ export const useUserStore = create<UserState>()(
           isOnboarded: false,
           siddurFontSize: DEFAULT_SIDDUR_FONT_SIZE,
           gender: null,
+          maritalStatus: null,
           taharahEnabled: false,
         }),
     }),
@@ -114,6 +129,7 @@ export const useUserStore = create<UserState>()(
       name: 'user-store',
       storage: createJSONStorage(() => createZustandStorage()),
       version: STORE_VERSION,
+      merge: mergeWithInferredMaritalStatus,
       onRehydrateStorage: onRehydrateStorage('user-store'),
     },
   ),
