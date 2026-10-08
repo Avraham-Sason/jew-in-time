@@ -402,6 +402,28 @@ export default function HomeScreen() {
           />
         ) : null}
 
+        <Pressable
+          onPress={() => router.push('/siddur')}
+          accessibilityRole="button"
+          accessibilityLabel={t('siddur.catalog.open')}
+          style={({ pressed }) => [
+            styles.siddurRow,
+            { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+            shadowStyle(colors.shadow, shadowPresets.cardSoft),
+          ]}
+        >
+          <View style={[styles.siddurIcon, { backgroundColor: colors.goldLight }]}>
+            <Text style={{ fontSize: 15, color: colors.gold }}>✦</Text>
+          </View>
+          <View style={styles.siddurMeta}>
+            <Text style={[typography.bodyBold, { color: colors.text }]}>{t('siddur.catalog.title')}</Text>
+            <Text style={[typography.small, { color: colors.textMuted }]} numberOfLines={1}>
+              {t('siddur.catalog.caption')}
+            </Text>
+          </View>
+          <Text style={[typography.bodyBold, { color: colors.textMuted }]}>{language === 'he' ? '‹' : '›'}</Text>
+        </Pressable>
+
         {taharahCard ? (
           <Pressable
             onPress={() => router.push('/taharah')}
@@ -627,6 +649,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
     marginBottom: 14,
+  },
+  siddurRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  siddurIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  siddurMeta: {
+    flex: 1,
+    minWidth: 0,
   },
   sectionLabel: {
     marginTop: 6,

@@ -88,6 +88,38 @@ describe('HebcalService', () => {
     expect(HebcalService.getHebrewDate(new Date(2026, 3, 9)).hebrewDateStr).toBe(before.hebrewDateStr);
   });
 
+  it('2.5f hebrewDayAt gives the same day as an HDate: the next one from shkia on, bein hashmashot included', () => {
+    const day = noonOn('2026-04-09');
+    const { shkia, tzeitHakochavim } = zmanimFor(day, JERUSALEM);
+    const daytime = HebcalService.hebrewDayAt(day, JERUSALEM);
+    expect(daytime.getDate()).toBe(HebcalService.getHebrewDateAt(day, JERUSALEM).day);
+    expect(HebcalService.hebrewDayAt(minutesFrom(shkia, -1), JERUSALEM).abs()).toBe(daytime.abs());
+    expect(HebcalService.hebrewDayAt(minutesFrom(shkia, 1), JERUSALEM).abs()).toBe(daytime.abs() + 1);
+    expect(HebcalService.hebrewDayAt(minutesFrom(tzeitHakochavim, 1), JERUSALEM).abs()).toBe(daytime.abs() + 1);
+  });
+
+  it('2.5g hebrewNightAt gives the night still running before dawn, and tonight from dawn on', () => {
+    const day = noonOn('2026-04-09');
+    const { alotHaShachar, shkia } = zmanimFor(day, JERUSALEM);
+    const daytime = HebcalService.hebrewDayAt(day, JERUSALEM).abs();
+    expect(HebcalService.hebrewNightAt(minutesFrom(alotHaShachar, -1), JERUSALEM).abs()).toBe(daytime);
+    expect(HebcalService.hebrewNightAt(minutesFrom(alotHaShachar, 1), JERUSALEM).abs()).toBe(daytime + 1);
+    expect(HebcalService.hebrewNightAt(day, JERUSALEM).abs()).toBe(daytime + 1);
+    expect(HebcalService.hebrewNightAt(minutesFrom(shkia, 30), JERUSALEM).abs()).toBe(daytime + 1);
+  });
+
+  it('2.5h hebrewNightAt gives Sydney and Auckland tonight in the afternoon, not the night after', () => {
+    for (const place of [
+      { name: 'Sydney', lat: -33.8688, lng: 151.2093, tz: 'Australia/Sydney', inIsrael: false },
+      { name: 'Auckland', lat: -36.8485, lng: 174.7633, tz: 'Pacific/Auckland', inIsrael: false },
+    ]) {
+      const afternoon = at(place, '2026-12-04T15:00');
+      const today = HebcalService.hebrewDayAt(afternoon, place);
+      expect(today.render('en')).toMatch(/^24th of Kislev/);
+      expect(HebcalService.hebrewNightAt(afternoon, place).abs()).toBe(today.abs() + 1);
+    }
+  });
+
   it('2.5e isShabbat keeps its shkia-in / tzeit-out boundaries', () => {
     const friday = noonOn('2026-04-24');
     const saturday = noonOn('2026-04-25');

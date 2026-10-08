@@ -78,6 +78,12 @@ const SOURCES = {
     version: 'Daat Siddur Ashkenaz',
     credit: { title: 'Siddur Ashkenaz — Daat Siddur Ashkenaz', license: 'Public Domain', url: `${SEFARIA}/Siddur_Ashkenaz` },
   },
+  communityAshkenazEn: {
+    title: 'Siddur Ashkenaz',
+    lang: 'en',
+    version: 'Sefaria Community Translation',
+    credit: { title: 'Siddur Ashkenaz — Sefaria Community Translation', license: 'CC0', url: `${SEFARIA}/Siddur_Ashkenaz` },
+  },
   toratEmetSefardHe: {
     title: 'Siddur Sefard',
     lang: 'he',
@@ -213,6 +219,67 @@ const T = {
   megillah: { he: 'קריאת המגילה', en: 'Reading of the Megillah' },
   festivalPsalm: { he: 'מזמור לחג', en: 'Psalm of the Festival' },
   sixRemembrances: { he: 'שש זכירות', en: 'Six Remembrances' },
+  beforeBirkat: { he: 'לפני ברכת המזון', en: 'Before Grace' },
+  zimun: { he: 'זימון', en: 'Zimun' },
+  zimunShevaBerachot: { he: 'זימון בסעודת שבע ברכות', en: 'Zimun at a Sheva Berachot Meal' },
+  shevaBerachot: { he: 'שבע ברכות', en: 'Sheva Berachot' },
+  birkatHamazon: { he: 'ברכת המזון', en: 'Grace After Meals' },
+  harachaman: { he: 'הרחמן', en: 'Harachaman' },
+  forgotYaalehVeyavo: { he: 'אם שכח יעלה ויבוא', en: 'If Yaaleh Veyavo Was Forgotten' },
+  alHamichya: { he: 'ברכה מעין שלוש', en: "Me'ein Shalosh" },
+  boreiNefashot: { he: 'בורא נפשות', en: 'Borei Nefashot' },
+  tefilatHaderech: { he: 'תפילת הדרך', en: "The Traveler's Prayer" },
+  derechVerses: { he: 'פסוקים לשמירה בדרך', en: 'Verses for Protection on the Way' },
+  enteringCity: { he: 'בכניסה לעיר וביציאה ממנה', en: 'Entering and Leaving a City' },
+  seaPrayer: { he: 'תפילה לעוברי ימים ונהרות', en: 'Prayer for Travel by Sea or River' },
+  airPrayer: { he: 'תפילת הדרך לטסים', en: 'Prayer for Air Travel' },
+  mezuzah: { he: 'קביעת מזוזה', en: 'Affixing a Mezuzah' },
+  handWashing: { he: 'נטילת ידיים לסעודה', en: 'Washing Hands Before Bread' },
+  hamotzi: { he: 'המוציא', en: 'Over Bread' },
+  mezonot: { he: 'בורא מיני מזונות', en: 'Over Grain Foods' },
+  hagafen: { he: 'בורא פרי הגפן', en: 'Over Wine' },
+  haetz: { he: 'בורא פרי העץ', en: 'Over Tree Fruit' },
+  haadama: { he: 'בורא פרי האדמה', en: 'Over Produce of the Ground' },
+  shehakol: { he: 'שהכל נהיה בדברו', en: 'Over Other Foods and Drinks' },
+  fragrance: { he: 'ברכות הריח', en: 'Over Fragrances' },
+  shehecheyanu: { he: 'שהחיינו', en: 'Shehecheyanu' },
+  leshemYichud: { he: 'לשם יחוד', en: 'Leshem Yichud' },
+  ribbonoShelOlam: { he: 'רבונו של עולם', en: 'Ribbono Shel Olam' },
+  hamapil: { he: 'ברכת המפיל', en: 'Hamapil' },
+  hashkivenu: { he: 'השכיבנו', en: 'Hashkivenu' },
+  bedtimePsalms: { he: 'ויהי נועם ומזמורים', en: "Vihi No'am and Psalms" },
+  baruchHashemBayom: { he: 'ברוך ה׳ ביום ויראו עינינו', en: 'Baruch Hashem by Day and Yiru Eineinu' },
+  protectionVerses: { he: 'פסוקי שמירה', en: 'Verses of Protection' },
+  shirHamaalotRigzu: { he: 'שיר למעלות ורגזו', en: 'Song of Ascents and Rigzu' },
+  bedtimeVidui: { he: 'וידוי', en: 'Confession' },
+  fourDeaths: { he: 'קבלת ארבע מיתות בית דין', en: 'Accepting the Four Court Penalties' },
+  anaBekoach: { he: 'אנא בכח', en: 'Ana BeKoach' },
+  psalm51: { he: 'מזמור נא', en: 'Psalm 51' },
+  versesBeforeSleep: { he: 'פסוקים לפני השינה', en: 'Verses Before Sleep' },
+  ribonHaolamim: { he: 'רבון העולמים', en: 'Ribon Haolamim' },
+  beforeRelations: { he: 'לפני תשמיש המטה', en: 'Before Marital Relations' },
+  atahTakum: { he: 'אתה תקום ובידך אפקיד', en: 'Atah Takum and Beyadcha Afkid' },
+  lightningThunder: { he: 'ברק ורעם', en: 'Lightning and Thunder' },
+  rainbow: { he: 'הקשת', en: 'A Rainbow' },
+  sea: { he: 'הים הגדול', en: 'The Great Sea' },
+  trees: { he: 'ברכת האילנות', en: 'Trees in Blossom' },
+  praise: { he: 'ברכות שבח והודאה', en: 'Further Blessings of Praise' },
+  levanaOpening: { he: 'פתיחה', en: 'Opening' },
+  levanaBlessing: { he: 'ברכת הלבנה', en: 'Blessing of the Moon' },
+  levanaPsalms: { he: 'פסוקים ומזמורים', en: 'Verses and Psalms' },
+  kaddishDerabbanan: { he: 'קדיש דרבנן', en: 'Kaddish DeRabbanan' },
+  levanaEnding: { he: 'סיום', en: 'Conclusion' },
+  chanukahPlacement: { he: 'הנחת הנרות', en: 'Placing the Candles' },
+  chanukahBlessings: { he: 'ברכות הדלקת נרות חנוכה', en: 'Blessings for Lighting the Chanukah Candles' },
+  hanerotHallalu: { he: 'הנרות הללו', en: 'Hanerot Hallalu' },
+  maozTzur: { he: 'מעוז צור', en: 'Maoz Tzur' },
+  psalm30: { he: 'מזמור שיר חנוכת הבית', en: 'Psalm 30: Dedication of the House' },
+  psalm33: { he: 'מזמור לג', en: 'Psalm 33' },
+  psalm67: { he: 'מזמור סז', en: 'Psalm 67' },
+  psalm111: { he: 'מזמור קיא', en: 'Psalm 111' },
+  psalm112: { he: 'מזמור קיב', en: 'Psalm 112' },
+  psalm133: { he: 'מזמור קלג', en: 'Psalm 133' },
+  vihiNoamYoshev: { he: 'ויהי נועם ויושב בסתר', en: "Vihi No'am and Yoshev BeSeter" },
 };
 
 const NOT_TISHA_BAV = { none: ['tishaBav'] };
@@ -242,6 +309,9 @@ const HAVDALAH_WEEKDAY_YOM_KIPPUR_NOTE = {
 };
 const NOT_FASTING_BAREFOOT = { none: ['tishaBav', 'yomKippur'] };
 const SHEHECHEYANU = { all: ['shehecheyanu'] };
+const CHANUKAH_FIRST_NIGHT = { all: ['chanukahFirstNight'] };
+const onChanukahFirstNight = (note) => `<if all="chanukahFirstNight">${note}</if>`;
+const afterChanukahFirstNight = (note) => `<if none="chanukahFirstNight">${note}</if>`;
 
 function each(from, to, condition) {
   const map = {};
@@ -261,6 +331,19 @@ const FAST_NOT_AYT = { all: ['publicFast'], none: [AYT] };
 const NOT_FAST = { none: ['publicFast'] };
 const YAALEH_VEYAVO = { any: ['roshChodesh', 'cholHamoedPesach', 'cholHamoedSukkot'] };
 const AL_HANISSIM = { any: ['chanukah', 'purim'] };
+// A meal begun before sunset keeps yesterday's insert: the day after carries it folded, under a label
+// naming the circumstance, and the day itself shows it open.
+const YAALEH_VEYAVO_YESTERDAY = { any: ['roshChodeshYesterday', 'cholHamoedPesachYesterday', 'cholHamoedSukkotYesterday'] };
+const YAALEH_VEYAVO_OR_YESTERDAY = { any: [...YAALEH_VEYAVO.any, ...YAALEH_VEYAVO_YESTERDAY.any] };
+const ROSH_CHODESH_OR_YESTERDAY = { any: ['roshChodesh', 'roshChodeshYesterday'] };
+const CHOL_HAMOED_PESACH_OR_YESTERDAY = { any: ['cholHamoedPesach', 'cholHamoedPesachYesterday'] };
+const CHOL_HAMOED_SUKKOT_OR_YESTERDAY = { any: ['cholHamoedSukkot', 'cholHamoedSukkotYesterday'] };
+const CHOL_HAMOED_OR_YESTERDAY = { any: [...CHOL_HAMOED_PESACH_OR_YESTERDAY.any, ...CHOL_HAMOED_SUKKOT_OR_YESTERDAY.any] };
+const AL_HANISSIM_YESTERDAY = { any: ['chanukahYesterday', 'purimYesterday'] };
+const AL_HANISSIM_OR_YESTERDAY = { any: [...AL_HANISSIM.any, ...AL_HANISSIM_YESTERDAY.any] };
+const CHANUKAH_OR_YESTERDAY = { any: ['chanukah', 'chanukahYesterday'] };
+const PURIM_OR_YESTERDAY = { any: ['purim', 'purimYesterday'] };
+const anyOf = (condition) => condition.any.join(',');
 const CHANUKAH = { all: ['chanukah'] };
 const PURIM = { all: ['purim'] };
 const TISHA_BAV = { all: ['tishaBav'] };
@@ -279,6 +362,7 @@ const CHOL_HAMOED_PESACH = { all: ['cholHamoedPesach'] };
 const CHOL_HAMOED_SUKKOT = { all: ['cholHamoedSukkot'] };
 const TACHANUN_SHACHARIT = { all: ['tachanunShacharit'] };
 const NO_TACHANUN_SHACHARIT = { none: ['tachanunShacharit'] };
+const BEDTIME_NOT_HOLY_NIGHT = { none: ['shabbat', 'yomTov', 'yomKippur'] };
 const LONG_TACHANUN = { all: ['tachanunShacharit'], any: ['monday', 'thursday'] };
 const SHACHARIT_AVINU_MALKEINU = { any: [AYT, 'publicFast'], all: ['tachanunShacharit'] };
 const TORAH_READING = { all: ['torahReading'] };
@@ -364,6 +448,16 @@ const NOTES = {
     en: 'Some communities do not say Tachanun today.',
     when: { all: ['tachanunShacharit', 'tachanunDisputed'] },
   },
+  tachanunDisputedBedtime: {
+    he: '<small>יש קהילות שאינן אומרות תחנון בבוקר.</small>',
+    en: 'Some communities do not say Tachanun in the morning.',
+    when: { all: ['tachanunShacharit', 'tachanunDisputed'] },
+  },
+  viduiMotzaeiShabbat: {
+    he: '<small>במוצאי שבת נוהגים שלא לומר וידוי עד חצות הלילה.</small>',
+    en: 'On the night after Shabbat, the confession is customarily not said until midnight.',
+    when: { all: ['motzaeiShabbat'] },
+  },
   halfKaddishAfterReading: {
     he: '<small>אחר קריאת התורה אומר הש"ץ חצי קדיש.</small>',
     en: 'After the Torah reading, the chazzan says Half Kaddish.',
@@ -398,6 +492,20 @@ const NOTES = {
     en: "On Tisha B'Av, kinot are recited according to the custom of the community.",
     when: TISHA_BAV,
   },
+  levanaTiming: {
+    he: '<small>יש מקדשים את הלבנה מליל ג׳ למולד ויש הממתינים עד שיעברו שבעה ימים, ואין מקדשים אחר חצי החודש.</small>',
+    en: 'Some say Kiddush Levana from the third night after the molad and some wait seven days; it is not said after the middle of the month.',
+  },
+  levanaTishrei: {
+    he: '<small>בחודש תשרי נוהגים לקדש את הלבנה במוצאי יום הכיפורים.</small>',
+    en: 'In Tishrei the custom is to say it after Yom Kippur.',
+    when: { all: ['aseretYemeiTeshuva'] },
+  },
+  levanaAv: {
+    he: '<small>בחודש אב נוהגים לקדש את הלבנה אחר תשעה באב.</small>',
+    en: "In Av the custom is to say it after Tisha B'Av.",
+    when: { all: ['avBeforeTishaBav'] },
+  },
 };
 
 const SAID_BY = {
@@ -411,10 +519,31 @@ const SAID_BY = {
   birkatKohanim: { he: 'ברכת כהנים — רק בחזרת הש״ץ', en: "The Priestly Blessing — only in the chazzan's repetition" },
   aneinu: { he: 'עננו — שליח הציבור אומר בחזרת הש״ץ', en: "Aneinu — said by the chazzan in the repetition" },
   withMinyan: { he: 'נאמר רק במניין', en: 'Said only with a minyan' },
+  mezamen: { he: 'המזמן אומר', en: 'The leader says' },
+  diners: { he: 'המסובים עונים', en: 'The others respond' },
+  didNotEat: { he: 'מי שלא אכל עונה', en: 'One who did not eat responds' },
 };
 
 const WHEN_SAID = {
   mournersHouse: { he: 'בבית האבל אומרים', en: 'Said in a house of mourning' },
+  mealBeganYaalehVeyavo: {
+    he: 'אם התחילו לאכול לפני השקיעה בראש חודש או בחול המועד',
+    en: 'If the meal began before sunset on Rosh Chodesh or Chol Hamoed',
+    when: YAALEH_VEYAVO_YESTERDAY,
+  },
+  mealBeganAlHanissim: {
+    he: 'אם התחילו לאכול לפני השקיעה בחנוכה או בפורים',
+    en: 'If the meal began before sunset on Chanukah or Purim',
+    when: AL_HANISSIM_YESTERDAY,
+  },
+  forgotYaalehVeyavo: {
+    he: 'אם שכח יעלה ויבוא ונזכר לפני ברכת "הטוב והמטיב"',
+    en: 'If one forgot Yaaleh Veyavo and remembered before the fourth blessing',
+  },
+  shevaBerachotMeal: { he: 'בסעודת שבע ברכות', en: 'At a sheva berachot meal' },
+  enteringCity: { he: 'בכניסה לעיר וביציאה ממנה', en: 'When entering and leaving a city' },
+  seaTravel: { he: 'לעוברי ימים ונהרות', en: 'For travel by sea or river' },
+  airTravel: { he: 'לטסים במטוס', en: 'For air travel' },
   tefillinInterruption: {
     he: 'אם הפסיק בין תפילין של יד לתפילין של ראש',
     en: 'Only if one interrupted between the hand and head tefillin',
@@ -426,6 +555,11 @@ const WHEN_SAID = {
   women: { he: 'נשים אומרות', en: 'Said by women' },
   noKohanim: { he: 'כשאין כהנים נושאים כפיים, שליח הציבור אומר', en: 'When no kohanim bless the congregation, the chazzan says' },
   kohanimBless: { he: 'כשהכהנים נושאים כפיים, הקהל אומר', en: 'Said by the congregation when the kohanim bless it' },
+  bedtimeVehaya: {
+    he: 'מי שלא קרא קריאת שמע בזמנה, ויש נוהגים בכל לילה: גם פרשת "והיה אם שמוע"',
+    en: 'For one who did not recite the Shema on time, and by some custom every night: also the paragraph "Vehaya Im Shamoa"',
+  },
+  maritalRelations: { he: 'בלילה שיש בו תשמיש המטה', en: 'On a night of marital relations' },
 };
 const NO_KOHANIM_IN_ISRAEL = { ...WHEN_SAID.noKohanim, when: IN_ISRAEL };
 const SEFARD_SHOMEA_TEFILLAH_CLOSING = 'כִּי אַתָּה שׁוֹמֵֽעַ תְּפִלַּת כָּל פֶּה עַמְּ֒ךָ יִשְׂרָאֵל בְּרַחֲמִים: בָּרוּךְ אַתָּה יְהֹוָה שׁוֹמֵֽעַ תְּפִלָּה:';
@@ -439,6 +573,8 @@ const RAVS_PRAYER_NOTE ='יש אומרים תפילת רב מגמרה ברכות
 
 const SOME_SAY = {
   hallel: { he: 'יש נוהגים לומר הלל היום', en: 'Some say Hallel today', when: { all: ['hallelDisputed'] } },
+  baruchHu: { he: 'ויש המוסיפים', en: 'Some add' },
+  derechVerses: { he: 'ויש מוסיפים פסוקים אלה לשמירה', en: 'Some add these verses for protection' },
   einKelokeinu: { he: 'יש נוהגים בארץ ישראל לומר אין כאלהינו', en: 'In the Land of Israel, some say Ein Keloheinu' },
   shirLamaalot: { he: 'יש נוהגים בארץ ישראל לומר שיר למעלות', en: 'In the Land of Israel, some say Shir LaMaalot' },
   forTheSick: { he: 'מי שרוצה מתפלל כאן על חולה', en: 'A prayer for the sick, for whoever wishes' },
@@ -458,11 +594,19 @@ const SOME_SAY = {
   },
   vidui: { he: 'יש נוהגים לומר וידוי וי״ג מידות', en: 'Some say the Confession and the Thirteen Attributes' },
   ledavid: { he: 'יש נוהגים לומר "לדוד ה׳ אורי"', en: 'Some say LeDavid Hashem Ori' },
+  handWashingIntention: { he: 'יש אומרים לשם יחוד ותפילה לפני נטילת ידיים', en: 'Some say a Leshem Yichud and a prayer before washing hands' },
+  hamotziVerses: { he: 'יש נוהגים לומר "עיני כל" לפני ברכת המוציא', en: 'Some say "Einei Kol" before the blessing over bread' },
+  bedtimeVayomer: {
+    he: 'יש נוהגים בכל לילה לומר גם פרשת "ויאמר"',
+    en: 'By some custom, the paragraph "Vayomer" is also said every night',
+  },
+  afterKaddishLevana: { he: 'יש אומרים אחר הקדיש "והיה אור הלבנה"', en: 'After the Kaddish, some say "Vehaya Or HaLevana"' },
 };
 
 const SEFARD_OMER_NIGHT_NOTE = { seg: 64, from: '(השייכת לאותו הלילה)', to: '(<small>השייכת לאותו הלילה</small>)' };
 const EDOT_THREE_FASTS_ANEINU = { any: ['tzomGedaliah', 'asaraBTevet', 'tzomTammuz'] };
 const EDOT_SANSAN_LEYAIR = { from: 'סנסן ליעיר', to: 'סנסן ליאיר' };
+const METSUDAH_BETZELEM_DAGESH = { from: '\u05D1\u05B0\u05BC\u05E6\u05B6\u05BC\u05BD\u05DC\u05B6\u05DD', to: '\u05D1\u05B0\u05BC\u05E6\u05B6\u05BD\u05DC\u05B6\u05DD' };
 const EDOT_MODIM_DERABBANAN_HEADING = { from: 'מודים דרבנן <br><small>בחזרת הש"ץ כשהחזן אומר מודים, הקהל אומרים:</small><br>', to: '' };
 const EDOT_MUSAF_MODIM_DERABBANAN_HEADING = {
   from: '<small><b>מודים דרבנן</b></small><br><small>בחזרת הש"ץ כשהחזן אומר מודים, הקהל אומרים:</small><br>',
@@ -830,10 +974,54 @@ function linearHavdalah({ transform, versesNote } = {}) {
   ];
 }
 
+// Daat prints the divine name as a bare "יי" or as "יְ‑יָ" with a non-breaking hyphen, and Elokim
+// with the same hyphen.
+function daatName(html) {
+  return ashkenazName(html.replace(/יְ‑יָ/g, 'יְיָ').replace(/אֱ‑לֹהֵינוּ/g, 'אֱלֹהֵינוּ').replace(/(^|[\s(])יי(?=[\s:,.)])/g, '$1יְהֹוָה'));
+}
+
+const DAAT = { he: 'daatAshkenazHe', en: 'communityAshkenazEn', transform: daatName };
+const TORAT_EMET = { he: 'toratEmetSefardHe' };
+
+// The Israel / diaspora ending of Me'ein Shalosh, as each source prints it.
+const daatIsraelEnding = rule(
+  'Daat Israel ending',
+  /(וְעַל [^()<]+?) \(<small>בחו"ל<\/small>—([^)]+)\)/g,
+  (_, israel, abroad) => `<if all="inIsrael">${israel}</if><if none="inIsrael">${abroad}</if>`,
+);
+const toratEmetIsraelEnding = rule(
+  'Torat Emet Israel ending',
+  /(וְעַל (?:פְּרִי הַגָּפֶן|הַפֵּרוֹת)): <small>\( <small>בא"י<\/small> ([^)]+)\)<\/small>:/g,
+  (_, abroad, israel) => `<if none="inIsrael">${abroad}:</if><if all="inIsrael">${israel}:</if>`,
+);
+const edotIsraelEnding = rule(
+  'Edot Israel ending',
+  /([^<>]+?)\s*<small><small>של ארץ ישראל\s*<\/small>\s*([^<]+?)<\/small>/g,
+  (_, abroad, israel) => `<if none="inIsrael">${abroad}</if><if all="inIsrael">${israel}</if>`,
+);
+
+const MIGDOL_NOTE = '(<small>בשבת וביו"ט אומר:</small> מִגְדּוֹל יְשׁוּעוֹת מַלְכּוֹ)';
+const noteBefore = (note, lead) => ({ from: lead, to: `<small>${note}</small> ${lead}` });
+
+function yaalehVeyavoDay(roshChodesh, pesach, sukkot) {
+  return (
+    `<if any="${anyOf(ROSH_CHODESH_OR_YESTERDAY)}">${roshChodesh}</if>` +
+    `<if any="${anyOf(CHOL_HAMOED_PESACH_OR_YESTERDAY)}">${pesach}</if>` +
+    `<if any="${anyOf(CHOL_HAMOED_SUKKOT_OR_YESTERDAY)}">${sukkot}</if>`
+  );
+}
+
 const ASHKENAZ = { he: 'metsudahAshkenazHe', en: 'metsudahAshkenazEn' };
 const ashkenazPrep = (node) => `Weekday > Shacharit > Preparatory Prayers > ${node}`;
 const SEFARD = { he: 'metsudahSefardHe', en: 'metsudahSefardEn' };
 const EDOT = { he: 'edotHe', en: 'edotEn' };
+// The community English of Edot's Asher Yatzar timing note translates a different instruction (wash
+// after every visit) than the Hebrew (bless within half an hour), so the note ships Hebrew-only.
+const EDOT_ASHER_YATZAR_NOTE_EN = {
+  seg: 3,
+  from: 'Every time a person goes to the bathroom, they should afterwards [wash hands] and say the Asher Yatzar blessing:',
+  to: '',
+};
 const CHABAD = { he: 'chabadHe', en: 'chabadEn' };
 
 const TEXTS = {
@@ -1036,6 +1224,159 @@ const TEXTS = {
     sefard: sefardMaariv(),
     edot_hamizrach: edotMaariv(),
     chabad: chabadMaariv(),
+  },
+  birkat_hamazon: {
+    ashkenaz: ashkenazBirkatHamazon(),
+    sefard: sefardBirkatHamazon(),
+    edot_hamizrach: edotBirkatHamazon(),
+    chabad: chabadBirkatHamazon(),
+  },
+  al_hamichya: {
+    ashkenaz: ashkenazAlHamichya(),
+    sefard: sefardAlHamichya(),
+    edot_hamizrach: edotAlHamichya(),
+    chabad: chabadAlHamichya(),
+  },
+  borei_nefashot: {
+    ashkenaz: [
+      {
+        ...DAAT,
+        title: T.boreiNefashot,
+        path: 'Berachot > Birkat Hanehenin > Eating > Brachot Achronot > Borei Nefashot',
+        edits: [
+          { seg: 0, from: 'על פירות האילן', to: '<small>על פירות האילן' },
+          { seg: 0, from: 'גידולו מן הארץ', to: 'גידולו מן הארץ</small>' },
+          { seg: 2, from: 'אחרי האכילה אומר:', to: '<small>אחרי האכילה אומר:</small>' },
+          { seg: 4, from: ' <em><small>חַי</small></em>', to: '' },
+        ],
+      },
+    ],
+    sefard: [{ ...TORAT_EMET, title: T.boreiNefashot, path: 'Blessings > Borei Nefashot', from: 1 }],
+    edot_hamizrach: [{ ...EDOT, title: T.boreiNefashot, path: 'Blessings on Enjoyments', from: 11, to: 12 }],
+    chabad: [{ ...CHABAD, title: T.boreiNefashot, path: 'Blessings > Berakha Acharona', from: 14, to: 15 }],
+  },
+  tefilat_haderech: {
+    ashkenaz: [
+      { ...DAAT, title: T.tefilatHaderech, path: 'Berachot > Tefillat HaDerech', to: 0 },
+      { ...DAAT, title: T.derechVerses, path: 'Berachot > Tefillat HaDerech', from: 1, groups: [[3, 5]] },
+    ],
+    sefard: [
+      { ...TORAT_EMET, title: T.tefilatHaderech, path: "Blessings > Traveler's Prayer", from: 1, to: 2, reviewed: [1] },
+      { ...TORAT_EMET, title: T.derechVerses, path: "Blessings > Traveler's Prayer", from: 3, to: 21, transform: headingAsNote },
+      {
+        ...TORAT_EMET,
+        title: T.enteringCity,
+        optional: WHEN_SAID.enteringCity,
+        path: "Blessings > Traveler's Prayer",
+        from: 22,
+        to: 29,
+      },
+      {
+        ...TORAT_EMET,
+        title: T.seaPrayer,
+        optional: WHEN_SAID.seaTravel,
+        path: "Blessings > Traveler's Prayer",
+        from: 30,
+        reviewed: [31],
+      },
+      { ...TORAT_EMET, title: T.airPrayer, optional: WHEN_SAID.airTravel, path: "Blessings > Air Traveler's Prayer", from: 1 },
+    ],
+    edot_hamizrach: [
+      {
+        ...EDOT,
+        title: T.tefilatHaderech,
+        path: "Assorted Blessings and Prayers > Traveler's Prayer",
+        from: 1,
+        drop: [3],
+        reviewed: [2, 4, 5, 6, 7, 8],
+        optionalParts: [{ from: 4, to: 8, label: SOME_SAY.derechVerses }],
+      },
+    ],
+    chabad: [{ ...CHABAD, title: T.tefilatHaderech, path: "Blessings > The Travelers' Prayer" }],
+  },
+  asher_yatzar: {
+    ashkenaz: [{ ...ASHKENAZ, title: T.asherYatzar, path: ashkenazPrep('Asher Yatzar') }],
+    sefard: [{ ...SEFARD, title: T.asherYatzar, path: 'Weekday Shacharit > Morning Blessings', from: 1, to: 1 }],
+    edot_hamizrach: [
+      {
+        ...EDOT,
+        title: T.asherYatzar,
+        path: 'Preparatory Prayers > Morning Blessings',
+        from: 3,
+        to: 4,
+        enEdits: [EDOT_ASHER_YATZAR_NOTE_EN],
+      },
+    ],
+    chabad: [{ ...CHABAD, title: T.asherYatzar, path: 'Shacharit > Morning Blessings', from: 3, to: 3 }],
+  },
+  birchot_hanehenin: {
+    ashkenaz: ashkenazBirchotHanehenin(),
+    sefard: sefardBirchotHanehenin(),
+    edot_hamizrach: edotBirchotHanehenin(),
+    chabad: chabadBirchotHanehenin(),
+  },
+  kriat_shema_al_hamita: {
+    ashkenaz: ashkenazBedtimeShema(),
+    sefard: sefardBedtimeShema(),
+    edot_hamizrach: edotBedtimeShema(),
+    chabad: chabadBedtimeShema(),
+  },
+  birchot_hareiya: {
+    ashkenaz: ashkenazBirchotHareiya(),
+    sefard: sefardBirchotHareiya(),
+    edot_hamizrach: edotBirchotHareiya(),
+    chabad: chabadBirchotHareiya(),
+  },
+  kiddush_levana: {
+    ashkenaz: ashkenazKiddushLevana(),
+    sefard: sefardKiddushLevana(),
+    edot_hamizrach: edotKiddushLevana(),
+    chabad: chabadKiddushLevana(),
+  },
+  mezuzah: {
+    ashkenaz: [
+      {
+        ...DAAT,
+        title: T.mezuzah,
+        path: 'Berachot > Birkhot Hamitzvot',
+        from: 6,
+        to: 10,
+        edits: [
+          { seg: 6, from: 'מצות עשה', to: '<small>מצות עשה' },
+          { seg: 6, from: '<em><small>מלמטה למעלה</small></em>', to: '(מלמטה למעלה)' },
+          { seg: 6, from: 'יברך:', to: 'יברך:</small>' },
+          { seg: 10, from: 'ואחר שיקבענה ינשקנה ויאמר - ', to: '<small>ואחר שיקבענה ינשקנה ויאמר</small><br>' },
+          { seg: 10, from: hebrewMarks(0x5dc, 0x5b7, 0x5d9, 0x5b9, 0x5d9, 0x5b8), to: hebrewMarks(0x5dc, 0x5b7, 0x5d9, 0x5d9, 0x5b8) },
+        ],
+      },
+    ],
+    sefard: [{ ...TORAT_EMET, title: T.mezuzah, path: 'Blessings > Mezuzah', from: 1 }],
+    edot_hamizrach: [
+      {
+        ...EDOT,
+        title: T.mezuzah,
+        path: 'Assorted Blessings and Prayers > Mezuza',
+        from: 1,
+        reviewed: [2],
+        enEdits: [
+          { seg: 2, from: 'Deuteronomy 6:19', to: 'Deuteronomy 6:9' },
+          { seg: 2, from: 'the name the Name of', to: 'the Name of' },
+        ],
+      },
+    ],
+    chabad: [{ ...CHABAD, title: T.mezuzah, path: 'Blessings > Various Blessings', from: 16, to: 17 }],
+  },
+  sheva_berachot: {
+    ashkenaz: ashkenazShevaBerachot(),
+    sefard: sefardShevaBerachot(),
+    edot_hamizrach: edotShevaBerachot(),
+    chabad: [{ ...CHABAD, title: T.shevaBerachot, path: 'Blessings > Sheva Berakhot', minyanParts: [{ from: 0, to: 5, label: SAID_BY.withMinyan }] }],
+  },
+  chanukah_candles: {
+    ashkenaz: ashkenazChanukahCandles(),
+    sefard: sefardChanukahCandles(),
+    edot_hamizrach: edotChanukahCandles(),
+    chabad: chabadChanukahCandles(),
   },
 };
 
@@ -1942,6 +2283,7 @@ function edotBirchot() {
       from: 1,
       at: each(15, 16, NOT_FASTING_BAREFOOT),
       reviewed: [6],
+      enEdits: [EDOT_ASHER_YATZAR_NOTE_EN],
     },
     { ...EDOT, title: T.torahBlessings, path: 'Preparatory Prayers > Torah Blessings', from: 1 },
   ];
@@ -2868,6 +3210,1213 @@ function ashkenazMaariv() {
     { ...base, title: T.mournersKaddish, path: at("Mourner's Kaddish"), minyan: SAID_BY.mourners },
     { ...base, title: T.ledavid, path: at('LeDavid'), when: LEDAVID, minyanParts: [{ from: 2, to: 8, label: SAID_BY.mourners }] },
     ...ashkenazMournersHouse(base, at("Mourner's Kaddish")),
+  ];
+}
+
+// Metsudah's Ashkenaz and Sefard Birkat HaMazon share one layout, so the two builders differ only
+// in their indices. The zimun's speaker notes become minyan labels, the Shabbat, Yom Tov and Rosh
+// Hashana lines are dropped, and Yaaleh Veyavo keeps only its Rosh Chodesh and Chol HaMoed days.
+function ashkenazBirkatHamazon() {
+  const base = { ...ASHKENAZ, path: 'Berachot > Birkat HaMazon' };
+  return [
+    { ...base, title: T.beforeBirkat, to: 1 },
+    {
+      ...base,
+      title: T.zimun,
+      from: 4,
+      to: 19,
+      drop: [5, 7, 9, 11, 13, 15, 17],
+      edits: [{ seg: 19, from: '<small>ויש המוסיפים:</small> ', to: '' }],
+      minyanParts: [
+        { from: 6, label: SAID_BY.mezamen },
+        { from: 8, label: SAID_BY.diners },
+        { from: 10, to: 12, label: SAID_BY.mezamen },
+        { from: 14, label: SAID_BY.diners },
+        { from: 16, label: SAID_BY.didNotEat },
+        { from: 18, label: SAID_BY.mezamen },
+      ],
+      optionalParts: [{ from: 19, label: SOME_SAY.baruchHu }],
+    },
+    {
+      ...base,
+      title: T.birkatHamazon,
+      from: 20,
+      to: 48,
+      drop: [33, 34, 39, 41, 42, 43, 45],
+      at: {
+        ...each(24, 25, AL_HANISSIM_OR_YESTERDAY),
+        ...each(26, 27, CHANUKAH_OR_YESTERDAY),
+        ...each(28, 29, PURIM_OR_YESTERDAY),
+        ...each(35, 36, YAALEH_VEYAVO_OR_YESTERDAY),
+        37: ROSH_CHODESH_OR_YESTERDAY,
+        38: CHOL_HAMOED_PESACH_OR_YESTERDAY,
+        40: CHOL_HAMOED_SUKKOT_OR_YESTERDAY,
+        44: YAALEH_VEYAVO_OR_YESTERDAY,
+      },
+      optionalParts: [
+        { from: 24, to: 29, label: WHEN_SAID.mealBeganAlHanissim },
+        { from: 35, to: 44, label: WHEN_SAID.mealBeganYaalehVeyavo },
+      ],
+    },
+    {
+      ...base,
+      title: T.harachaman,
+      from: 49,
+      to: 75,
+      drop: [64, 65, 68, 69, 70, 71],
+      at: { ...each(66, 67, ROSH_CHODESH_OR_YESTERDAY), ...each(72, 73, CHOL_HAMOED_SUKKOT_OR_YESTERDAY) },
+      edits: [{ seg: 74, from: ` ${MIGDOL_NOTE}`, to: '' }],
+      optionalParts: [
+        { from: 66, to: 67, label: WHEN_SAID.mealBeganYaalehVeyavo },
+        { from: 72, to: 73, label: WHEN_SAID.mealBeganYaalehVeyavo },
+      ],
+    },
+    { ...base, title: T.forgotYaalehVeyavo, optional: WHEN_SAID.forgotYaalehVeyavo, from: 79, to: 80, when: ROSH_CHODESH },
+  ];
+}
+
+function sefardBirkatHamazon() {
+  const base = { ...SEFARD, path: 'Birchat HaMazon > Birchat HaMazon' };
+  const weekdayPsalmNote = { he: '<small>בחול אומרים לפני ברכת המזון:</small>', en: 'On weekdays, before Birkat HaMazon:' };
+  return [
+    { ...base, title: T.beforeBirkat, from: 1, to: 1, insert: [{ at: 1, ...weekdayPsalmNote }] },
+    {
+      ...base,
+      title: T.zimun,
+      from: 8,
+      to: 20,
+      drop: [13],
+      edits: [{ seg: 20, from: 'בָּרוּךְ הוּא', to: '<small>בעשרה מוסיפים:</small> בָּרוּךְ הוּא' }],
+      minyanParts: [
+        { from: 8, label: SAID_BY.mezamen },
+        { from: 10, label: SAID_BY.diners },
+        { from: 12, to: 14, label: SAID_BY.mezamen },
+        { from: 16, label: SAID_BY.diners },
+        { from: 18, to: 20, label: SAID_BY.mezamen },
+      ],
+    },
+    {
+      ...base,
+      title: T.zimunShevaBerachot,
+      optional: WHEN_SAID.shevaBerachotMeal,
+      from: 23,
+      to: 34,
+      minyanParts: [
+        { from: 23, label: SAID_BY.mezamen },
+        { from: 25, label: SAID_BY.diners },
+        { from: 27, to: 30, label: SAID_BY.mezamen },
+        { from: 32, label: SAID_BY.diners },
+        { from: 34, label: SAID_BY.mezamen },
+      ],
+    },
+    {
+      ...base,
+      title: T.birkatHamazon,
+      from: 35,
+      to: 63,
+      drop: [49, 56, 57, 60],
+      edits: [
+        { seg: 40, ...noteBefore('בחנוכה ובפורים אומרים:', '<b>וְעַל הַנִּסִּים</b>') },
+        { seg: 42, ...noteBefore('בחנוכה:', '<b>בִּימֵי מַתִּתְיָֽהוּ</b>') },
+        { seg: 44, ...noteBefore('בפורים:', '<b>בִּימֵי מָרְדְּכַי וְאֶסְתֵּר</b>') },
+        { seg: 51, ...noteBefore('בראש חודש ובחול המועד אומרים:', '<b>אֱלֹהֵֽינוּ</b> וֵאלֹהֵי') },
+      ],
+      at: {
+        40: AL_HANISSIM_OR_YESTERDAY,
+        42: CHANUKAH_OR_YESTERDAY,
+        44: PURIM_OR_YESTERDAY,
+        51: YAALEH_VEYAVO_OR_YESTERDAY,
+        52: ROSH_CHODESH_OR_YESTERDAY,
+        53: CHOL_HAMOED_PESACH_OR_YESTERDAY,
+        55: CHOL_HAMOED_SUKKOT_OR_YESTERDAY,
+        59: YAALEH_VEYAVO_OR_YESTERDAY,
+      },
+      optionalParts: [
+        { from: 39, to: 44, label: WHEN_SAID.mealBeganAlHanissim },
+        { from: 50, to: 59, label: WHEN_SAID.mealBeganYaalehVeyavo },
+      ],
+    },
+    {
+      ...base,
+      title: T.harachaman,
+      from: 64,
+      to: 90,
+      drop: [79, 80, 83, 84, 85, 86],
+      insert: [
+        { at: 72, he: '<small>אם סמוך על שלחן אביו יאמר:</small>', en: "When eating at your parents' table, say:" },
+        { at: 74, he: '<small>ואם סמוך על שלחן עצמו יאמר:</small>', en: 'When eating at your own table, say:' },
+        { at: 77, he: '<small>אורח אומר:</small>', en: 'A guest says:' },
+      ],
+      at: { ...each(81, 82, ROSH_CHODESH_OR_YESTERDAY), ...each(87, 88, CHOL_HAMOED_SUKKOT_OR_YESTERDAY) },
+      edits: [{ seg: 89, from: ` ${MIGDOL_NOTE}`, to: '' }],
+      optionalParts: [
+        { from: 81, to: 82, label: WHEN_SAID.mealBeganYaalehVeyavo },
+        { from: 87, to: 88, label: WHEN_SAID.mealBeganYaalehVeyavo },
+      ],
+    },
+    { ...base, title: T.forgotYaalehVeyavo, optional: WHEN_SAID.forgotYaalehVeyavo, from: 95, to: 95, when: ROSH_CHODESH },
+  ];
+}
+
+function edotBirkatHamazon() {
+  const base = { ...EDOT, path: 'Post Meal Blessing' };
+  const sukkahPermission = '(<small>בסוכה</small> וּבִרְשׁוּת שִׁבְעָה אוּשְׁפִּיזִין עִלָּאִין קַדִּישִׁין) ';
+  const yomTovOnly = '<small><small>ביום טוב מוסיפים:</small> טוֹב</small> ';
+  const migdolDays = 'musaf,motzaeiShabbat,purim';
+  return [
+    { ...base, title: T.beforeBirkat, from: 1, to: 3, reviewed: [2, 3] },
+    {
+      ...base,
+      title: T.zimun,
+      from: 4,
+      to: 14,
+      drop: [5, 7, 9, 11, 13],
+      edits: [
+        { seg: 10, from: '(<small>בשבת</small> וּבִרְשׁוּת שַׁבָּת מַלְכְּתָא.) (<small>ביו"ט</small> וּבִרְשׁוּת יוֹמָא טָבָא אוּשְׁפִּיזָא קַדִּישָׁא.) ', to: '' },
+        { seg: 10, from: sukkahPermission, to: `<if all="cholHamoedSukkot">${sukkahPermission}</if>` },
+      ],
+      minyanParts: [
+        { from: 6, label: SAID_BY.mezamen },
+        { from: 8, label: SAID_BY.diners },
+        { from: 10, label: SAID_BY.mezamen },
+        { from: 12, label: SAID_BY.diners },
+        { from: 14, label: SAID_BY.mezamen },
+      ],
+    },
+    {
+      ...base,
+      title: T.birkatHamazon,
+      from: 15,
+      to: 41,
+      drop: [23, 24, 29, 30, 32, 35, 36, 37, 38, 39, 40],
+      edits: [
+        { seg: 20, from: '<small>בפורים אומרים <b>', to: '<small>בפורים אומרים:</small> <small><b>' },
+        { seg: 25, from: 'בראש חודש ביום טוב ובחול המועד אומרים', to: 'בראש חודש ובחול המועד אומרים' },
+        { seg: 28, from: yomTovOnly, to: '' },
+        { seg: 31, from: yomTovOnly, to: '' },
+      ],
+      at: {
+        ...each(17, 18, AL_HANISSIM_OR_YESTERDAY),
+        19: CHANUKAH_OR_YESTERDAY,
+        20: PURIM_OR_YESTERDAY,
+        ...each(25, 26, YAALEH_VEYAVO_OR_YESTERDAY),
+        27: ROSH_CHODESH_OR_YESTERDAY,
+        28: CHOL_HAMOED_PESACH_OR_YESTERDAY,
+        31: CHOL_HAMOED_SUKKOT_OR_YESTERDAY,
+        33: YAALEH_VEYAVO_OR_YESTERDAY,
+      },
+      optionalParts: [
+        { from: 17, to: 20, label: WHEN_SAID.mealBeganAlHanissim },
+        { from: 25, to: 33, label: WHEN_SAID.mealBeganYaalehVeyavo },
+      ],
+    },
+    {
+      ...base,
+      title: T.harachaman,
+      from: 42,
+      to: 58,
+      drop: [43, 44, 47, 48, 53, 54],
+      reviewed: [56],
+      at: {
+        ...each(45, 46, ROSH_CHODESH_OR_YESTERDAY),
+        ...each(49, 50, CHOL_HAMOED_SUKKOT_OR_YESTERDAY),
+        ...each(51, 52, CHOL_HAMOED_OR_YESTERDAY),
+      },
+      edits: [
+        {
+          seg: 58,
+          from: 'מַגְדִּיל (<small>ביום שמתפללים מוסף, במוצ"ש, בסעודת פורים ובסעודת מילה יאמר:</small> מִגְדּ֖וֹל)',
+          to: `<if none="${migdolDays}">מַגְדִּיל</if><if any="${migdolDays}">מִגְדּ֖וֹל</if> (<small>בסעודת מילה אומרים מגדול</small>)`,
+        },
+      ],
+      optionalParts: [{ from: 45, to: 52, label: WHEN_SAID.mealBeganYaalehVeyavo }],
+    },
+    {
+      ...base,
+      title: T.forgotYaalehVeyavo,
+      optional: WHEN_SAID.forgotYaalehVeyavo,
+      from: 35,
+      to: 38,
+      drop: [37],
+      when: ROSH_CHODESH,
+      edits: [
+        { seg: 36, from: '<small>בָּרוּךְ (אַתָּה יְהֹוָה, אֱלֹהֵֽינוּ מֶלֶךְ הָעוֹלָם), שֶׁנָּתַן</small> ', to: 'בָּרוּךְ שֶׁנָּתַן' },
+        { seg: 38, from: '<small><small>לראש חודש</small> (וְ)רָאשֵׁי חֳדָשִׁים לְעַמּוֹ יִשְׂרָאֵל לְזִּכָּרוֹן: ע"כ בחול</small> ', to: 'רָאשֵׁי חֳדָשִׁים לְעַמּוֹ יִשְׂרָאֵל לְזִכָּרוֹן:' },
+      ],
+    },
+  ];
+}
+
+function chabadBirkatHamazon() {
+  const base = { ...CHABAD, path: 'Blessings > Birkat HaMazon' };
+  return [
+    { ...base, title: T.beforeBirkat, to: 10 },
+    {
+      ...base,
+      title: T.zimun,
+      from: 11,
+      to: 16,
+      edits: [
+        { seg: 13, from: '<small>מסובים עונים:</small> ', to: '' },
+        { seg: 14, from: '<small>המברך אומר:</small> ', to: '' },
+        { seg: 15, from: '<small>המסובים עונים:</small> ', to: '' },
+        { seg: 16, from: '<small>ומי שלא אכל עונה:</small> ', to: '' },
+      ],
+      minyanParts: [
+        { from: 12, label: SAID_BY.mezamen },
+        { from: 13, label: SAID_BY.diners },
+        { from: 14, label: SAID_BY.mezamen },
+        { from: 15, label: SAID_BY.diners },
+        { from: 16, label: SAID_BY.didNotEat },
+      ],
+    },
+    {
+      ...base,
+      title: T.birkatHamazon,
+      from: 17,
+      to: 27,
+      at: {
+        ...each(19, 20, AL_HANISSIM_OR_YESTERDAY),
+        21: CHANUKAH_OR_YESTERDAY,
+        22: PURIM_OR_YESTERDAY,
+        25: YAALEH_VEYAVO_OR_YESTERDAY,
+      },
+      edits: [
+        {
+          seg: 25,
+          from: '<small>בראש חדש:</small> רֹאשׁ הַחֹדֶשׁ הַזֶּה. <small>בחוה״מ פסח:</small> חַג הַמַּצּוֹת הַזֶּה. <small>בחוה״מ סוכות:</small> חַג הַסֻּכּוֹת הַזֶּה.',
+          to: yaalehVeyavoDay('רֹאשׁ הַחֹדֶשׁ הַזֶּה.', 'חַג הַמַּצּוֹת הַזֶּה.', 'חַג הַסֻּכּוֹת הַזֶּה.'),
+        },
+      ],
+      optionalParts: [
+        { from: 19, to: 22, label: WHEN_SAID.mealBeganAlHanissim },
+        { from: 25, label: WHEN_SAID.mealBeganYaalehVeyavo },
+      ],
+    },
+    {
+      ...base,
+      title: T.harachaman,
+      from: 28,
+      at: { 29: ROSH_CHODESH_OR_YESTERDAY, 30: CHOL_HAMOED_SUKKOT_OR_YESTERDAY },
+      edits: [
+        {
+          seg: 31,
+          from: 'מַגְדִּל (<small>ביום שמתפללים בו מוסף —</small>מִגְדּוֹל)',
+          to: '<if none="musaf">מַגְדִּל</if><if all="musaf">מִגְדּוֹל</if>',
+        },
+      ],
+      optionalParts: [{ from: 29, to: 30, label: WHEN_SAID.mealBeganYaalehVeyavo }],
+    },
+  ];
+}
+
+function ashkenazAlHamichya() {
+  const inserts =
+    '<br> <small>בשבת:</small> וּרְצֵה וְהַחֲלִיצֵנוּ בְּיוֹם הַשַׁבָּת הַזֶּה.<br>  <small>בר"ח:</small> וְזָכְרֵנוּ לְטוֹבָה בְּיוֹם רֹאשׁ הַחֹדֶשׁ הַזֶּה.<br>  <small>בר"ה:</small> וְזָכְרֵנוּ לְטוֹבָה בְּיוֹם הַזִּכָּרוֹן הַזֶּה.<br>  <small>ביום טוב ובחוה"מ:</small> וְשַׂמְּחֵנוּ בְיוֹם<br>  <small>בפסח:</small> חַג הַמַּצּוֹת הַזֶּה,<br>  <small>בשבועות:</small> חַג הַשָּׁבוּעוֹת הַזֶּה,<br>  <small>בסוכות:</small> חַג הַסֻּכּוֹת הַזֶּה,<br>  <small>בשמיני עצרת:</small> שְׁמִינִי, חַג עֲצֶרֶת הַזֶּה,<br>  בְּיוֹם (טוֹב) מִקְרָא קֹדֶשׁ הַזֶּה.<br> ';
+  const dayInserts =
+    `<br><if any="${anyOf(ROSH_CHODESH_OR_YESTERDAY)}"><small>בראש חודש:</small> וְזָכְרֵנוּ לְטוֹבָה בְּיוֹם רֹאשׁ הַחֹדֶשׁ הַזֶּה.</if>` +
+    `<if any="${anyOf(CHOL_HAMOED_OR_YESTERDAY)}"><small>בחול המועד:</small> וְשַׂמְּחֵנוּ בְיוֹם </if>` +
+    `<if any="${anyOf(CHOL_HAMOED_PESACH_OR_YESTERDAY)}">חַג הַמַּצּוֹת הַזֶּה, </if>` +
+    `<if any="${anyOf(CHOL_HAMOED_SUKKOT_OR_YESTERDAY)}">חַג הַסֻּכּוֹת הַזֶּה, </if>` +
+    `<if any="${anyOf(CHOL_HAMOED_OR_YESTERDAY)}">בְּיוֹם מִקְרָא קֹדֶשׁ הַזֶּה.</if><br>`;
+  return [
+    {
+      ...DAAT,
+      title: T.alHamichya,
+      path: 'Berachot > Birkat Hanehenin > Eating > Brachot Achronot > Al Hamichyah',
+      transform: compose(daatName, daatIsraelEnding),
+      edits: [{ seg: 4, from: inserts, to: dayInserts }],
+      optionalParts: [{ from: 4, paragraph: 1, until: 2, label: WHEN_SAID.mealBeganYaalehVeyavo }],
+    },
+  ];
+}
+
+function sefardAlHamichya() {
+  const festival = '<small> <small>(פלוני)</small> </small>';
+  return [
+    {
+      ...TORAT_EMET,
+      title: T.alHamichya,
+      path: "Blessings > Me'ein Shalosh",
+      from: 2,
+      drop: [8, 10],
+      transform: toratEmetIsraelEnding,
+      edits: [
+        { seg: 11, from: '(ביו"ט:)', to: '(בחול המועד:)' },
+        { seg: 11, from: festival, to: `<if any="${anyOf(CHOL_HAMOED_PESACH_OR_YESTERDAY)}">הַמַּצּוֹת</if><if any="${anyOf(CHOL_HAMOED_SUKKOT_OR_YESTERDAY)}">הַסֻּכּוֹת</if>` },
+      ],
+      at: { 9: ROSH_CHODESH_OR_YESTERDAY, 11: CHOL_HAMOED_OR_YESTERDAY },
+      reviewed: [13, 14, 16],
+      optionalParts: [{ from: 9, to: 11, label: WHEN_SAID.mealBeganYaalehVeyavo }],
+    },
+  ];
+}
+
+function edotAlHamichya() {
+  const yomTovOnly = '<small><small>ביום טוב:</small> טוֹב</small> ';
+  return [
+    {
+      ...EDOT,
+      title: T.alHamichya,
+      path: 'Al Hamihya',
+      from: 1,
+      drop: [6, 8, 10, 12],
+      transform: edotIsraelEnding,
+      edits: [
+        { seg: 9, from: yomTovOnly, to: '' },
+        { seg: 11, from: yomTovOnly, to: '' },
+      ],
+      at: { 7: ROSH_CHODESH_OR_YESTERDAY, 9: CHOL_HAMOED_PESACH_OR_YESTERDAY, 11: CHOL_HAMOED_SUKKOT_OR_YESTERDAY },
+      reviewed: [14, 15, 16, 18, 19, 20],
+      optionalParts: [{ from: 7, to: 11, label: WHEN_SAID.mealBeganYaalehVeyavo }],
+    },
+  ];
+}
+
+function chabadAlHamichya() {
+  return [
+    {
+      ...CHABAD,
+      title: T.alHamichya,
+      path: 'Blessings > Berakha Acharona',
+      to: 13,
+      at: { 6: YAALEH_VEYAVO_OR_YESTERDAY, 7: ROSH_CHODESH_OR_YESTERDAY, 8: CHOL_HAMOED_PESACH_OR_YESTERDAY, 9: CHOL_HAMOED_SUKKOT_OR_YESTERDAY },
+      optionalParts: [{ from: 6, to: 9, label: WHEN_SAID.mealBeganYaalehVeyavo }],
+    },
+  ];
+}
+
+function ashkenazBirchotHanehenin() {
+  const eating = { ...DAAT, path: 'Berachot > Birkat Hanehenin > Eating > Barachot Rishonot' };
+  const newThings = '<small>הלובש מלבוש חדש וכן האוכל פרי חדש הגדל בזמן קבוע בשנה ומתחדש משנה לשנה מברך:</small>';
+  return [
+    { ...eating, title: T.handWashing, from: 0, to: 0 },
+    { ...eating, title: T.hamotzi, from: 1, to: 1 },
+    { ...eating, title: T.mezonot, from: 2, to: 2 },
+    { ...eating, title: T.hagafen, from: 3, to: 3 },
+    { ...eating, title: T.haetz, from: 4, to: 4 },
+    { ...eating, title: T.haadama, from: 5, to: 5 },
+    { ...eating, title: T.shehakol, from: 6, to: 6 },
+    {
+      he: 'metsudahShabbatHe',
+      en: 'metsudahShabbatEn',
+      linear: true,
+      title: T.fragrance,
+      path: 'Various Other Berachos',
+      from: 13,
+      to: 23,
+      groups: [[13, 15], [17, 19], [21, 23]],
+    },
+    { ...DAAT, title: T.shehecheyanu, path: 'Festivals > Sukkot > Blessing on Lulav', from: 2, to: 2, insert: [{ at: 2, he: newThings }] },
+  ];
+}
+
+function sefardBirchotHanehenin() {
+  const meal = { ...TORAT_EMET, path: 'Mealtime Blessings' };
+  const foods = { ...TORAT_EMET, path: 'Birchat HaMazon > Blessing on Foods' };
+  const blessing = (title, leaf) => ({ ...TORAT_EMET, title, path: `Blessings > ${leaf}`, from: 1, to: 2 });
+  return [
+    { ...meal, title: T.handWashing, from: 1, to: 3, reviewed: [2] },
+    { ...meal, title: T.hamotzi, from: 4, to: 5 },
+    { ...foods, title: T.mezonot, from: 3, to: 4 },
+    { ...foods, title: T.hagafen, from: 1, to: 2 },
+    blessing(T.haetz, "Ha'etz"),
+    blessing(T.haadama, "Ha'adamah"),
+    blessing(T.shehakol, 'Shehakol'),
+    blessing(T.fragrance, 'Fragrant Spices'),
+    blessing(T.fragrance, 'Fragrant Herbs'),
+    blessing(T.fragrance, 'Fragrant Shrubs'),
+    blessing(T.fragrance, 'Fragrant Fruit'),
+    blessing(T.fragrance, 'Fragrant Oils'),
+    blessing(T.shehecheyanu, 'Shehecheyanu'),
+  ];
+}
+
+function edotBirchotHanehenin() {
+  const meal = { ...EDOT, path: 'Shabbat Evening > First Meal' };
+  const enjoyments = { ...EDOT, path: 'Blessings on Enjoyments' };
+  const untranslated = { he: EDOT.he, path: 'Blessings on Enjoyments' };
+  return [
+    {
+      ...meal,
+      title: T.handWashing,
+      from: 2,
+      to: 4,
+      edits: [
+        { seg: 3, from: 'וישתחו [', to: '' },
+        { seg: 3, from: ']', to: '' },
+      ],
+      reviewed: [2, 3],
+      optionalParts: [{ from: 2, to: 3, label: SOME_SAY.handWashingIntention }],
+    },
+    { ...meal, title: T.hamotzi, from: 6, to: 7, reviewed: [6], optionalParts: [{ from: 6, label: SOME_SAY.hamotziVerses }] },
+    { ...enjoyments, title: T.mezonot, from: 1, to: 2 },
+    { ...enjoyments, title: T.hagafen, from: 3, to: 4 },
+    { ...enjoyments, title: T.haetz, from: 5, to: 6 },
+    { ...enjoyments, title: T.haadama, from: 7, to: 8 },
+    { ...enjoyments, title: T.shehakol, from: 9, to: 10 },
+    { ...untranslated, title: T.fragrance, from: 13, to: 18 },
+    { ...untranslated, title: T.shehecheyanu, from: 19, to: 20 },
+  ];
+}
+
+function chabadBirchotHanehenin() {
+  const base = { ...CHABAD, path: 'Blessings > Various Blessings' };
+  return [
+    { ...base, title: T.handWashing, from: 0, to: 1 },
+    { ...base, title: T.hamotzi, from: 2, to: 3 },
+    { ...base, title: T.mezonot, from: 4, to: 5 },
+    { ...base, title: T.hagafen, from: 6, to: 7 },
+    { ...base, title: T.haetz, from: 8, to: 9 },
+    { ...base, title: T.haadama, from: 10, to: 11 },
+    { ...base, title: T.shehakol, from: 12, to: 13 },
+    { ...base, title: T.fragrance, from: 28, to: 29 },
+    { ...base, title: T.shehecheyanu, from: 14, to: 15, edits: [{ seg: 15, from: '\u05DC\u05B4\u05D6\u05B0\u05BC\u05DE\u05B7\u05DF', to: '\u05DC\u05B7\u05D6\u05B0\u05BC\u05DE\u05B7\u05DF' }] },
+  ];
+}
+
+function ashkenazBedtimeShema() {
+  const base = { ...ASHKENAZ, path: "Weekday > Maariv > Keri'at Shema al Hamita" };
+  return [
+    { ...base, title: T.ribbonoShelOlam, to: 0 },
+    { ...base, title: T.hamapil, from: 1, to: 1 },
+    { ...base, title: T.shema, from: 2, to: 8 },
+    { ...base, title: T.bedtimePsalms, from: 9, to: 11 },
+    { ...base, title: T.hashkivenu, from: 12, to: 12 },
+    { ...base, title: T.baruchHashemBayom, from: 13, to: 14 },
+    { ...base, title: T.protectionVerses, from: 15, to: 23 },
+    { ...base, title: T.shirHamaalotRigzu, from: 24, to: 26 },
+    { ...base, title: T.adonOlam, from: 27, to: 36, groups: [[27, 36]] },
+  ];
+}
+
+// Metsudah Sefard prints only the first paragraph here, with a note on who says the others. The two others come from its
+// own Maariv Shema: Vehaya Im Shamoa folded under the circumstance the note names (and the Ri"u's custom), Vayomer under the
+// Ri"u's custom alone. The two labels carry the note, whose English says the late reader repeats "all of it", against its
+// Hebrew, so the note is dropped.
+function sefardBedtimeShema() {
+  const base = { ...SEFARD, path: 'Bedtime Shema' };
+  const maariv = { ...SEFARD, path: 'Weekday Maariv > The Shema' };
+  return [
+    { ...base, title: T.ribbonoShelOlam, to: 0 },
+    { ...base, title: T.hamapil, from: 1, to: 1 },
+    { ...base, title: T.shema, from: 3, to: 7 },
+    {
+      ...maariv,
+      title: T.shema,
+      from: 14,
+      to: 17,
+      drop: [16],
+      groups: [[15, 17]],
+      enEdits: [{ seg: 17, from: '—is true—', to: 'is true' }],
+      optionalParts: [
+        { from: 14, to: 14, label: WHEN_SAID.bedtimeVehaya },
+        { from: 15, to: 17, label: SOME_SAY.bedtimeVayomer },
+      ],
+    },
+    { ...base, title: T.bedtimePsalms, from: 8, to: 10 },
+    { ...base, title: T.hashkivenu, from: 11, to: 11 },
+    { ...base, title: T.baruchHashemBayom, from: 12, to: 13 },
+    { ...base, title: T.protectionVerses, from: 14, to: 22 },
+    { ...base, title: T.shirHamaalotRigzu, from: 23, to: 25 },
+    { ...base, title: T.adonOlam, from: 26, to: 35, groups: [[26, 35]] },
+  ];
+}
+
+// The Edot HaMizrach English lines up by index only at #2, #4, #6, #8-16 and #29; the rest is built without it.
+function edotBedtimeShema() {
+  const base = { ...EDOT, path: 'Bedtime Shema' };
+  const hebrewOnly = { he: 'edotHe', path: 'Bedtime Shema' };
+  return [
+    { ...base, title: T.leshemYichud, from: 1, to: 2, reviewed: [2] },
+    { ...base, title: T.ribbonoShelOlam, from: 4, to: 4 },
+    { ...hebrewOnly, title: T.hamapil, from: 5, to: 5 },
+    { ...base, title: T.hamapil, from: 6, to: 6, reviewed: [6] },
+    { ...hebrewOnly, title: T.shema, from: 7, to: 7 },
+    { ...base, title: T.shema, from: 8, to: 13 },
+    { ...base, title: T.protectionVerses, from: 14, to: 16 },
+    { ...hebrewOnly, title: T.protectionVerses, from: 17, to: 17 },
+    {
+      ...hebrewOnly,
+      title: T.bedtimeVidui,
+      from: 18,
+      to: 19,
+      at: { 18: TACHANUN_SHACHARIT, 19: TACHANUN_SHACHARIT },
+      edits: [
+        {
+          seg: 18,
+          from: ', ואין לאומרו בליל שבת ובשאר ימים שאין אומרים בהם תחנון. וכן אין לאומרו במוצ"ש עד חצות הלילה, וכן במוצאי יו"ט ור"ח, וכיוצא בזה.',
+          to: '.<if any="motzaei,roshChodeshYesterday"> אין לאומרו במוצ"ש עד חצות הלילה, וכן במוצאי יו"ט ור"ח, וכיוצא בזה.</if>',
+        },
+      ],
+      insert: [{ at: 18, ...NOTES.tachanunDisputedBedtime }],
+    },
+    { ...hebrewOnly, title: T.anaBekoach, from: 20, to: 28, reviewed: [27] },
+    { ...base, title: T.atahTakum, from: 29, to: 29 },
+  ];
+}
+
+// Chabad omits Ribbono Shel Olam and Psalm 51 on Shabbat, Yom Tov and Yom Kippur, and ends Hashkivenu at "sukat shlomecha"
+// (Sefer HaMinhagim). It omits the confession on every night after which Tachanun is not said, and waits with it until
+// midnight on motzaei Shabbat (Machon Halacha Chabad). Its unvocalized passages write the Name abbreviated with a
+// gershayim, as the source already does in the prayer on rising at midnight.
+function chabadBedtimeShema() {
+  const base = { he: 'chabadHe', path: 'Bedtime Shema' };
+  return [
+    { ...base, title: T.ribbonoShelOlam, to: 0, when: BEDTIME_NOT_HOLY_NIGHT },
+    {
+      ...base,
+      title: T.hashkivenu,
+      from: 1,
+      to: 1,
+      edits: [
+        { seg: 1, from: 'סֻכַּת שְׁלוֹמֶֽךָ. וְהָגֵן', to: 'סֻכַּת שְׁלוֹמֶֽךָ.<if none="shabbat,yomTov,yomKippur"> וְהָגֵן' },
+        { seg: 1, from: 'וּמַצִּילֵֽנוּ אָֽתָּה.', to: 'וּמַצִּילֵֽנוּ אָֽתָּה.</if>' },
+      ],
+    },
+    { ...base, title: T.shema, from: 2, to: 6 },
+    { ...base, title: T.protectionVerses, from: 7, to: 8 },
+    {
+      ...base,
+      title: T.bedtimeVidui,
+      from: 9,
+      to: 13,
+      when: TACHANUN_SHACHARIT,
+      insert: [{ at: 9, ...NOTES.viduiMotzaeiShabbat }],
+    },
+    {
+      ...base,
+      title: T.fourDeaths,
+      from: 14,
+      to: 17,
+      edits: [
+        { seg: 14, from: 'מלפניך יהוה אלהינו', to: 'מלפניך יהו״ה אלהינו' },
+        { seg: 14, from: '(יהוה)', to: '(יהו״ה)' },
+        { seg: 15, from: '(יהוה)', to: '(יהו״ה)' },
+        { seg: 16, from: '(יהוה)', to: '(יהו״ה)' },
+        { seg: 17, from: '(יהוה)', to: '(יהו״ה)' },
+      ],
+    },
+    { ...base, title: T.anaBekoach, from: 18, to: 18 },
+    {
+      ...base,
+      title: T.psalm51,
+      from: 19,
+      to: 19,
+      when: BEDTIME_NOT_HOLY_NIGHT,
+      edits: [{ seg: 19, from: 'הרבה [הֶרֶב]', to: 'הֶרֶב' }],
+    },
+    { ...base, title: T.shirLamaalot, from: 20, to: 20, edits: [{ seg: 20, from: 'יְהוָה', to: 'יְיָ' }] },
+    { ...base, title: T.versesBeforeSleep, from: 21, to: 21 },
+    { ...base, title: T.ribonHaolamim, from: 22, to: 22, edits: [{ seg: 22, from: '(יהוה אלהי)', to: '(יהו״ה אלהי)', count: 2 }] },
+    { ...base, title: T.beforeRelations, optional: WHEN_SAID.maritalRelations, from: 23, to: 24 },
+    { ...base, title: T.hamapil, from: 25, to: 25 },
+  ];
+}
+
+function hebrewMarks(...codes) {
+  return String.fromCharCode(...codes);
+}
+
+// Daat prints the blessings of seeing and hearing twice: a plain list (6, 8, 10, 14, 16, 18) and a later block for the
+// rainbow, lightning and thunder (20-32), whose lightning and thunder blessings drop the divine name and whose rainbow
+// drops the vav. The plain list is the text, and the block lends only its instructions.
+function ashkenazBirchotHareiya() {
+  const sights = { ...DAAT, path: 'Berachot > Birkat Hanehenin > Blessings on Sights Sounds and Smells' };
+  const sinDotWrittenAsHolam = hebrewMarks(0x5e9, 0x5b9, 0x5d4);
+  const sinWithTsere = hebrewMarks(0x5e9, 0x5b5, 0x5c2, 0x5d4);
+  const sinWithQamats = hebrewMarks(0x5e9, 0x5b8, 0x5c2, 0x5d4);
+  const instruction = (text) => ({ from: text, to: `<small>${text}</small>` });
+  return [
+    { ...sights, title: T.lightningThunder, from: 26, to: 26, edits: [{ seg: 26, ...instruction('על הברקים מברך:') }] },
+    {
+      ...sights,
+      title: T.lightningThunder,
+      from: 6,
+      to: 6,
+      edits: [{ seg: 6, from: sinDotWrittenAsHolam, to: sinWithTsere, count: 2 }],
+    },
+    { ...sights, title: T.lightningThunder, from: 30, to: 30, edits: [{ seg: 30, ...instruction('על הרעמים מברך:') }] },
+    {
+      ...sights,
+      title: T.lightningThunder,
+      from: 14,
+      to: 14,
+      edits: [{ seg: 14, from: hebrewMarks(0x5e9, 0x5c1, 0x5db, 0x5b9, 0x5bc), to: hebrewMarks(0x5e9, 0x5b6, 0x5c1, 0x5db, 0x5b9, 0x5bc) }],
+    },
+    {
+      ...sights,
+      title: T.rainbow,
+      from: 20,
+      to: 20,
+      edits: [
+        {
+          seg: 20,
+          from: 'ברכת הקשת: הרואה קשת צריך לברך ברכה זו, ואסור להסתכל בו:',
+          to: '<small>הרואה קשת צריך לברך ברכה זו, ואסור להסתכל בו:</small>',
+        },
+      ],
+    },
+    {
+      ...sights,
+      title: T.rainbow,
+      from: 10,
+      to: 10,
+      edits: [
+        {
+          seg: 10,
+          from: hebrewMarks(0x5d1, 0x5b0, 0x5bc, 0x5e8, 0x5b4, 0x5d9, 0x5ea, 0x5d5, 0x5b9),
+          to: hebrewMarks(0x5d1, 0x5b4, 0x5bc, 0x5d1, 0x5b0, 0x5e8, 0x5b4, 0x5d9, 0x5ea, 0x5d5, 0x5b9),
+        },
+        { seg: 10, from: hebrewMarks(0x5d1, 0x5b7, 0x5bc, 0x5de, 0x5b7), to: hebrewMarks(0x5d1, 0x5b0, 0x5bc, 0x5de, 0x5b7) },
+      ],
+    },
+    {
+      ...sights,
+      title: T.sea,
+      from: 8,
+      to: 8,
+      edits: [
+        { seg: 8, from: sinDotWrittenAsHolam, to: sinWithQamats },
+        { seg: 8, from: hebrewMarks(0x5d4, 0x5b8, 0x5d9, 0x5b7, 0x5bc, 0x5dd), to: hebrewMarks(0x5d4, 0x5b7, 0x5d9, 0x5b8, 0x5bc, 0x5dd) },
+      ],
+    },
+    {
+      ...DAAT,
+      title: T.trees,
+      path: 'Berachot > Birkhot Hamitzvot',
+      from: 30,
+      to: 34,
+      reviewed: [30],
+      edits: [
+        {
+          seg: 30,
+          from: 'סדר ברכת האילנות: הרואה בימי ניסן עצי פרי פורחים אומר:',
+          to: '<small>הרואה בימי ניסן עצי פרי פורחים אומר:</small>',
+        },
+        { seg: 32, from: hebrewMarks(0x5d0, 0x5b1, 0x2d), to: hebrewMarks(0x5d0, 0x5b1) },
+        { seg: 32, from: sinDotWrittenAsHolam, to: sinWithTsere, count: 2 },
+        { seg: 32, from: '"', to: '', count: 2 },
+        { seg: 32, from: ' <em><small>שם צ, יז</small></em>', to: '' },
+      ],
+    },
+    {
+      ...sights,
+      title: T.praise,
+      from: 16,
+      to: 18,
+      insert: [
+        { at: 16, he: '<small>על שמועות שהם טובות לו ולאחרים מברך:</small>' },
+        { at: 18, he: '<small>על שמועות רעות מברך:</small>' },
+      ],
+    },
+    {
+      ...DAAT,
+      title: T.praise,
+      path: 'Berachot > Asher Yatzar Etchem Badin',
+      edits: [{ seg: 0, from: "ברוך אתה ד',", to: 'ברוך אתה יי,' }],
+      insert: [{ at: 0, he: '<small>מי שלא ראה קברי ישראל שלשים יום יברך בראייתם:</small>' }],
+    },
+  ];
+}
+
+// Torat Emet carries the Hebrew of every Sefard blessing here. Where the Metsudah Shabbat siddur says the very same words,
+// it supplies the blessing with its English, and Torat Emet the instruction above it.
+function sefardBirchotHareiya() {
+  const lightning = { ...TORAT_EMET, path: 'Blessings > Lightning & Thunder' };
+  const phenomena = { he: 'metsudahShabbatHe', en: 'metsudahShabbatEn', linear: true, path: 'Berachos Said Upon Witnessing Phenomenal Sights' };
+  return [
+    { ...lightning, title: T.lightningThunder, from: 1, to: 1 },
+    { ...phenomena, title: T.lightningThunder, from: 1, to: 3, groups: [[1, 3]] },
+    { ...lightning, title: T.lightningThunder, from: 3, to: 3 },
+    {
+      ...phenomena,
+      title: T.lightningThunder,
+      from: 5,
+      to: 8,
+      groups: [[5, 8]],
+      enEdits: [{ seg: 8, from: 'fill the verse.', to: 'fill the universe.' }],
+    },
+    { ...TORAT_EMET, title: T.rainbow, path: 'Blessings > Seeing Rainbow', from: 1, to: 2 },
+    { ...TORAT_EMET, title: T.sea, path: 'Blessings > Seeing Ocean', from: 1, to: 2 },
+    { ...TORAT_EMET, title: T.trees, path: 'Blessings > Blossoming Fruit Tree', from: 1, to: 2, reviewed: [1] },
+    {
+      ...phenomena,
+      title: T.praise,
+      from: 16,
+      to: 18,
+      groups: [[16, 18]],
+      insert: [
+        {
+          at: 16,
+          he: '<small>הרואה ימים גדולים או הרים גבוהים המפורסמים בגובהם מברך:</small>',
+          en: 'When seeing great seas, or tall mountains which are famous for their great height, say:',
+        },
+      ],
+    },
+    {
+      ...TORAT_EMET,
+      title: T.praise,
+      path: 'Blessings > Various Blessings of Praise',
+      from: 1,
+      to: 25,
+      reviewed: [14],
+      edits: [
+        {
+          seg: 18,
+          from: hebrewMarks(0x5de, 0x5b0, 0x5d7, 0x5b7, 0x5d9, 0x5b6, 0x5d4),
+          to: hebrewMarks(0x5de, 0x5b0, 0x5d7, 0x5b7, 0x5d9, 0x5b5, 0x5bc, 0x5d4),
+        },
+      ],
+    },
+    metsudahGoodNews(),
+    metsudahBadNews(),
+  ];
+}
+
+// Hatov Vehametiv and Dayan Ha'emet read the same in Daat, Chabad and the Metsudah siddur. Their instructions are the
+// Chabad wording, with the Metsudah English of the same two instructions. Edot HaMizrach prints Dayan Ha'emet itself and
+// borrows only Hatov Vehametiv.
+function metsudahNewsSource() {
+  return { he: 'metsudahShabbatHe', en: 'metsudahShabbatEn', linear: true, path: 'Various Other Berachos', title: T.praise };
+}
+
+function metsudahGoodNews() {
+  return {
+    ...metsudahNewsSource(),
+    from: 1,
+    to: 3,
+    groups: [[1, 3]],
+    edits: [
+      {
+        seg: 1,
+        from: hebrewMarks(0x5d9, 0x5b0, 0x5d4, 0x5d5, 0x5b8, 0x5d4),
+        to: hebrewMarks(0x5d9, 0x5b0, 0x5d4, 0x5b9, 0x5d5, 0x5b8, 0x5d4),
+      },
+    ],
+    insert: [
+      {
+        at: 1,
+        he: '<small>על שמועות שהם טובות לו ולאחרים מברך:</small>',
+        en: 'Upon hearing good news that concerns both yourself and others, say:',
+      },
+    ],
+  };
+}
+
+function metsudahBadNews() {
+  return {
+    ...metsudahNewsSource(),
+    from: 5,
+    to: 7,
+    groups: [[5, 7]],
+    enEdits: [{ seg: 6, from: 'King of the verse,', to: 'King of the Universe,' }],
+    insert: [{ at: 5, he: '<small>על שמועות רעות מברך:</small>', en: 'Upon hearing tragic news, say:' }],
+  };
+}
+
+function edotBirchotHareiya() {
+  const lightning = { ...EDOT, path: 'Assorted Blessings and Prayers > Blessings on Lighting and Thunder' };
+  return [
+    { ...lightning, title: T.lightningThunder, from: 1, to: 4 },
+    { ...EDOT, title: T.rainbow, path: 'Assorted Blessings and Prayers > Rainbow', from: 1, to: 2 },
+    {
+      ...EDOT,
+      title: T.trees,
+      path: 'Nissan > Blessing of the Trees',
+      from: 0,
+      to: 14,
+      drop: [1],
+      reviewed: [0, 5, 6, 10, 11, 12],
+      edits: [
+        { seg: 0, from: '<big><b>חודש ניסן </b></big>', to: '<small>הרואה בימי ניסן עצי פרי פורחים אומר:</small>' },
+        { seg: 3, from: '[שְׁבִיתֵ֑נוּ] שבותנו', to: 'שְׁבִיתֵ֑נוּ' },
+        { seg: 3, from: hebrewMarks(0x5bc, 0x5a5, 0x5d4, 0x5d0), to: hebrewMarks(0x5bc, 0x5a5, 0x5d4, 0x20, 0x5d0) },
+        {
+          seg: 5,
+          from: hebrewMarks(0x5d1, 0x5bc, 0x5db, 0x5b8, 0x5dc),
+          to: hebrewMarks(0x5d1, 0x5b0, 0x5bc, 0x5db, 0x5b8, 0x5dc),
+        },
+        {
+          seg: 5,
+          from: hebrewMarks(0x5d8, 0x5d5, 0x5bc, 0x5d1, 0x5da, 0x5b8),
+          to: hebrewMarks(0x5d8, 0x5d5, 0x5bc, 0x5d1, 0x5b0, 0x5da, 0x5b8),
+        },
+        { seg: 5, from: hebrewMarks(0x5e1, 0x5b0, 0x5d3, 0x5bc, 0x5da), to: hebrewMarks(0x5e1, 0x5b0, 0x5d3, 0x5b0, 0x5bc, 0x5da) },
+        { seg: 6, from: hebrewMarks(0x5d9, 0x5e7, 0x5bb, 0x5d9), to: hebrewMarks(0x5d9, 0x5b0, 0x5e7, 0x5bb, 0x5d9) },
+        { seg: 10, from: 'והיו ', to: '' },
+        { seg: 10, from: hebrewMarks(0x5be, 0x5d9, 0x5d3, 0x5b5, 0x5d9), to: hebrewMarks(0x5be, 0x5d9, 0x5b0, 0x5d3, 0x5b5, 0x5d9) },
+        {
+          seg: 11,
+          from: hebrewMarks(0x5db, 0x5bc, 0x5d1, 0x5b7, 0x5ea),
+          to: hebrewMarks(0x5db, 0x5b0, 0x5bc, 0x5d1, 0x5b7, 0x5ea),
+        },
+      ],
+    },
+    metsudahGoodNews(),
+    {
+      ...EDOT,
+      title: T.praise,
+      path: 'Fast Days and Mourning > Mourning',
+      from: 2,
+      to: 2,
+      insert: [{ at: 2, he: '<small>על שמועות רעות מברך:</small>' }],
+    },
+  ];
+}
+
+function chabadBirchotHareiya() {
+  const base = { ...CHABAD, path: 'Blessings > Various Blessings' };
+  return [
+    { ...base, title: T.lightningThunder, from: 18, to: 21 },
+    { ...base, title: T.rainbow, from: 22, to: 23 },
+    { ...base, title: T.trees, from: 34, to: 35, reviewed: [34] },
+    { ...base, title: T.praise, from: 24, to: 27 },
+  ];
+}
+
+function levanaNotes(at, { timing = true } = {}) {
+  return [...(timing ? [NOTES.levanaTiming] : []), NOTES.levanaTishrei, NOTES.levanaAv].map((note) => ({ at, ...note }));
+}
+
+function ashkenazKiddushLevana() {
+  const levana = { ...ASHKENAZ, path: 'Weekday > Maariv > Birkat HaLevana' };
+  const maariv = { ...ASHKENAZ, transform: ASHKENAZ_VARIANTS };
+  return [
+    {
+      he: levana.he,
+      path: levana.path,
+      title: T.levanaOpening,
+      to: 0,
+      edits: [{ seg: 0, from: ' (אגור)', to: '' }],
+      insert: levanaNotes(0),
+    },
+    { ...levana, title: T.levanaOpening, from: 1, to: 1 },
+    { ...levana, title: T.leshemYichud, from: 2, to: 2 },
+    { ...levana, title: T.levanaBlessing, from: 3, to: 11 },
+    {
+      ...levana,
+      title: T.levanaPsalms,
+      from: 12,
+      to: 16,
+      enEdits: [
+        {
+          seg: 14,
+          from: 'Let every soul praise God. Praise God. Let every soul praise God. Praise God.',
+          to: 'Let every soul praise God. Praise God.',
+        },
+        { seg: 14, from: 'instuments', to: 'instruments' },
+      ],
+    },
+    { ...maariv, title: T.aleinu, path: 'Weekday > Maariv > Alenu' },
+    {
+      ...maariv,
+      title: T.mournersKaddish,
+      path: "Weekday > Maariv > Mourner's Kaddish",
+      enEdits: [
+        { seg: 0, from: '<i>Levush, Siddur HaGra</i>', to: 'Levush, Siddur HaGra' },
+        { seg: 0, from: 'Yis<i>k</i>adal', to: 'Yiskadal' },
+        { seg: 0, from: '<i>Mishnah Berurah 56:2</i>', to: 'Mishnah Berurah 56:2' },
+        { seg: 4, from: '<i>Mishnah Berurah </i>', to: 'Mishnah Berurah ' },
+      ],
+      minyan: SAID_BY.mourners,
+    },
+  ];
+}
+
+function sefardKiddushLevana() {
+  const levana = { ...TORAT_EMET, path: 'Kiddush Levanah' };
+  return [
+    { ...levana, title: T.levanaOpening, from: 1, to: 2, insert: levanaNotes(1, { timing: false }) },
+    {
+      ...levana,
+      title: T.leshemYichud,
+      from: 3,
+      to: 3,
+      edits: [{ seg: 3, from: 'הַמִצְוָה', to: 'הַמִּצְוָה' }],
+      reviewed: [3],
+    },
+    {
+      ...levana,
+      title: T.levanaBlessing,
+      from: 4,
+      to: 14,
+      edits: [
+        { seg: 5, from: 'שֶׁלּא', to: 'שֶׁלֹּא' },
+        { seg: 5, from: 'מַלְכוּתו', to: 'מַלְכוּתוֹ' },
+        { seg: 6, from: 'יוצְרֵךְ', to: 'יוֹצְרֵךְ' },
+      ],
+    },
+    {
+      ...levana,
+      title: T.levanaPsalms,
+      from: 15,
+      to: 19,
+      edits: [
+        { seg: 15, from: 'דּודִי', to: 'דּוֹדִי' },
+        { seg: 18, from: 'שֶׁבַּשָׁמַיִם', to: 'שֶׁבַּשָּׁמַיִם' },
+        { seg: 18, from: 'דַּיָם', to: 'דַּיָּם' },
+        { seg: 18, from: 'אַבַּיֵי', to: 'אַבַּיֵּי' },
+        { seg: 18, from: 'עולָה', to: 'עוֹלָה' },
+        { seg: 18, from: 'כְּמו שֶׁהָיְתָה', to: 'כְּמוֹ שֶׁהָיְתָה' },
+        { seg: 18, from: 'הַמְּארוֹת', to: 'הַמְּאֹרוֹת' },
+      ],
+    },
+    { ...levana, title: T.aleinu, from: 20, to: 21 },
+    {
+      ...levana,
+      title: T.mournersKaddish,
+      from: 23,
+      to: 24,
+      edits: [
+        {
+          seg: 23,
+          from: 'לְעֵלָּא <small>(בעשי"ת וּלְעֵלָּא מִכָּל)</small> מִן כָּל',
+          to: `לְעֵלָּא <if none="${AYT}">מִן כָּל</if><if all="${AYT}">וּלְעֵלָּא מִכָּל</if>`,
+        },
+        {
+          seg: 24,
+          from: 'שָׁלוֹם <small> <small>(בעשי"ת <b>הַשָּׁלוֹם</b>)</small> </small>',
+          to: `<if none="${AYT}">שָׁלוֹם</if><if all="${AYT}">הַשָּׁלוֹם</if>`,
+        },
+      ],
+      minyan: SAID_BY.mourners,
+    },
+  ];
+}
+
+function edotKiddushLevana() {
+  const levana = { ...EDOT, path: 'Blessing of the Moon' };
+  const withoutEnglish = { ...levana, en: undefined };
+  return [
+    { ...withoutEnglish, title: T.levanaOpening, from: 1, to: 1, insert: levanaNotes(1) },
+    {
+      ...levana,
+      title: T.levanaOpening,
+      from: 2,
+      to: 5,
+      enEdits: [
+        { seg: 2, from: ' My heart is before You, O Lord, my Rock and my Redeemer.', to: '' },
+        { seg: 4, from: ' (Baalach Shab 2:2, Leviticus 23)', to: '' },
+      ],
+    },
+    { ...levana, title: T.leshemYichud, from: 6, to: 7, reviewed: [7] },
+    { ...levana, title: T.levanaBlessing, from: 8, to: 11, enEdits: [{ seg: 9, from: 'Yisrael....', to: 'Yisrael.' }] },
+    { ...withoutEnglish, title: T.levanaBlessing, from: 12, to: 13 },
+    { ...levana, title: T.levanaBlessing, from: 14, to: 15 },
+    { ...levana, title: T.levanaPsalms, from: 16, to: 18 },
+    { ...levana, title: T.kaddishDerabbanan, from: 20, to: 22, minyan: SAID_BY.mourners },
+    {
+      ...levana,
+      title: T.levanaEnding,
+      from: 24,
+      to: 25,
+      edits: [
+        { seg: 24, from: 'ששי ', to: '' },
+        { seg: 24, from: 'אכלתי ', to: '' },
+        { seg: 24, from: '[', to: '', count: 2 },
+        { seg: 24, from: ']', to: '', count: 2 },
+      ],
+      reviewed: [24],
+      optionalParts: [{ from: 24, label: SOME_SAY.afterKaddishLevana }],
+    },
+  ];
+}
+
+function chabadKiddushLevana() {
+  const levana = { ...CHABAD, path: 'Kiddush Levanah' };
+  const psalm150Body =
+    '<b>הַלְלוּיָהּ</b> הַֽלְלוּ־אֵל בְּקָדְשׁוֹ הַלְלֽוּהוּ בִּרְקִֽיעַ עֻזּוֹ: הַלְלֽוּהוּ בִּגְבוּרֹתָיו הַלְלֽוּהוּ כְּרֹב גֻּדְלוֹ: הַלְלֽוּהוּ בְּתֵֽקַע שׁוֹפָר הַלְלֽוּהוּ בְּנֵֽבֶל וְכִנּוֹר: הַלְלֽוּהוּ בְּתֹף וּמָחוֹל הַלְלֽוּהוּ בְּמִנִּים וְעֻגָב: הַלְלֽוּהוּ בְצִלְצְלֵי־שָֽׁמַע הַלְלֽוּהוּ בְּצִלְצְלֵי תְרוּעָה: ';
+  const psalm150Closing = 'כֹּל הַנְּשָׁמָה תְּהַלֵּל יָהּ הַלְלוּיָהּ: כֹּל הַנְּשָׁמָה תְּהַלֵּל יָהּ הַלְלוּיָהּ: ';
+  return [
+    { ...levana, title: T.levanaOpening, from: 0, to: 1, insert: levanaNotes(0, { timing: false }) },
+    { ...levana, title: T.levanaBlessing, from: 2, to: 9 },
+    { ...levana, title: T.levanaPsalms, from: 10, to: 11 },
+    { ...levana, title: T.levanaPsalms, from: 12, to: 12, edits: [{ seg: 12, from: psalm150Closing, to: '' }] },
+    { ...levana, title: T.levanaPsalms, from: 12, to: 12, edits: [{ seg: 12, from: psalm150Body, to: '' }] },
+    { ...levana, title: T.levanaPsalms, from: 13, to: 14 },
+    { ...levana, title: T.aleinu, from: 15, to: 16 },
+    {
+      ...levana,
+      title: T.mournersKaddish,
+      from: 18,
+      to: 20,
+      edits: [
+        {
+          seg: 20,
+          from: 'שָׁלֽוֹם בִּמְרוֹמָֽיו',
+          to: `<if none="${AYT}">שָׁלֽוֹם</if><if all="${AYT}">הַשָּׁלֽוֹם</if> בִּמְרוֹמָֽיו`,
+        },
+      ],
+      minyan: SAID_BY.mourners,
+    },
+    { ...levana, title: T.alTira, from: 21, to: 22 },
+  ];
+}
+
+function sefardName(html) {
+  return html.replace(/\u05D9\u05B0\u05D4\u05D5\u05B8\u05B9\u05D4/g, '\u05D9\u05B0\u05D4\u05B9\u05D5\u05B8\u05D4');
+}
+
+function ashkenazShevaBerachot() {
+  return [
+    {
+      he: 'metsudahShabbatHe',
+      en: 'metsudahShabbatEn',
+      title: T.shevaBerachot,
+      path: 'Birchas Hamazon > The Seven Marriage Blessings',
+      groups: [[0, 2], [3, 5], [6, 13], [14, 18], [19, 24], [25, 41], [42, 44]],
+      minyanParts: [{ from: 0, to: 41, label: SAID_BY.withMinyan }],
+      edits: [{ seg: 9, ...METSUDAH_BETZELEM_DAGESH }],
+      insert: [
+        {
+          at: 0,
+          he: '<small>אחר ברכת המזון מברכים שבע ברכות על כוס שני:</small>',
+          en: 'After Birkat HaMazon, the Seven Berachot are said over a second cup of wine:',
+        },
+        { at: 42, he: '<small>המזמן מברך:</small>', en: 'The leader blesses:' },
+      ],
+      enEdits: [1, 4].map((seg) => ({ seg, from: 'King of the verse', to: 'King of the Universe' })),
+    },
+  ];
+}
+
+function sefardShevaBerachot() {
+  const base = { ...SEFARD, title: T.shevaBerachot, path: 'Various Blessings > Sheva Berachot', transform: sefardName };
+  return [
+    {
+      ...base,
+      from: 2,
+      to: 7,
+      minyan: SAID_BY.withMinyan,
+      edits: [{ seg: 4, ...METSUDAH_BETZELEM_DAGESH }],
+      insert: [
+        {
+          at: 2,
+          he: '<small>בשבע ברכות שלאחר ברכת המזון מתחילים כאן, ומסיימים בבורא פרי הגפן:</small>',
+          en: 'After Birkat HaMazon, the Seven Berachot begin here and end with the blessing over the wine.',
+        },
+      ],
+    },
+    { ...base, from: 0, to: 0 },
+  ];
+}
+
+function edotShevaBerachot() {
+  return [
+    {
+      ...EDOT,
+      title: T.shevaBerachot,
+      path: 'Assorted Blessings and Prayers > Sheva Berachot',
+      from: 1,
+      to: 8,
+      reviewed: [8],
+      minyanParts: [{ from: 3, to: 8, label: SAID_BY.withMinyan }],
+    },
+  ];
+}
+
+function ashkenazChanukahCandles() {
+  const lighting = 'Festivals > Chanukah > Service for Lighting Chanukah Candles';
+  return [
+    {
+      ...DAAT,
+      title: T.chanukahBlessings,
+      path: `${lighting} > Blessings on Chanukah Candles`,
+      groups: [[1, 2], [3, 4], [7, 8]],
+      edits: [
+        { seg: 0, from: 'לפני ההדלקה מברכים:', to: '<small>לפני ההדלקה מברכים:</small>' },
+        { seg: 6, from: 'בלילה הראשון מוסיפים:', to: '<small>בלילה הראשון מוסיפים:</small>' },
+      ],
+      at: each(6, 8, CHANUKAH_FIRST_NIGHT),
+    },
+    { ...DAAT, title: T.hanerotHallalu, path: `${lighting} > Hanerot Hallalu` },
+    { ...DAAT, title: T.maozTzur, path: `${lighting} > Maoz Tzur`, groups: [[0, 3], [5, 8], [10, 13], [15, 18], [20, 23], [25, 28]] },
+  ];
+}
+
+function sefardChanukahCandles() {
+  const lighting = { ...TORAT_EMET, path: 'Chanukah > Menorah Lighting' };
+  const firstNightShehecheyanu = ' ובערב הראשון מוסיפים ברכת שהחיינו';
+  const lightingTheRest = ' כשמדליק השאר';
+  const withoutWholeLineBold = (html) => html.replace(/<b><b>|<\/b><\/b>/g, '');
+  return [
+    { ...lighting, title: T.chanukahPlacement, from: 2, to: 2, reviewed: [2] },
+    {
+      ...lighting,
+      title: T.leshemYichud,
+      from: 3,
+      to: 4,
+      edits: [{ seg: 4, from: 'ובני"ו)</small> </small>.', to: 'ובני"ו)</small></small>.' }],
+    },
+    {
+      ...lighting,
+      title: T.chanukahBlessings,
+      from: 5,
+      to: 9,
+      edits: [{ seg: 5, from: firstNightShehecheyanu, to: onChanukahFirstNight(firstNightShehecheyanu) }],
+      at: each(8, 9, CHANUKAH_FIRST_NIGHT),
+    },
+    {
+      ...lighting,
+      title: T.hanerotHallalu,
+      from: 10,
+      to: 11,
+      edits: [{ seg: 10, from: lightingTheRest, to: afterChanukahFirstNight(lightingTheRest) }],
+    },
+    { ...lighting, title: T.maozTzur, from: 12, to: 19 },
+    { ...lighting, title: T.psalm30, from: 20, to: 20 },
+    { ...lighting, title: T.psalm111, from: 21, to: 21 },
+    { ...lighting, title: T.psalm112, from: 22, to: 22 },
+    { ...lighting, title: T.vihiNoamYoshev, from: 23, to: 24 },
+    { ...lighting, title: T.psalm67, from: 25, to: 25 },
+    { ...lighting, title: T.anaBekoach, from: 26, to: 34, transform: withoutWholeLineBold },
+    { ...lighting, title: T.psalm33, from: 35, to: 35 },
+    { ...lighting, title: T.psalm133, from: 36, to: 36 },
+  ];
+}
+
+function edotChanukahCandles() {
+  const lighting = { ...EDOT, path: 'Hanukkah > Menorah Lighting', transform: EDOT_VARIANTS };
+  return [
+    { ...lighting, title: T.leshemYichud, from: 2, to: 2, reviewed: [2] },
+    { ...lighting, title: T.chanukahBlessings, from: 3, to: 6, at: each(5, 6, CHANUKAH_FIRST_NIGHT) },
+    { ...lighting, title: T.hanerotHallalu, from: 7, to: 8 },
+    {
+      ...lighting,
+      title: T.psalm30,
+      from: 9,
+      to: 9,
+      edits: [
+        { seg: 9, from: 'מיורדי [', to: '' },
+        { seg: 9, from: ']־', to: '־' },
+      ],
+    },
+    { ...lighting, title: T.vihiNoamYoshev, from: 10, to: 12, reviewed: [10] },
+    { ...lighting, title: T.maozTzur, from: 14, to: 20 },
+  ];
+}
+
+function chabadChanukahCandles() {
+  const firstNightShehecheyanu = ' ובלילה ראשונה יברך גם כן שהחיינו';
+  const firstNightOrder = ' ויתחיל להדליק בליל ראשון מנר הימין';
+  const laterNightsOrder = ' ומליל שני ואילך יברך על הנוסף וילך משמאל לימין';
+  return [
+    {
+      he: 'chabadHe',
+      path: 'Chanukah',
+      title: T.chanukahBlessings,
+      from: 0,
+      to: 3,
+      reviewed: [0],
+      edits: [
+        { seg: 0, from: firstNightShehecheyanu, to: onChanukahFirstNight(firstNightShehecheyanu) },
+        { seg: 0, from: firstNightOrder, to: onChanukahFirstNight(firstNightOrder) },
+        { seg: 0, from: laterNightsOrder, to: afterChanukahFirstNight(laterNightsOrder) },
+      ],
+      at: { 3: CHANUKAH_FIRST_NIGHT },
+    },
+    { he: 'chabadHe', path: 'Chanukah', title: T.hanerotHallalu, from: 4, to: 4 },
   ];
 }
 

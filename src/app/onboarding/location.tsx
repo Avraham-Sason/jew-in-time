@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Linking, Pressable, PressableStateCallbackType, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
+import Animated, { FadeOut } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { ONBOARDING_STEPS, OnboardingDots } from '@/components/OnboardingDots';
 import { LocationService } from '@/services/LocationService';
-import { requestNotificationPermissions } from '@/services/NotificationScheduler';
+import { requestNotificationPermissions, syncNotificationPermissionStatus } from '@/services/NotificationScheduler';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { typography } from '@/theme/typography';
@@ -17,6 +19,15 @@ export default function OnboardingLocationScreen() {
   const router = useRouter();
   const user = useUserStore();
   const [busy, setBusy] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  // Only an answer to this screen's own request counts as "blocked": the stored status reads
+  // 'denied' for a permission never asked yet.
+  const [refused, setRefused] = useState(false);
+  const notificationsGranted = user.notificationPermission === 'granted';
+
+  useEffect(() => {
+    syncNotificationPermissionStatus().catch(() => {});
+  }, []);
 
   const refreshLocation = async () => {
     if (busy) return;
@@ -35,9 +46,22 @@ export default function OnboardingLocationScreen() {
   };
 
   const allowNotifications = async () => {
-    const granted = await requestNotificationPermissions();
-    user.setNotificationPermission(granted ? 'granted' : 'denied');
+    if (requesting) return;
+    Haptics.selectionAsync().catch(() => {});
+    setRequesting(true);
+    try {
+      const granted = await requestNotificationPermissions();
+      user.setNotificationPermission(granted ? 'granted' : 'denied');
+      setRefused(!granted);
+    } catch {
+      setRefused(true);
+    } finally {
+      setRequesting(false);
+    }
   };
+
+  const pressFeedback = ({ pressed }: PressableStateCallbackType) =>
+    pressed ? { opacity: 0.6, transform: [{ scale: 0.97 }] } : null;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
@@ -50,7 +74,11 @@ export default function OnboardingLocationScreen() {
         <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
           {t(`settings.locationStatus.${user.locationStatus}`)}
         </Text>
-        <Pressable onPress={refreshLocation} style={[styles.secondaryBtn, { backgroundColor: colors.surface2 }]}>
+        <Pressable
+          onPress={refreshLocation}
+          accessibilityRole="button"
+          style={(state) => [styles.secondaryBtn, { backgroundColor: colors.surface2 }, pressFeedback(state)]}
+        >
           <Text style={[typography.bodyBold, { color: colors.text }]}>{busy ? '...' : t('onboarding.locationRefresh')}</Text>
         </Pressable>
       </View>
@@ -70,13 +98,29 @@ export default function OnboardingLocationScreen() {
         })}
       </View>
 
-      <View style={[styles.card, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}>
-        <Text style={[typography.subheading, { color: colors.text }]}>{t('onboarding.notificationsTitle')}</Text>
-        <Text style={[typography.small, { color: colors.textSub, marginTop: 4 }]}>{t('onboarding.notificationsBody')}</Text>
-        <Pressable onPress={allowNotifications} style={[styles.secondaryBtn, { borderColor: colors.gold, borderWidth: 1.5 }]}>
-          <Text style={[typography.bodyBold, { color: colors.gold }]}>{t('onboarding.notificationsAction')}</Text>
-        </Pressable>
-      </View>
+      {notificationsGranted ? null : (
+        <Animated.View exiting={FadeOut.duration(250)} style={[styles.card, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}>
+          <Text style={[typography.subheading, { color: colors.text }]}>{t('onboarding.notificationsTitle')}</Text>
+          <Text style={[typography.small, { color: colors.textSub, marginTop: 4 }]}>
+            {refused ? t('onboarding.notificationsBlocked') : t('onboarding.notificationsBody')}
+          </Text>
+          <Pressable
+            onPress={refused ? () => Linking.openSettings().catch(() => {}) : allowNotifications}
+            disabled={requesting}
+            accessibilityRole="button"
+            accessibilityState={{ busy: requesting }}
+            style={(state) => [styles.secondaryBtn, { borderColor: colors.gold, borderWidth: 1.5 }, pressFeedback(state)]}
+          >
+            {requesting ? (
+              <ActivityIndicator color={colors.gold} />
+            ) : (
+              <Text style={[typography.bodyBold, { color: colors.gold }]}>
+                {refused ? t('onboarding.notificationsOpenSettings') : t('onboarding.notificationsAction')}
+              </Text>
+            )}
+          </Pressable>
+        </Animated.View>
+      )}
 
       <OnboardingDots step={3} total={ONBOARDING_STEPS} style={styles.dots} />
       <Pressable onPress={() => router.push('/onboarding/ready')} style={[styles.cta, { backgroundColor: colors.gold }]}>

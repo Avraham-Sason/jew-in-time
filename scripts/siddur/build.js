@@ -155,10 +155,31 @@ function decodeEntities(text) {
     .replace(/&amp;/g, '&');
 }
 
+// Removes each element that starts with `opener` up to its own closing tag, counting nested tags of
+// the same name: a footnote that italicises a word inside itself must not leak its tail.
+function withoutElements(html, opener, tag) {
+  const tags = new RegExp(`<(/?)${tag}\\b[^>]*>`, 'gi');
+  let out = '';
+  let rest = html;
+  for (let start = rest.indexOf(opener); start !== -1; start = rest.indexOf(opener)) {
+    out += rest.slice(0, start);
+    tags.lastIndex = start;
+    let depth = 0;
+    let end = rest.length;
+    for (let found = tags.exec(rest); found; found = tags.exec(rest)) {
+      depth += found[1] ? -1 : 1;
+      if (depth === 0) {
+        end = found.index + found[0].length;
+        break;
+      }
+    }
+    rest = rest.slice(end);
+  }
+  return out + rest;
+}
+
 function withoutFootnotes(html) {
-  return html
-    .replace(/<sup class="footnote-marker">[\s\S]*?<\/sup>/g, '')
-    .replace(/<i class="footnote">[\s\S]*?<\/i>/g, '');
+  return withoutElements(withoutElements(html, '<sup class="footnote-marker">', 'sup'), '<i class="footnote">', 'i');
 }
 
 function parseCondition(tag) {
@@ -318,7 +339,7 @@ function parseEnglish(html) {
   const text = decodeEntities(withoutFootnotes(html).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ''))
     .replace(/\s+/g, ' ')
     .trim();
-  return /[A-Za-z]{2,}/.test(text) ? text : '';
+  return /[A-Za-z]{2,}/.test(text) ? text.replace(/^\d+\.\s/, '') : '';
 }
 
 function tidyRuns(runs) {

@@ -133,6 +133,22 @@ export const HebcalService = {
     return renderHebrewDate(days[days.length - 1]);
   },
 
+  // The same day as an HDate, for a text that resolves "now": after shkia it is already the next
+  // Hebrew day, bein hashmashot included.
+  hebrewDayAt(instant: Date, loc?: Location): HDate {
+    const days = hebrewDaysAt(instant, loc);
+    return days[days.length - 1];
+  },
+
+  // The Hebrew day whose night is in effect or comes next, for a text said at night: before dawn
+  // it is the night still running, from dawn on it is tonight, which opens the next Hebrew day.
+  hebrewNightAt(instant: Date, loc: Location): HDate {
+    const civil = civilDayAt(instant, loc);
+    const dawn = ZmanimService.getZmanim(instant, loc)?.alotHaShachar;
+    const beforeDawn = dawn ? instant.getTime() < dawn.getTime() : DateTime.fromJSDate(instant).setZone(loc.tz).hour < 4;
+    return beforeDawn ? civil : civil.next();
+  },
+
   getParasha(date: Date, loc: Location): string | undefined {
     const events = HebrewCalendar.calendar({
       start: date,

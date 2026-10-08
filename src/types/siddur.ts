@@ -49,6 +49,14 @@ export type DayFlag =
   | 'asaraBTevet'
   | 'taanitEsther'
   | 'tzomTammuz'
+  | 'roshChodeshYesterday'
+  | 'cholHamoedPesachYesterday'
+  | 'cholHamoedSukkotYesterday'
+  | 'chanukahYesterday'
+  | 'purimYesterday'
+  | 'chanukahFirstNight'
+  | 'kiddushLevana'
+  | 'avBeforeTishaBav'
   | SukkotOfferingFlag;
 
 export type Place = {
@@ -105,7 +113,7 @@ export type SiddurText = {
   credits: SiddurCredit[];
 };
 
-export type SiddurTextId =
+export type MitzvahTextId =
   | 'tefillin'
   | 'tzitzit'
   | 'birchot_hashachar'
@@ -116,3 +124,21 @@ export type SiddurTextId =
   | 'shacharit'
   | 'mincha'
   | 'maariv';
+
+export type StandaloneTextId =
+  | 'birkat_hamazon'
+  | 'al_hamichya'
+  | 'borei_nefashot'
+  | 'tefilat_haderech'
+  | 'asher_yatzar'
+  | 'birchot_hanehenin'
+  | 'kriat_shema_al_hamita'
+  | 'birchot_hareiya'
+  | 'kiddush_levana'
+  | 'mezuzah'
+  | 'sheva_berachot'
+  | 'chanukah_candles';
+
+export type SiddurTextId = MitzvahTextId | StandaloneTextId;
+
+export type SiddurGroup = 'meals' | 'blessings' | 'travel' | 'night' | 'occasions';

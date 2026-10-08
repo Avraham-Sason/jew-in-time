@@ -93,7 +93,8 @@ Store copy lives in [release/](release).
 - [src/app/onboarding/](src/app/onboarding) - Onboarding flow: welcome, profile (gender, marital status and the taharah opt-in), nusach, location/notifications, ready.
 - [src/app/taharah/](src/app/taharah) - Taharat hamishpacha: dashboard, event log, calendar and minhag settings, behind the biometric lock in its `_layout.tsx`.
 - [src/app/mitzvah/[id].tsx](<src/app/mitzvah/[id].tsx>) - Static and custom mitzvah details, reminders, content blocks.
-- [src/app/siddur/[id].tsx](<src/app/siddur/[id].tsx>) - Nusach reader: the mitzvah's text in the user's nusach and language, resolved for the day.
+- [src/app/siddur/[id].tsx](<src/app/siddur/[id].tsx>) - Nusach reader: a mitzvah's or a standalone text in the user's nusach and language, resolved for the day.
+- [src/app/siddur/index.tsx](src/app/siddur/index.tsx) - Siddur catalog: the twelve standalone texts (meals, blessings, travel, night, festivals and celebrations) by group, each greyed out on a day it is not said, opened from home and the library header.
 - [src/app/day/[date].tsx](<src/app/day/[date].tsx>) - Read-only per-day route for schedule/history drilldown.
 - [src/app/custom-mitzvah.tsx](src/app/custom-mitzvah.tsx) - Create/edit custom mitzvot.
 - [src/app/checkin.tsx](src/app/checkin.tsx) - Post-block check-in: mark what was done during the Shabbat / Yom Tov block that just ended.
@@ -159,7 +160,7 @@ Custom mitzvot live in `useCustomMitzvotStore` and are adapted through [customMi
 
 ## Zmanim and Calendar
 
-- `ZmanimService.getZmanim(date, location)` wraps `kosher-zmanim` `ComplexZmanimCalendar`, resolves the calendar day in the location's timezone, caches up to 90 entries, and returns cloned `Date` objects. It returns `null` (never throws) when the sun neither rises nor sets.
+- `ZmanimService.getZmanim(date, location)` wraps `kosher-zmanim` `ComplexZmanimCalendar`, resolves the calendar day in the location's timezone, caches up to 90 entries, and returns cloned `Date` objects. It returns `null` (never throws) when the sun neither rises nor sets. It replaces kosher-zmanim's antimeridian adjustment with `antimeridianAdjustment()`, because kosher-zmanim 0.9.0 reads a DST zone's raw offset with the wrong sign and gave Sydney and New Zealand the next day's zmanim.
 - Sunrise/sunset use sea-level getters. `tzeitHakochavim` uses `getTzaisGeonim7Point083Degrees()`.
 - Candle lighting uses the same sea-level sunset basis, via `candleLightingMinutes(location)`: 40 minutes in Jerusalem (local minhag), 18 elsewhere in Israel, 20 outside Israel, or `location.candleLightingMinutes` when set. It opens once per holy block, on its erev; havdalah once, at the block's last tzeit, plus the Sunday night after a Tisha B'Av fast that falls on Sunday, as it is or deferred from Shabbat.
 - Shabbat and Yom Tov are ordinary days for history and the streak (user decision 2026-10-06), marked after the fact. Everything whose window reaches into a block waits in that block's check-in until it is finished or until midnight that ends the first weekday after the block (device clock); only then is a missing mark a miss. [checkIn.ts](src/utils/checkIn.ts) owns that, and [historyStats.ts](src/utils/historyStats.ts) judges every item done, missed or still open.
@@ -300,6 +301,7 @@ pnpm typecheck
 - New persisted store field: add a default, reset behavior, and a `version`/`migrate` step in [persistOptions.ts](src/stores/persistOptions.ts) if old persisted data may exist.
 - New decision about whether a mitzvah applies to a day: extend [skipRules.ts](src/utils/skipRules.ts). Never add a second copy of that predicate.
 - New nusach text or day-dependent insert: follow [scripts/siddur/AGENTS.md](scripts/siddur/AGENTS.md) — registry in [siddur.ts](src/data/siddur.ts), day flags in [siddur.ts](src/utils/siddur.ts), manifest, `pnpm siddur:build`, dated content tests.
+- New standalone siddur text (no mitzvah): its id in `StandaloneTextId` ([siddur.ts](src/types/siddur.ts)), its name and group in `STANDALONE_TEXTS` ([siddur.ts](src/data/siddur.ts)), a new group's i18n key `siddur.group.<group>`, a manifest entry for all four nuschaot, `pnpm siddur:build`, and dated cases in [siddur.test.ts](src/data/__tests__/siddur.test.ts). The catalog and the reader need no change.
 - New Android permission or config plugin: re-run [pnpm prebuild:clean](package.json) and check the generated manifest, then [pnpm check:dox](scripts/check-dox.js).
 - New or moved AGENTS.md: run [pnpm check:dox](scripts/check-dox.js) — it verifies links, section order, and every Child DOX Index.
 - Version bump: raise `version` in [app.json](app.json) and [package.json](package.json) in the same edit, and only in a change that also produces a native build. See [Release and Updates](#release-and-updates) for why a bump on its own strands every installed user.

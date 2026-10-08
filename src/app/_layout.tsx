@@ -200,6 +200,7 @@ function RootInner() {
           >
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="mitzvah/[id]" options={{ presentation: 'card' }} />
+            <Stack.Screen name="siddur/index" options={{ presentation: 'card' }} />
             <Stack.Screen name="siddur/[id]" options={{ presentation: 'card' }} />
             <Stack.Screen name="day/[date]" options={{ presentation: 'card' }} />
             <Stack.Screen name="custom-mitzvah" options={{ presentation: 'card' }} />

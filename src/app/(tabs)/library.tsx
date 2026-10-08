@@ -49,13 +49,23 @@ export default function LibraryScreen() {
                 title={t("library.title")}
                 subtitle={t("library.subtitle")}
                 left={
-                    <Pressable
-                        onPress={() => router.push("/custom-mitzvah")}
-                        accessibilityLabel={t("library.addCustom")}
-                        style={[styles.addBtn, { backgroundColor: colors.gold }]}
-                    >
-                        <Text style={[typography.bodyBold, { color: "#fff" }]}>+</Text>
-                    </Pressable>
+                    <View style={styles.navActions}>
+                        <Pressable
+                            onPress={() => router.push("/siddur")}
+                            accessibilityRole="button"
+                            accessibilityLabel={t("siddur.catalog.open")}
+                            style={[styles.siddurBtn, { backgroundColor: `${colors.headerAccent}22` }]}
+                        >
+                            <Text style={[typography.captionBold, { color: colors.headerAccent }]}>{t("siddur.catalog.title")}</Text>
+                        </Pressable>
+                        <Pressable
+                            onPress={() => router.push("/custom-mitzvah")}
+                            accessibilityLabel={t("library.addCustom")}
+                            style={[styles.addBtn, { backgroundColor: colors.gold }]}
+                        >
+                            <Text style={[typography.bodyBold, { color: "#fff" }]}>+</Text>
+                        </Pressable>
+                    </View>
                 }
             />
             <View style={[styles.segmentWrap, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
@@ -235,6 +245,18 @@ const styles = StyleSheet.create({
     addBtn: {
         width: 32,
         height: 32,
+        borderRadius: 16,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    navActions: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    siddurBtn: {
+        height: 32,
+        paddingHorizontal: 12,
         borderRadius: 16,
         alignItems: "center",
         justifyContent: "center",

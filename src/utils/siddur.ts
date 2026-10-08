@@ -73,6 +73,20 @@ function observances(hd: HDate, inIsrael: boolean) {
   return { descs, yomKippur, yomTov, cholHamoed, shabbat: hd.getDay() === 6 };
 }
 
+function isChanukah(hd: HDate): boolean {
+  const first = new HDate(25, months.KISLEV, hd.getFullYear());
+  return within(hd, first, first.add(7));
+}
+
+function observedTishaBav(year: number): HDate {
+  const ninth = new HDate(9, months.AV, year);
+  return ninth.getDay() === 6 ? ninth.next() : ninth;
+}
+
+function purimName(place: Place): string {
+  return place.jerusalem ? 'Shushan Purim' : 'Purim';
+}
+
 export function liturgicalDay(windowDate: Date, evening: boolean): HDate {
   const base = new HDate(new Date(windowDate.getFullYear(), windowDate.getMonth(), windowDate.getDate()));
   return evening ? base.next() : base;
@@ -104,8 +118,11 @@ export function dayFeatures(hd: HDate, place: Place): DayFeatures {
   add('aseretYemeiTeshuva', month === months.TISHREI && date <= 10);
   add('erevYomKippur', month === months.TISHREI && date === 9);
   add('ledavidSeason', month === months.ELUL || (month === months.AV && date === 30) || (month === months.TISHREI && date <= 21));
-  add('chanukah', within(hd, new HDate(25, months.KISLEV, year), new HDate(25, months.KISLEV, year).add(7)));
-  add('purim', today.descs.includes(place.jerusalem ? 'Shushan Purim' : 'Purim'));
+  add('chanukah', isChanukah(hd));
+  add('chanukahFirstNight', month === months.KISLEV && date === 25);
+  add('kiddushLevana', date >= 3 && date <= 15);
+  add('avBeforeTishaBav', month === months.AV && hd.abs() <= observedTishaBav(year).abs());
+  add('purim', today.descs.includes(purimName(place)));
   add('purimOrShushan', today.descs.includes('Purim') || today.descs.includes('Shushan Purim'));
   add('purimKatan', today.descs.includes('Purim Katan') || today.descs.includes('Shushan Purim Katan'));
   add('publicFast', today.descs.some((desc) => PUBLIC_FASTS.some((fast) => desc.startsWith(fast))));
@@ -136,6 +153,15 @@ export function dayFeatures(hd: HDate, place: Place): DayFeatures {
 
   const yesterday = observances(hd.prev(), place.inIsrael);
   add('motzaei', yesterday.shabbat || yesterday.yomTov || yesterday.yomKippur);
+  // A meal begun before sunset keeps yesterday's inserts, so the day after names what yesterday was,
+  // but only when today carries no insert of the same kind of its own.
+  const noYaalehVeyavoToday = !flagged('roshChodesh', 'cholHamoedPesach', 'cholHamoedSukkot');
+  add('roshChodeshYesterday', noYaalehVeyavoToday && yesterday.descs.some((desc) => desc.startsWith('Rosh Chodesh')));
+  add('cholHamoedPesachYesterday', noYaalehVeyavoToday && yesterday.cholHamoed.some((desc) => desc.startsWith('Pesach')));
+  add('cholHamoedSukkotYesterday', noYaalehVeyavoToday && yesterday.cholHamoed.some((desc) => desc.startsWith('Sukkot')));
+  const noAlHanissimToday = !flagged('chanukah', 'purim');
+  add('chanukahYesterday', noAlHanissimToday && isChanukah(hd.prev()));
+  add('purimYesterday', noAlHanissimToday && yesterday.descs.includes(purimName(place)));
   if (yesterday.shabbat) {
     flags.add('motzaeiShabbat');
     const weekAhead = [0, 1, 2, 3, 4, 5].map((offset) => observances(hd.add(offset), place.inIsrael));

@@ -3,10 +3,23 @@ import { ActivityIndicator, FlatList, I18nManager, Linking, Modal, Pressable, Sc
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import * as Haptics from 'expo-haptics';
 import { DateTime } from 'luxon';
 import Svg, { Path } from 'react-native-svg';
 import { findAnyMitzvah } from '@/data/customMitzvotAdapter';
-import { SIDDUR_TEXTS, customSiddurText, hasSiddurText, siddurPlace, siddurTextId } from '@/data/siddur';
+import {
+  SIDDUR_TEXTS,
+  STANDALONE_TEXTS,
+  customSiddurText,
+  hasSiddurText,
+  hasStandaloneText,
+  mitzvahTextId,
+  siddurPlace,
+  standaloneTextDay,
+  standaloneTextId,
+} from '@/data/siddur';
+import { useNow } from '@/hooks/useNow';
+import { HDate } from '@hebcal/core';
 import { loadSiddurText } from '@/services/SiddurService';
 import { HebcalService } from '@/services/HebcalService';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
@@ -35,12 +48,16 @@ function parseDateParam(value: string | undefined): Date | null {
   return parsed.isValid ? parsed.toJSDate() : null;
 }
 
+// A segment is "added today" when its condition names a flag (required, or one of several) that the
+// section's other segments do not all share.
+function flagsOf(segment: SiddurSegment): string[] {
+  return [...(segment.when?.all ?? []), ...(segment.when?.any ?? [])];
+}
+
 function isAddedForToday(segment: SiddurSegment, section: SiddurSection): boolean {
   if (segment.when?.omerDay !== undefined) return true;
-  const sharedFlags = section.segments
-    .map((item) => item.when?.all ?? [])
-    .reduce((shared, flags) => shared.filter((flag) => flags.includes(flag)));
-  return (segment.when?.all ?? []).some((flag) => !sharedFlags.includes(flag));
+  const sharedFlags = section.segments.map(flagsOf).reduce((shared, flags) => shared.filter((flag) => flags.includes(flag)));
+  return flagsOf(segment).some((flag) => !sharedFlags.includes(flag));
 }
 
 export default function SiddurScreen() {
@@ -55,14 +72,25 @@ export default function SiddurScreen() {
   const inIsrael = useUserStore((s) => s.inIsrael);
   const fontSize = useUserStore((s) => s.siddurFontSize);
   const setFontSize = useUserStore((s) => s.setSiddurFontSize);
+  const standalone = mitzvah ? null : standaloneTextId(params.id);
   const requestedDate = useMemo(() => parseDateParam(params.date), [params.date]);
   const windowDate = useMemo(() => requestedDate ?? new Date(), [requestedDate]);
-  const textId = mitzvah && !mitzvah.isCustom ? siddurTextId(mitzvah.id) : null;
-  const evening = textId ? SIDDUR_TEXTS[textId].evening : false;
-  const hebrewDay = useMemo(() => liturgicalDay(windowDate, evening), [windowDate, evening]);
+  const mitzvahText = mitzvah && !mitzvah.isCustom ? mitzvahTextId(mitzvah.id) : null;
+  const textId = mitzvahText ?? standalone;
+  const evening = mitzvahText ? SIDDUR_TEXTS[mitzvahText].evening : Boolean(standalone && STANDALONE_TEXTS[standalone].evening);
+  // A standalone text with no date follows the clock (`standaloneTextDay()`). Keyed by the day
+  // number so the 30-second tick re-resolves the text only when the day turns.
+  const now = useNow();
+  const todayAbs = standalone && !requestedDate ? standaloneTextDay(standalone, now, location).abs() : null;
+  const hebrewDay = useMemo(
+    () => (todayAbs !== null ? new HDate(todayAbs) : liturgicalDay(windowDate, evening)),
+    [todayAbs, windowDate, evening],
+  );
   const place = useMemo(() => siddurPlace(location, inIsrael), [location, inIsrael]);
   const features = useMemo(() => dayFeatures(hebrewDay, place), [hebrewDay, place]);
-  const available = Boolean(requestedDate && mitzvah && hasSiddurText(mitzvah, nusach, requestedDate, place));
+  const available = standalone
+    ? hasStandaloneText(standalone, nusach, features)
+    : Boolean(requestedDate && mitzvah && hasSiddurText(mitzvah, nusach, requestedDate, place));
   const done = useCompletionsStore((s) => Boolean(mitzvah && s.completions[dateKey(windowDate)]?.[mitzvah.id]));
   const markDone = useCompletionsStore((s) => s.markDone);
   const [attempt, setAttempt] = useState(0);
@@ -95,8 +123,8 @@ export default function SiddurScreen() {
   }, []);
 
   useEffect(() => {
-    if (!mitzvah || !available) return undefined;
-    if (mitzvah.isCustom) {
+    if (!available) return undefined;
+    if (mitzvah?.isCustom) {
       const text = customSiddurText(mitzvah, nusach);
       setLoad(text ? { status: 'ready', text } : { status: 'error' });
       return undefined;
@@ -118,10 +146,24 @@ export default function SiddurScreen() {
   );
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'));
-  const name = mitzvah ? (language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he) : '';
+  // Done ends the session with the text: mark it, then land on home whatever opened the reader (a
+  // home card, the mitzvah screen, a notification on a cold start).
+  const finish = (mitzvahId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    markDone(mitzvahId, windowDate);
+    if (router.canDismiss()) {
+      router.dismissAll();
+      router.navigate('/(tabs)/home');
+    } else {
+      router.replace('/(tabs)/home');
+    }
+  };
+  const nameOf = (entry: { he: string; en?: string }) => (language === 'en' && entry.en ? entry.en : entry.he);
+  const name = mitzvah ? nameOf(mitzvah.name) : standalone ? nameOf(STANDALONE_TEXTS[standalone].name) : '';
   const hebrewDateLabel = language === 'he' ? hebrewDay.renderGematriya() : hebrewDay.render('en');
   const occasions = HebcalService.getHolidays(hebrewDay.greg(), location, language);
-  const subtitle = (requestedDate ? [t(`nusach.${nusach}`), hebrewDateLabel, ...occasions] : [t(`nusach.${nusach}`)]).join(' · ');
+  const dated = Boolean(requestedDate || standalone);
+  const subtitle = (dated ? [t(`nusach.${nusach}`), hebrewDateLabel, ...occasions] : [t(`nusach.${nusach}`)]).join(' · ');
   const listExtraData = useMemo(() => ({ fontSize, language, colors, openedOptional }), [fontSize, language, colors, openedOptional]);
   const titleOf = (section: SiddurSection) => (language === 'en' ? section.title.en : section.title.he);
   const labelOf = (label: PassageLabel) => (language === 'en' ? label.en : label.he);
@@ -197,7 +239,7 @@ export default function SiddurScreen() {
   const currentIndex = sizeIndex === -1 ? SIDDUR_FONT_SIZES.length - 1 : sizeIndex;
 
   const body = (() => {
-    if (!mitzvah) return <Message text={t('errors.generic')} />;
+    if (!mitzvah && !standalone) return <Message text={t('errors.generic')} />;
     if (!available) return <Message text={t('siddur.unavailable')} />;
     if (load.status === 'loading') {
       return (
@@ -335,7 +377,7 @@ export default function SiddurScreen() {
                   <Text style={[typography.bodyBold, styles.doneText, { color: colors.safe }]}>{t('siddur.doneAlready')}</Text>
                 ) : (
                   <Pressable
-                    onPress={() => markDone(mitzvah.id, windowDate)}
+                    onPress={() => finish(mitzvah.id)}
                     accessibilityRole="button"
                     style={({ pressed }) => [styles.doneBtn, { backgroundColor: colors.gold, opacity: pressed ? 0.85 : 1 }]}
                   >

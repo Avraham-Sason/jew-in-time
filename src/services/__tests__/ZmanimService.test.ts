@@ -1,4 +1,4 @@
-import { ZmanimService } from '../ZmanimService';
+import { ZmanimService, antimeridianAdjustment } from '../ZmanimService';
 import { zmanimFor } from '@/testing/zmanim';
 import { CITIES } from '@/data/cities';
 import { Location } from '@/types/zmanim';
@@ -49,6 +49,57 @@ function hhmmToMinutes(s: string): number {
 
 function diffMinutes(a: Date, tz: string, expected: string): number {
   return Math.abs(hhmmToMinutes(toLocalHHMM(a, tz)) - hhmmToMinutes(expected));
+}
+
+// The day a zman falls on, on the location's own clock.
+function localDate(d: Date, tz: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+
+describe('ZmanimService day resolution east of the zone meridian', () => {
+  // kosher-zmanim 0.9.0 flips the sign of a DST zone's raw offset, so its antimeridian check took
+  // Sydney and New Zealand for a zone 20 hours ahead and returned the next day's zmanim.
+  const PLACES: Location[] = [
+    { name: 'Sydney', lat: -33.8688, lng: 151.2093, tz: 'Australia/Sydney', inIsrael: false },
+    { name: 'Auckland', lat: -36.8485, lng: 174.7633, tz: 'Pacific/Auckland', inIsrael: false },
+    { name: 'Melbourne', lat: -37.8136, lng: 144.9631, tz: 'Australia/Melbourne', inIsrael: false },
+    { name: 'Adak', lat: 51.88, lng: -176.65, tz: 'America/Adak', inIsrael: false },
+    JERUSALEM,
+    NEW_YORK,
+  ];
+  // Midday in both hemispheres' summer and winter, written as each place's own wall clock.
+  const DAYS = ['2026-01-15', '2026-04-23', '2026-07-15', '2026-12-04'];
+
+  it.each(PLACES.map((place) => [place.name, place] as const))('gives %s the zmanim of the very day asked for', (_name, place) => {
+    for (const day of DAYS) {
+      const noon = new Date(new Date(`${day}T12:00:00Z`).getTime() - zoneOffsetMs(`${day}T12:00:00Z`, place.tz));
+      expect(localDate(noon, place.tz)).toBe(day);
+      const z = ZmanimService.getZmanim(noon, place);
+      if (!z) throw new Error(`no zmanim for ${place.name} on ${day}`);
+      expect(localDate(z.netzHaChama, place.tz)).toBe(day);
+      expect(localDate(z.shkia, place.tz)).toBe(day);
+      expect(localDate(z.alotHaShachar, place.tz)).toBe(day);
+      expect(z.netzHaChama.getTime()).toBeLessThan(noon.getTime());
+      expect(z.shkia.getTime()).toBeGreaterThan(noon.getTime());
+    }
+  });
+
+  it('still rolls the day for a zone across the antimeridian, as the library intends', () => {
+    expect(antimeridianAdjustment({ name: 'Apia', lat: -13.83, lng: -171.76, tz: 'Pacific/Apia', inIsrael: false })).toBe(-1);
+    expect(antimeridianAdjustment({ name: 'Kiritimati', lat: 1.87, lng: -157.4, tz: 'Pacific/Kiritimati', inIsrael: false })).toBe(-1);
+    for (const place of PLACES) expect(antimeridianAdjustment(place)).toBe(0);
+  });
+});
+
+function zoneOffsetMs(isoUtc: string, tz: string): number {
+  const at = new Date(isoUtc);
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      .formatToParts(at)
+      .map((part) => [part.type, part.value]),
+  );
+  const wall = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), Number(parts.second));
+  return wall - at.getTime();
 }
 
 describe('ZmanimService accuracy', () => {

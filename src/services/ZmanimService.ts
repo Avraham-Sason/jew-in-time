@@ -38,6 +38,17 @@ function shift(base: Date, minutes: number): Date {
   return new Date(base.getTime() + minutes * 60_000);
 }
 
+// kosher-zmanim 0.9.0 reads the raw offset of any zone that keeps DST with the wrong sign, so its
+// antimeridian check takes Sydney or New Zealand for a zone 20 hours ahead of local mean time and
+// computes every zman for the next day. The same check, from the zone's true standard offset:
+export function antimeridianAdjustment(loc: Location): -1 | 0 | 1 {
+  const january = DateTime.fromObject({ month: 1, day: 1 }, { zone: loc.tz }).offset;
+  const july = DateTime.fromObject({ month: 7, day: 1 }, { zone: loc.tz }).offset;
+  const localHours = loc.lng / 15 - Math.min(january, july) / 60;
+  if (localHours >= 20) return 1;
+  return localHours <= -20 ? -1 : 0;
+}
+
 function buildCalendar(date: Date, loc: Location): ComplexZmanimCalendar {
   const geo = new GeoLocation(
     loc.name,
@@ -46,6 +57,8 @@ function buildCalendar(date: Date, loc: Location): ComplexZmanimCalendar {
     loc.elevation ?? 0,
     loc.tz,
   );
+  const adjustment = antimeridianAdjustment(loc);
+  geo.getAntimeridianAdjustment = () => adjustment;
   const cal = new ComplexZmanimCalendar(geo);
   // Resolve the calendar day in the LOCATION's zone. kosher-zmanim's setDate materialises a plain
   // Date in the system zone, so a traveller whose device zone differs from their selected city got

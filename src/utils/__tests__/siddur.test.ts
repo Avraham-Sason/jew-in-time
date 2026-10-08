@@ -145,6 +145,44 @@ describe('dayFeatures', () => {
     expect(on(first.add(8)).has('chanukah')).toBe(false);
   });
 
+  it('marks the first night of Chanukah, the Kiddush Levana days and Av before the observed Tisha B’Av', () => {
+    expect(at(25, months.KISLEV, 5787).has('chanukahFirstNight')).toBe(true);
+    expect(at(26, months.KISLEV, 5787).has('chanukahFirstNight')).toBe(false);
+    expect(at(24, months.KISLEV, 5787).has('chanukahFirstNight')).toBe(false);
+    expect(at(2, months.CHESHVAN, 5787).has('kiddushLevana')).toBe(false);
+    expect(at(3, months.CHESHVAN, 5787).has('kiddushLevana')).toBe(true);
+    expect(at(15, months.CHESHVAN, 5787).has('kiddushLevana')).toBe(true);
+    expect(at(16, months.CHESHVAN, 5787).has('kiddushLevana')).toBe(false);
+    expect(new HDate(9, months.AV, 5786).getDay()).not.toBe(6);
+    expect(at(9, months.AV, 5786).has('avBeforeTishaBav')).toBe(true);
+    expect(at(10, months.AV, 5786).has('avBeforeTishaBav')).toBe(false);
+    expect(new HDate(9, months.AV, 5789).getDay()).toBe(6);
+    expect(at(10, months.AV, 5789).has('avBeforeTishaBav')).toBe(true);
+    expect(at(11, months.AV, 5789).has('avBeforeTishaBav')).toBe(false);
+    expect(at(9, months.ELUL, 5786).has('avBeforeTishaBav')).toBe(false);
+  });
+
+  it('names what yesterday was, for a meal begun before sunset, only on a day without that insert of its own', () => {
+    expect(at(2, months.CHESHVAN, 5787).has('roshChodeshYesterday')).toBe(true);
+    expect(at(1, months.CHESHVAN, 5787).has('roshChodeshYesterday')).toBe(false);
+    expect(at(3, months.CHESHVAN, 5787).has('roshChodeshYesterday')).toBe(false);
+    expect(at(30, months.TISHREI, 5787).has('roshChodesh')).toBe(true);
+    expect(at(1, months.CHESHVAN, 5787).has('roshChodesh')).toBe(true);
+    expect(at(22, months.TISHREI, 5787).has('cholHamoedSukkotYesterday')).toBe(true);
+    expect(at(22, months.TISHREI, 5787).has('yomTov')).toBe(true);
+    expect(at(21, months.TISHREI, 5787).has('cholHamoedSukkotYesterday')).toBe(false);
+    expect(at(21, months.NISAN, 5786, DIASPORA).has('cholHamoedPesachYesterday')).toBe(true);
+    expect(at(21, months.NISAN, 5786).has('cholHamoedPesachYesterday')).toBe(true);
+    expect(at(20, months.NISAN, 5786).has('cholHamoedPesachYesterday')).toBe(false);
+    expect(at(3, months.TEVET, 5787).has('chanukahYesterday')).toBe(true);
+    expect(at(2, months.TEVET, 5787).has('chanukahYesterday')).toBe(false);
+    expect(at(4, months.TEVET, 5787).has('chanukahYesterday')).toBe(false);
+    expect(at(15, months.ADAR_II, 5787).has('purimYesterday')).toBe(true);
+    expect(at(15, months.ADAR_II, 5787, { inIsrael: true, jerusalem: true }).has('purimYesterday')).toBe(false);
+    expect(at(16, months.ADAR_II, 5787, { inIsrael: true, jerusalem: true }).has('purimYesterday')).toBe(true);
+    expect(at(16, months.ADAR_II, 5787).has('purimYesterday')).toBe(false);
+  });
+
   it('marks Purim on the 14th, and on the 15th in Jerusalem, never on Purim Katan', () => {
     const jerusalem = { inIsrael: true, jerusalem: true };
     expect(at(14, months.ADAR_I, 5786).has('purim')).toBe(true);
