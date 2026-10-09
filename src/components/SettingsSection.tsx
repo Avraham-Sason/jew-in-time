@@ -1,15 +1,16 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 
-type Props = { title: string; children: React.ReactNode };
+type Props = { title?: string; children: React.ReactNode };
 
 export function SettingsSection({ title, children }: Props) {
   const { colors } = useTheme();
   return (
     <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Text style={[typography.subheading, styles.title, { color: colors.text }]}>{title}</Text>
+      {title ? <Text style={[typography.subheading, styles.title, { color: colors.text }]}>{title}</Text> : null}
       {children}
     </View>
   );
@@ -17,12 +18,12 @@ export function SettingsSection({ title, children }: Props) {
 
 const styles = StyleSheet.create({
   section: {
-    borderRadius: 18,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    padding: 16,
-    marginBottom: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   title: {
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
 });

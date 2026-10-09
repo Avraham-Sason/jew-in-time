@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { ChipRow } from '@/components/ChipRow';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { SectionLabel } from '@/components/SectionLabel';
 import { SettingsSection } from '@/components/SettingsSection';
-import { useQuietBlock } from '@/components/ShabbatScreen';
 import { TAHARAH_PRESET_IDS } from '@/data/taharahPresets';
 import { markUnlocked } from '@/services/biometricLock';
 import { useTaharahStore } from '@/stores/useTaharahStore';
+import { BRAND } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { TaharahRole } from '@/types/taharah';
 import { useI18n } from '@/i18n';
@@ -29,7 +33,6 @@ const LEAD_FIELDS = [
 
 export default function TaharahSettingsScreen() {
   const { colors } = useTheme();
-  const quiet = useQuietBlock() !== null;
   const { t } = useI18n();
   const router = useRouter();
   const store = useTaharahStore();
@@ -56,17 +59,7 @@ export default function TaharahSettingsScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
-        <Pressable
-          onPress={close}
-          accessibilityRole="button"
-          hitSlop={10}
-          style={[styles.backBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
-        >
-          <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={[typography.heading, { color: colors.headerText }]}>{t('taharah.settings.title')}</Text>
-      </View>
+      <ScreenHeader title={t('taharah.settings.title')} onBack={close} />
       <ScrollView contentContainerStyle={styles.content}>
         <SettingsSection title={t('taharah.settings.preset')}>
           <ChipRow
@@ -75,54 +68,49 @@ export default function TaharahSettingsScreen() {
             onSelect={store.setPreset}
             renderLabel={(value) => t(`taharah.preset.${value}`)}
           />
-          <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>
+          <Text style={[typography.small, { color: colors.textMuted, marginTop: spacing.sm }]}>
             {t('taharah.settings.rulesHint')}
           </Text>
-          <Field label={t('taharah.rule.hefsekEarliestDay')}>
-            <ChipRow
-              values={HEFSEK_DAYS}
-              selected={rules.hefsekEarliestDay}
-              onSelect={(value) => store.setRule('hefsekEarliestDay', value)}
-              renderLabel={String}
-            />
-          </Field>
-          <Field label={t('taharah.rule.mochDachuk')}>
-            <ChipRow
-              values={MOCH_RULES}
-              selected={rules.mochDachuk}
-              onSelect={(value) => store.setRule('mochDachuk', value)}
-              renderLabel={(value) => t(`taharah.moch.${value}`)}
-            />
-          </Field>
-          <Field label={t('taharah.rule.onahBeinonitDays')}>
-            <ChipRow
-              values={ONAH_DAY_IDS}
-              selected={rules.onahBeinonitDays.includes(31) ? '3031' : '30'}
-              onSelect={(id) => store.setRule('onahBeinonitDays', [...ONAH_DAYS[id]])}
-              renderLabel={(id) => t(`taharah.onahBeinonit.${id}`)}
-            />
-          </Field>
-          <Field label={t('taharah.rule.onahBeinonitSpan')}>
-            <ChipRow
-              values={SPANS}
-              selected={rules.onahBeinonitSpan}
-              onSelect={(value) => store.setRule('onahBeinonitSpan', value)}
-              renderLabel={(value) => t(`taharah.span.${value}`)}
-            />
-          </Field>
+          <SectionLabel text={t('taharah.rule.hefsekEarliestDay')} style={styles.fieldLabel} />
+          <ChipRow
+            values={HEFSEK_DAYS}
+            selected={rules.hefsekEarliestDay}
+            onSelect={(value) => store.setRule('hefsekEarliestDay', value)}
+            renderLabel={String}
+          />
+          <SectionLabel text={t('taharah.rule.mochDachuk')} style={styles.fieldLabel} />
+          <ChipRow
+            values={MOCH_RULES}
+            selected={rules.mochDachuk}
+            onSelect={(value) => store.setRule('mochDachuk', value)}
+            renderLabel={(value) => t(`taharah.moch.${value}`)}
+          />
+          <SectionLabel text={t('taharah.rule.onahBeinonitDays')} style={styles.fieldLabel} />
+          <ChipRow
+            values={ONAH_DAY_IDS}
+            selected={rules.onahBeinonitDays.includes(31) ? '3031' : '30'}
+            onSelect={(id) => store.setRule('onahBeinonitDays', [...ONAH_DAYS[id]])}
+            renderLabel={(id) => t(`taharah.onahBeinonit.${id}`)}
+          />
+          <SectionLabel text={t('taharah.rule.onahBeinonitSpan')} style={styles.fieldLabel} />
+          <ChipRow
+            values={SPANS}
+            selected={rules.onahBeinonitSpan}
+            onSelect={(value) => store.setRule('onahBeinonitSpan', value)}
+            renderLabel={(value) => t(`taharah.span.${value}`)}
+          />
           <SwitchRow
             label={t('taharah.rule.ohrZarua')}
             value={rules.ohrZarua}
             onValueChange={(value) => store.setRule('ohrZarua', value)}
           />
-          <Field label={t('taharah.rule.haflagaMethod')}>
-            <ChipRow
-              values={HAFLAGA_METHODS}
-              selected={rules.haflagaMethod}
-              onSelect={(value) => store.setRule('haflagaMethod', value)}
-              renderLabel={(value) => t(`taharah.haflaga.${value}`)}
-            />
-          </Field>
+          <SectionLabel text={t('taharah.rule.haflagaMethod')} style={styles.fieldLabel} />
+          <ChipRow
+            values={HAFLAGA_METHODS}
+            selected={rules.haflagaMethod}
+            onSelect={(value) => store.setRule('haflagaMethod', value)}
+            renderLabel={(value) => t(`taharah.haflaga.${value}`)}
+          />
         </SettingsSection>
 
         <SettingsSection title={t('taharah.settings.role')}>
@@ -133,7 +121,7 @@ export default function TaharahSettingsScreen() {
             renderLabel={(value) => t(`taharah.role.${value}`)}
           />
           {store.settings.role === 'husband' ? (
-            <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>
+            <Text style={[typography.small, { color: colors.textMuted, marginTop: spacing.sm }]}>
               {t('taharah.husband.hint')}
             </Text>
           ) : null}
@@ -153,14 +141,15 @@ export default function TaharahSettingsScreen() {
             onValueChange={toggleLock}
           />
           {LEAD_FIELDS.map((field) => (
-            <Field key={field.key} label={t(field.label)}>
+            <React.Fragment key={field.key}>
+              <SectionLabel text={t(field.label)} style={styles.fieldLabel} />
               <ChipRow
                 values={LEAD_MINUTES}
                 selected={store[field.key]}
                 onSelect={(minutes) => store.setLeads({ [field.key]: minutes })}
                 renderLabel={(minutes) => t('taharah.settings.minutes', { n: minutes })}
               />
-            </Field>
+            </React.Fragment>
           ))}
         </SettingsSection>
 
@@ -181,52 +170,16 @@ export default function TaharahSettingsScreen() {
         </Pressable>
       </ScrollView>
 
-      <Modal
-        animationType="fade"
-        transparent
-        visible={deleteVisible && !quiet}
-        onRequestClose={() => setDeleteVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[typography.heading, { color: colors.text, marginBottom: 8 }]}>
-              {t('taharah.settings.deleteConfirmTitle')}
-            </Text>
-            <Text style={[typography.body, { color: colors.textSub, marginBottom: 18 }]}>
-              {t('taharah.settings.deleteConfirmBody')}
-            </Text>
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={() => setDeleteVisible(false)}
-                accessibilityRole="button"
-                style={[styles.modalBtn, { backgroundColor: colors.surface2 }]}
-              >
-                <Text style={[typography.bodyBold, { color: colors.text }]}>{t('common.cancel')}</Text>
-              </Pressable>
-              <Pressable
-                onPress={deleteData}
-                accessibilityRole="button"
-                style={[styles.modalBtn, { backgroundColor: colors.urgent }]}
-              >
-                <Text style={[typography.bodyBold, { color: colors.onGold }]}>
-                  {t('taharah.settings.deleteAction')}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ConfirmDialog
+        visible={deleteVisible}
+        title={t('taharah.settings.deleteConfirmTitle')}
+        body={t('taharah.settings.deleteConfirmBody')}
+        confirmLabel={t('taharah.settings.deleteAction')}
+        destructive
+        onConfirm={deleteData}
+        onCancel={() => setDeleteVisible(false)}
+      />
     </SafeAreaView>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  const { colors } = useTheme();
-  return (
-    <View style={styles.field}>
-      <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 8 }]}>{label}</Text>
-      {children}
-    </View>
   );
 }
 
@@ -243,15 +196,17 @@ function SwitchRow({
 }) {
   const { colors } = useTheme();
   return (
-    <View style={[styles.switchRow, styles.field]}>
-      <View style={{ flex: 1, paddingEnd: 12 }}>
+    <View style={styles.switchRow}>
+      <View style={styles.switchMeta}>
         <Text style={[typography.bodyBold, { color: colors.text }]}>{label}</Text>
-        {hint ? <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>{hint}</Text> : null}
+        {hint ? (
+          <Text style={[typography.small, { color: colors.textMuted, marginTop: spacing.xs }]}>{hint}</Text>
+        ) : null}
       </View>
       <Switch
         value={value}
         onValueChange={onValueChange}
-        thumbColor="#fff"
+        thumbColor={BRAND.white}
         trackColor={{ false: colors.border, true: colors.gold }}
       />
     </View>
@@ -262,28 +217,16 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 16,
-  },
-  backBtn: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    marginBottom: 10,
-  },
   content: {
-    padding: 16,
-    paddingBottom: 28,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
-  field: {
-    marginTop: 14,
+  fieldLabel: {
+    marginTop: spacing.lg,
   },
   primaryBtn: {
-    borderRadius: 14,
-    paddingVertical: 12,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -291,35 +234,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: spacing.lg,
+  },
+  switchMeta: {
+    flex: 1,
+    paddingEnd: spacing.md,
   },
   dangerBtn: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    paddingVertical: 14,
+    paddingVertical: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 20,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(9,20,32,0.55)',
-    justifyContent: 'center',
-    padding: 22,
-  },
-  modalCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 20,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  modalBtn: {
-    flex: 1,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: spacing.xl,
   },
 });

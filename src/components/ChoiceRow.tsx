@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 
 type Props = {
@@ -36,10 +37,10 @@ export function ChoiceRow({ label, selected, onPress }: Props) {
 
 const styles = StyleSheet.create({
   row: {
-    borderRadius: 13,
+    borderRadius: radius.lg,
     borderWidth: 1.5,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -47,7 +48,7 @@ const styles = StyleSheet.create({
   tick: {
     width: 22,
     height: 22,
-    borderRadius: 7,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },

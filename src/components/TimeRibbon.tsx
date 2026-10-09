@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { ThemeColors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
-import { ribbonThresholds } from '@/theme/tokens';
+import { typography, fontFamilies } from '@/theme/typography';
+import { ribbonThresholds, spacing, radius } from '@/theme/tokens';
 import { useI18n } from '@/i18n';
 
 type Props = {
@@ -26,8 +26,9 @@ export function TimeRibbon({ pct, timeLeft }: Props) {
   return (
     <View style={styles.wrap}>
       <View style={styles.labelRow}>
-        <Text style={[typography.small, { color: col, fontWeight: '600' }]}>{t('time.left', { value: timeLeft })}</Text>
-        <Text style={[typography.micro, { color: colors.textMuted }]}>{Math.round(p * 100)}%</Text>
+        <Text style={[typography.small, { color: col, fontFamily: fontFamilies.heebo.semibold }]}>
+          {t('time.left', { value: timeLeft })}
+        </Text>
       </View>
       <View style={[styles.track, { backgroundColor: colors.surface2 }]}>
         <View style={[styles.fill, { width: `${p * 100}%`, backgroundColor: col }]} />
@@ -37,8 +38,8 @@ export function TimeRibbon({ pct, timeLeft }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginTop: 10 },
-  labelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-  track: { height: 5, borderRadius: 4, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 4 },
+  wrap: { marginTop: spacing.md },
+  labelRow: { flexDirection: 'row', marginBottom: spacing.xs },
+  track: { height: 5, borderRadius: radius.xs, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: radius.xs },
 });

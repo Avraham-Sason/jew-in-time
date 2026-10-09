@@ -1,18 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { InteractionManager, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { InteractionManager, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
 import { useShallow } from 'zustand/react/shallow';
+import { BottomSheet } from '@/components/BottomSheet';
 import { formatDayLine } from '@/components/DayStepper';
-import { NavBar } from '@/components/NavBar';
-import { useQuietBlock } from '@/components/ShabbatScreen';
+import { HeaderPill, ScreenHeader } from '@/components/ScreenHeader';
 import { useNow } from '@/hooks/useNow';
 import { HebcalService } from '@/services/HebcalService';
 import { useTaharahStore } from '@/stores/useTaharahStore';
 import { useUserStore } from '@/stores/useUserStore';
+import { BRAND } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
-import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
+import { fontFamilies, typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 import { Onah, OnahKind, PerishaOnah } from '@/types/taharah';
 import { locationNoon } from '@/utils/locationDay';
@@ -85,7 +87,6 @@ export default function TaharahCalendar() {
   const { colors } = useTheme();
   const { language, t } = useI18n();
   const router = useRouter();
-  const quiet = useQuietBlock() !== null;
   const { events, settings } = useTaharahStore(useShallow((s) => ({ events: s.events, settings: s.settings })));
   const location = useUserStore((s) => s.location);
   const husband = settings.role === 'husband';
@@ -151,37 +152,21 @@ export default function TaharahCalendar() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <NavBar
-        title={t('taharah.calendar.title')}
-        right={
-          <Pressable
-            onPress={close}
-            accessibilityRole="button"
-            style={[styles.backBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
-          >
-            <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
-          </Pressable>
-        }
-      />
-      <View style={[styles.controls, { backgroundColor: colors.headerBg }]}>
-        <Pressable
-          onPress={() => setCursor((prev) => prev.minus({ months: 1 }))}
-          accessibilityRole="button"
-          accessibilityLabel={monthLabel(cursor.minus({ months: 1 }))}
-          style={styles.navBtn}
-        >
-          <Text style={[typography.bodyBold, { color: colors.headerText }]}>{prevArrow}</Text>
-        </Pressable>
-        <Text style={[typography.captionBold, { color: colors.headerText }]}>{monthLabel(cursor)}</Text>
-        <Pressable
-          onPress={() => setCursor((prev) => prev.plus({ months: 1 }))}
-          accessibilityRole="button"
-          accessibilityLabel={monthLabel(cursor.plus({ months: 1 }))}
-          style={styles.navBtn}
-        >
-          <Text style={[typography.bodyBold, { color: colors.headerText }]}>{nextArrow}</Text>
-        </Pressable>
-      </View>
+      <ScreenHeader title={t('taharah.calendar.title')} onBack={close}>
+        <View style={styles.monthBand}>
+          <HeaderPill
+            label={prevArrow}
+            onPress={() => setCursor((prev) => prev.minus({ months: 1 }))}
+            accessibilityLabel={monthLabel(cursor.minus({ months: 1 }))}
+          />
+          <Text style={[typography.captionBold, { color: colors.headerText }]}>{monthLabel(cursor)}</Text>
+          <HeaderPill
+            label={nextArrow}
+            onPress={() => setCursor((prev) => prev.plus({ months: 1 }))}
+            accessibilityLabel={monthLabel(cursor.plus({ months: 1 }))}
+          />
+        </View>
+      </ScreenHeader>
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.weekRow}>
@@ -230,43 +215,22 @@ export default function TaharahCalendar() {
         </View>
       </ScrollView>
 
-      <Modal
-        animationType="fade"
-        transparent
-        visible={selected !== null && !quiet}
-        onRequestClose={() => setSelected(null)}
+      <BottomSheet
+        visible={selected !== null}
+        title={selected ? formatDayLine(selected.day.toJSDate(), language) : undefined}
+        caption={selected ? HebcalService.getHebrewDate(selected.day.toJSDate()).hebrewDateStr : undefined}
+        onClose={() => setSelected(null)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {selected ? (
-              <>
-                <Text style={[typography.heading, { color: colors.text }]}>
-                  {formatDayLine(selected.day.toJSDate(), language)}
-                </Text>
-                <Text style={[typography.caption, { color: colors.textSub, marginBottom: 12 }]}>
-                  {HebcalService.getHebrewDate(selected.day.toJSDate()).hebrewDateStr}
-                </Text>
-                {items.map((item) => (
-                  <View key={item.key} style={[styles.sheetRow, { borderTopColor: colors.border }]}>
-                    <Text style={[typography.bodyBold, { color: colors.text }]}>{item.title}</Text>
-                    <Text style={[typography.caption, { color: colors.textSub }]}>{item.detail}</Text>
-                    {item.disputed ? (
-                      <Text style={[typography.captionBold, { color: colors.warning }]}>{t('taharah.disputed')}</Text>
-                    ) : null}
-                  </View>
-                ))}
-              </>
+        {items.map((item) => (
+          <View key={item.key} style={[styles.sheetRow, { borderTopColor: colors.border }]}>
+            <Text style={[typography.bodyBold, { color: colors.text }]}>{item.title}</Text>
+            <Text style={[typography.caption, { color: colors.textSub }]}>{item.detail}</Text>
+            {item.disputed ? (
+              <Text style={[typography.captionBold, { color: colors.warning }]}>{t('taharah.disputed')}</Text>
             ) : null}
-            <Pressable
-              onPress={() => setSelected(null)}
-              accessibilityRole="button"
-              style={[styles.closeBtn, { backgroundColor: colors.surface2 }]}
-            >
-              <Text style={[typography.bodyBold, { color: colors.text }]}>{t('common.close')}</Text>
-            </Pressable>
           </View>
-        </View>
-      </Modal>
+        ))}
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -320,31 +284,20 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
-  backBtn: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  controls: {
+  monthBand: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingBottom: 12,
-  },
-  navBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
   },
   content: {
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 20,
-    gap: 6,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.sm,
   },
   weekRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: spacing.sm,
   },
   headerCell: {
     flex: 1,
@@ -353,8 +306,8 @@ const styles = StyleSheet.create({
   cell: {
     flex: 1,
     aspectRatio: 0.85,
-    borderRadius: 12,
-    padding: 5,
+    borderRadius: radius.md,
+    padding: spacing.xs,
     position: 'relative',
   },
   indexBadge: {
@@ -363,14 +316,14 @@ const styles = StyleSheet.create({
     end: 3,
     minWidth: 15,
     height: 15,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
   badgeText: {
-    color: '#fff',
-    fontFamily: 'Heebo_700Bold',
+    color: BRAND.white,
+    fontFamily: fontFamilies.heebo.bold,
   },
   marks: {
     flexDirection: 'row',
@@ -382,58 +335,41 @@ const styles = StyleSheet.create({
   onsetDot: {
     width: 7,
     height: 7,
-    borderRadius: 7,
+    borderRadius: radius.sm,
   },
   perishaBadge: {
-    borderRadius: 6,
+    borderRadius: radius.sm,
     paddingHorizontal: 3,
     paddingVertical: 1,
   },
   perishaGlyph: {
-    color: '#fff',
+    color: BRAND.white,
   },
   empty: {
     textAlign: 'center',
-    paddingTop: 16,
+    paddingTop: spacing.lg,
   },
   legend: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
+    gap: spacing.lg,
     justifyContent: 'center',
-    paddingTop: 16,
+    paddingTop: spacing.lg,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
   },
   cleanSample: {
     width: 14,
     height: 14,
-    borderRadius: 4,
+    borderRadius: radius.xs,
     borderWidth: 2,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(9,20,32,0.55)',
-    justifyContent: 'center',
-    padding: 22,
-  },
-  modalCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 20,
   },
   sheetRow: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 10,
+    paddingVertical: spacing.md,
     gap: 2,
-  },
-  closeBtn: {
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 14,
   },
 });

@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { THEMES, THEME_NAMES, ThemeName } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/tokens';
 
 type Props = {
   selected: ThemeName;
@@ -42,7 +43,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   item: {
     padding: 1,
@@ -50,7 +51,7 @@ const styles = StyleSheet.create({
   ring: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.xl,
     borderWidth: 2.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -58,13 +59,13 @@ const styles = StyleSheet.create({
   swatch: {
     width: 31,
     height: 31,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dot: {
     width: 16,
     height: 16,
-    borderRadius: 8,
+    borderRadius: radius.sm,
   },
 });

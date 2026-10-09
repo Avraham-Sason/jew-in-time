@@ -1,28 +1,34 @@
 import React, { useMemo, useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { DateTime } from 'luxon';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { IconTile } from '@/components/IconTile';
+import { iconFor } from '@/components/MitzvahIcon';
 import { ReminderEditor } from '@/components/ReminderEditor';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { findAnyMitzvah } from '@/data/customMitzvotAdapter';
 import { hasSiddurText, siddurPlace } from '@/data/siddur';
 import { dateKey } from '@/stores/useCompletionsStore';
 import { selectActive, useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
+import { BRAND } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
-import { useQuietBlock } from '@/components/ShabbatScreen';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { ContentBlock, Reminder } from '@/types/mitzvah';
 import { currentOrNextWindow } from '@/utils/buildDayTimeline';
+import { clockOf } from '@/utils/clock';
+import { mitzvahName } from '@/utils/mitzvahName';
 import { reminderFires } from '@/utils/skipRules';
 import { buildTriggerTime } from '@/services/NotificationScheduler';
 import { useI18n } from '@/i18n';
 
 export default function MitzvahDetailScreen() {
   const { colors } = useTheme();
-  const quiet = useQuietBlock() !== null;
   const { language, t } = useI18n();
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string; highlightContent?: string }>();
@@ -65,18 +71,25 @@ export default function MitzvahDetailScreen() {
   if (!mitzvah) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
-        <Text style={[typography.body, { color: colors.text, padding: 16 }]}>{t('errors.generic')}</Text>
+        <Text style={[typography.body, { color: colors.text, padding: spacing.lg }]}>{t('errors.generic')}</Text>
       </SafeAreaView>
     );
   }
 
-  const name = language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he;
+  const name = mitzvahName(mitzvah, language);
   const cycle =
     mitzvah.category === 'weekly'
       ? t('mitzvah.cycle.weekly')
       : mitzvah.category === 'seasonal'
         ? t('mitzvah.cycle.seasonal')
         : t('mitzvah.cycle.daily');
+
+  const timeRange = window
+    ? t('detail.timeRange', {
+        start: clockOf(window.start),
+        end: clockOf(window.end),
+      })
+    : '-';
 
   const saveReminder = (value: Reminder) => {
     const next = [...reminders];
@@ -108,54 +121,18 @@ export default function MitzvahDetailScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-          hitSlop={10}
-          style={({ pressed }) => [
-            styles.backBtn,
-            {
-              backgroundColor: pressed ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)',
-              borderColor: 'rgba(255,255,255,0.18)',
-            },
-          ]}
-        >
-          <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-            <Path
-              d={language === 'he' ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6'}
-              stroke={colors.headerText}
-              strokeWidth={2.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-          <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
-        </Pressable>
-        <View style={styles.headerRow}>
-          <View style={[styles.heroIcon, { backgroundColor: colors.goldLight }]}>
-            <Text style={{ fontSize: 22, color: colors.gold }}>✦</Text>
-          </View>
-          <View>
-            <Text style={[typography.heading, { color: colors.headerText }]}>{name}</Text>
-            <Text style={[typography.micro, { color: colors.headerSub, marginTop: 2 }]}>
-              {cycle} ·{' '}
-              {window
-                ? t('detail.timeRange', {
-                    start: DateTime.fromJSDate(window.start).toFormat('HH:mm'),
-                    end: DateTime.fromJSDate(window.end).toFormat('HH:mm'),
-                  })
-                : '-'}
-            </Text>
-            {nextTrigger ? (
-              <Text style={[typography.micro, { color: colors.headerAccent, marginTop: 2 }]}>
-                {t('detail.previewNext', { time: DateTime.fromJSDate(nextTrigger).toFormat('dd/MM HH:mm') })}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-      </View>
+      <ScreenHeader
+        title={name}
+        subtitle={`${cycle} · ${timeRange}`}
+        onBack={() => router.back()}
+        leading={<IconTile name={iconFor(mitzvah.icon)} tone="accent" size={46} />}
+      >
+        {nextTrigger ? (
+          <Text style={[typography.micro, { color: colors.headerAccent }]}>
+            {t('detail.previewNext', { time: DateTime.fromJSDate(nextTrigger).toFormat('dd/MM HH:mm') })}
+          </Text>
+        ) : null}
+      </ScreenHeader>
 
       <ScrollView contentContainerStyle={styles.content}>
         {showText && window ? (
@@ -172,12 +149,12 @@ export default function MitzvahDetailScreen() {
         <View
           style={[styles.card, { backgroundColor: colors.surface }, shadowStyle(colors.shadow, shadowPresets.cardSoft)]}
         >
-          <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 10 }]}>
+          <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: spacing.md }]}>
             {t('detail.timeWindow')}
           </Text>
           <View style={styles.windowRow}>
             <Text style={[typography.micro, { color: colors.textMuted, width: 40 }]}>
-              {window ? DateTime.fromJSDate(window.start).toFormat('HH:mm') : '--:--'}
+              {window ? clockOf(window.start) : '--:--'}
             </Text>
             <View style={styles.ribbon}>
               <Svg width="100%" height="10" viewBox="0 0 100 10" preserveAspectRatio="none">
@@ -192,7 +169,7 @@ export default function MitzvahDetailScreen() {
               </Svg>
             </View>
             <Text style={[typography.micro, { color: colors.textMuted, width: 40 }]}>
-              {window ? DateTime.fromJSDate(window.end).toFormat('HH:mm') : '--:--'}
+              {window ? clockOf(window.end) : '--:--'}
             </Text>
           </View>
           <View style={styles.legend}>
@@ -234,7 +211,9 @@ export default function MitzvahDetailScreen() {
               shadowStyle(colors.shadow, shadowPresets.cardSoft),
             ]}
           >
-            <Text style={[typography.subheading, { color: colors.text, marginBottom: 10 }]}>{t('detail.content')}</Text>
+            <Text style={[typography.subheading, { color: colors.text, marginBottom: spacing.md }]}>
+              {t('detail.content')}
+            </Text>
             {mitzvah.contentBlocks.map((block, index) => (
               <ContentBlockView
                 key={`${block.type}-${index}`}
@@ -242,14 +221,14 @@ export default function MitzvahDetailScreen() {
                 highlighted={params.highlightContent === '1'}
               />
             ))}
-            <View style={[styles.row, { marginTop: 12 }]}>
+            <View style={[styles.row, { marginTop: spacing.md }]}>
               <Text style={[typography.bodyBold, { color: colors.text, flex: 1 }]}>
                 {t('detail.includeContentInNotification')}
               </Text>
               <Switch
                 value={includeContentInNotification}
                 onValueChange={setIncludeContent}
-                thumbColor="#fff"
+                thumbColor={BRAND.white}
                 trackColor={{ false: colors.border, true: colors.gold }}
               />
             </View>
@@ -264,7 +243,7 @@ export default function MitzvahDetailScreen() {
             <Switch
               value={active.enabled}
               onValueChange={(value) => setEnabled(mitzvah.id, value)}
-              thumbColor="#fff"
+              thumbColor={BRAND.white}
               trackColor={{ false: colors.border, true: colors.gold }}
             />
           </View>
@@ -280,7 +259,9 @@ export default function MitzvahDetailScreen() {
             shadowStyle(colors.shadow, shadowPresets.cardSoft),
           ]}
         >
-          <Text style={[typography.subheading, { color: colors.text, marginBottom: 10 }]}>{t('detail.reminders')}</Text>
+          <Text style={[typography.subheading, { color: colors.text, marginBottom: spacing.md }]}>
+            {t('detail.reminders')}
+          </Text>
           {reminders.map((reminder, index) => (
             <View key={`${reminder.label}-${index}`} style={[styles.reminderRow, { borderBottomColor: colors.border }]}>
               <Pressable
@@ -308,7 +289,7 @@ export default function MitzvahDetailScreen() {
             </View>
           ))}
           {!reminders.length ? (
-            <Text style={[typography.body, { color: colors.textMuted, paddingVertical: 12 }]}>
+            <Text style={[typography.body, { color: colors.textMuted, paddingVertical: spacing.md }]}>
               {t('detail.noReminders')}
             </Text>
           ) : null}
@@ -344,37 +325,15 @@ export default function MitzvahDetailScreen() {
         }}
         onSave={saveReminder}
       />
-      <Modal
-        visible={deleteIndex !== null && !quiet}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setDeleteIndex(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.confirmDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[typography.heading, { color: colors.text }]}>{t('reminder.deleteConfirmTitle')}</Text>
-            <Text style={[typography.body, { color: colors.textSub, marginTop: 8 }]}>
-              {t('reminder.deleteConfirmBody', { label: pendingDeleteReminder?.label ?? t('detail.addReminder') })}
-            </Text>
-            <View style={styles.confirmActions}>
-              <Pressable
-                onPress={() => setDeleteIndex(null)}
-                style={[styles.confirmBtn, { backgroundColor: colors.surface2 }]}
-              >
-                <Text style={[typography.bodyBold, { color: colors.textSub }]}>{t('common.cancel')}</Text>
-              </Pressable>
-              <Pressable
-                onPress={confirmDeleteReminder}
-                style={[styles.confirmBtn, { backgroundColor: colors.urgent }]}
-              >
-                <Text style={[typography.bodyBold, { color: colors.onUrgent }]}>
-                  {t('reminder.deleteConfirmAction')}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ConfirmDialog
+        visible={deleteIndex !== null}
+        title={t('reminder.deleteConfirmTitle')}
+        body={t('reminder.deleteConfirmBody', { label: pendingDeleteReminder?.label ?? t('detail.addReminder') })}
+        confirmLabel={t('reminder.deleteConfirmAction')}
+        destructive
+        onConfirm={confirmDeleteReminder}
+        onCancel={() => setDeleteIndex(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -382,7 +341,7 @@ export default function MitzvahDetailScreen() {
 function InfoRow({ label, value }: { label: string; value: string }) {
   const { colors } = useTheme();
   return (
-    <View style={[styles.row, { marginTop: 10 }]}>
+    <View style={[styles.row, { marginTop: spacing.md }]}>
       <Text style={[typography.bodyBold, { color: colors.text }]}>{label}</Text>
       <Text style={[typography.body, { color: colors.goldText }]}>{value}</Text>
     </View>
@@ -428,53 +387,25 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 14,
-  },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 8,
-  },
-  heroIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   content: {
-    padding: 14,
-    gap: 10,
+    padding: spacing.lg,
+    gap: spacing.md,
   },
   card: {
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 10,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   windowRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   ribbon: {
     flex: 1,
     height: 10,
-    borderRadius: 6,
+    borderRadius: radius.sm,
     overflow: 'hidden',
   },
   legend: {
@@ -488,51 +419,51 @@ const styles = StyleSheet.create({
   },
   reminderRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing.md,
     alignItems: 'center',
-    paddingVertical: 11,
+    paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   deleteBtn: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 12,
+    gap: spacing.md,
+    paddingVertical: spacing.md,
     borderTopWidth: 1.5,
   },
   plus: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   openTextBtn: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 13,
-    marginBottom: 10,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
   },
   resetBtn: {
-    borderRadius: 12,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    marginBottom: 14,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.lg,
   },
   contentBlock: {
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
-    padding: 12,
-    marginBottom: 8,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
   blessingBlock: {
     borderWidth: 1.5,
@@ -540,32 +471,6 @@ const styles = StyleSheet.create({
   linkBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  modalBackdrop: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(9,20,32,0.45)',
-    padding: 20,
-  },
-  confirmDialog: {
-    width: '100%',
-    maxWidth: 360,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 18,
-  },
-  confirmActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 18,
-  },
-  confirmBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 13,
+    gap: spacing.md,
   },
 });

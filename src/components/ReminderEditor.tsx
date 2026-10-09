@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Reminder, ReminderAnchor } from '@/types/mitzvah';
+import { BRAND } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
-import { useQuietBlock } from './ShabbatScreen';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
+import { BottomSheet } from './BottomSheet';
+import { SegmentedControl } from './SegmentedControl';
 
 const MAX_OFFSET_MIN = 720;
 
@@ -19,7 +22,6 @@ type Props = {
 
 export function ReminderEditor({ visible, initialValue, window, mitzvahName, onClose, onSave }: Props) {
   const { colors } = useTheme();
-  const quiet = useQuietBlock() !== null;
   const { t } = useI18n();
   const [anchor, setAnchor] = useState<ReminderAnchor>('start');
   const [offsetMin, setOffsetMin] = useState('0');
@@ -58,138 +60,107 @@ export function ReminderEditor({ visible, initialValue, window, mitzvahName, onC
     onClose();
   };
 
+  const anchorOptions: { value: ReminderAnchor; label: string }[] = [
+    { value: 'start', label: t('reminder.anchor.start') },
+    { value: 'end', label: t('reminder.anchor.end') },
+  ];
+
   return (
-    <Modal visible={visible && !quiet} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[typography.heading, { color: colors.text, marginBottom: 14 }]}>
-            {initialValue ? t('reminder.edit') : t('reminder.add')}
-          </Text>
-          <View style={styles.segmentRow}>
-            {(['start', 'end'] as ReminderAnchor[]).map((value) => {
-              const selected = value === anchor;
-              return (
-                <Pressable
-                  key={value}
-                  onPress={() => setAnchor(value)}
-                  style={[
-                    styles.segment,
-                    {
-                      backgroundColor: selected ? colors.gold : colors.surface2,
-                      borderColor: selected ? colors.gold : colors.border,
-                    },
-                  ]}
-                >
-                  <Text style={[typography.captionBold, { color: selected ? colors.onGold : colors.textSub }]}>
-                    {t(`reminder.anchor.${value}`)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text style={[typography.captionBold, { color: colors.text, marginBottom: 6 }]}>{t('reminder.label')}</Text>
+    <BottomSheet
+      visible={visible}
+      title={initialValue ? t('reminder.edit') : t('reminder.add')}
+      caption={mitzvahName}
+      onClose={onClose}
+    >
+      <View style={styles.fields}>
+        <SegmentedControl
+          tone="surface"
+          options={anchorOptions}
+          value={anchor}
+          onChange={setAnchor}
+          style={styles.anchor}
+        />
+        <Text style={[typography.captionBold, styles.fieldLabel, { color: colors.text }]}>{t('reminder.label')}</Text>
+        <TextInput
+          accessibilityLabel={t('reminder.label')}
+          value={label}
+          onChangeText={setLabel}
+          placeholder={t('detail.addReminder')}
+          placeholderTextColor={colors.textMuted}
+          style={[styles.input, { backgroundColor: colors.surface2, color: colors.text, borderColor: colors.border }]}
+        />
+        <Text style={[typography.captionBold, styles.fieldLabel, { color: colors.text }]}>{t('reminder.offset')}</Text>
+        <View style={styles.offsetRow}>
+          <Pressable
+            onPress={() => setOffsetMin(String((Number(offsetMin) || 0) - 5))}
+            style={[styles.stepper, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+          >
+            <Text style={[typography.bodyBold, { color: colors.text }]}>-5</Text>
+          </Pressable>
           <TextInput
-            accessibilityLabel={t('reminder.label')}
-            value={label}
-            onChangeText={setLabel}
-            placeholder={t('detail.addReminder')}
-            placeholderTextColor={colors.textMuted}
-            style={[styles.input, { backgroundColor: colors.surface2, color: colors.text, borderColor: colors.border }]}
+            accessibilityLabel={t('reminder.offset')}
+            keyboardType="numbers-and-punctuation"
+            value={offsetMin}
+            onChangeText={setOffsetMin}
+            style={[
+              styles.input,
+              styles.offsetInput,
+              { backgroundColor: colors.surface2, color: colors.text, borderColor: colors.border },
+            ]}
           />
-          <Text style={[typography.captionBold, { color: colors.text, marginBottom: 6 }]}>{t('reminder.offset')}</Text>
-          <View style={styles.offsetRow}>
-            <Pressable
-              onPress={() => setOffsetMin(String((Number(offsetMin) || 0) - 5))}
-              style={[styles.stepper, { backgroundColor: colors.surface2, borderColor: colors.border }]}
-            >
-              <Text style={[typography.bodyBold, { color: colors.text }]}>-5</Text>
-            </Pressable>
-            <TextInput
-              accessibilityLabel={t('reminder.offset')}
-              keyboardType="numbers-and-punctuation"
-              value={offsetMin}
-              onChangeText={setOffsetMin}
-              style={[
-                styles.input,
-                styles.offsetInput,
-                { backgroundColor: colors.surface2, color: colors.text, borderColor: colors.border },
-              ]}
-            />
-            <Pressable
-              onPress={() => setOffsetMin(String((Number(offsetMin) || 0) + 5))}
-              style={[styles.stepper, { backgroundColor: colors.surface2, borderColor: colors.border }]}
-            >
-              <Text style={[typography.bodyBold, { color: colors.text }]}>+5</Text>
-            </Pressable>
-          </View>
-          <View style={[styles.switchRow, { borderTopColor: colors.border }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.subheading, { color: colors.text }]}>{t('reminder.skipIfDone')}</Text>
-            </View>
-            <Switch
-              value={skipIfDone}
-              onValueChange={setSkipIfDone}
-              thumbColor="#fff"
-              trackColor={{ false: colors.border, true: colors.gold }}
-            />
-          </View>
-          {error ? <Text style={[typography.small, { color: colors.urgent, marginTop: 4 }]}>{error}</Text> : null}
-          <View style={styles.actions}>
-            <Pressable onPress={onClose} style={[styles.actionBtn, { backgroundColor: colors.surface2 }]}>
-              <Text style={[typography.bodyBold, { color: colors.textSub }]}>{t('common.cancel')}</Text>
-            </Pressable>
-            <Pressable onPress={save} style={[styles.actionBtn, { backgroundColor: colors.gold }]}>
-              <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.save')}</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() => setOffsetMin(String((Number(offsetMin) || 0) + 5))}
+            style={[styles.stepper, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+          >
+            <Text style={[typography.bodyBold, { color: colors.text }]}>+5</Text>
+          </Pressable>
         </View>
+        <View style={[styles.switchRow, { borderTopColor: colors.border }]}>
+          <View style={styles.switchLabel}>
+            <Text style={[typography.subheading, { color: colors.text }]}>{t('reminder.skipIfDone')}</Text>
+          </View>
+          <Switch
+            value={skipIfDone}
+            onValueChange={setSkipIfDone}
+            thumbColor={BRAND.white}
+            trackColor={{ false: colors.border, true: colors.gold }}
+          />
+        </View>
+        {error ? <Text style={[typography.small, styles.error, { color: colors.urgent }]}>{error}</Text> : null}
+        <Pressable onPress={save} accessibilityRole="button" style={[styles.saveBtn, { backgroundColor: colors.gold }]}>
+          <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.save')}</Text>
+        </Pressable>
       </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(9,20,32,0.45)',
-    justifyContent: 'flex-end',
-    padding: 16,
+  fields: {
+    gap: spacing.sm,
   },
-  sheet: {
-    borderRadius: 22,
-    borderWidth: 1,
-    padding: 18,
-    gap: 8,
+  anchor: {
+    marginBottom: spacing.md,
   },
-  segmentRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 10,
-  },
-  segment: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    paddingVertical: 10,
+  fieldLabel: {
+    marginBottom: spacing.sm,
   },
   input: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 10,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
   },
   offsetRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   stepper: {
     width: 54,
     height: 48,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -202,20 +173,21 @@ const styles = StyleSheet.create({
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    paddingTop: 12,
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
   },
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 14,
-  },
-  actionBtn: {
+  switchLabel: {
     flex: 1,
+  },
+  error: {
+    marginTop: spacing.xs,
+  },
+  saveBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 13,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+    marginTop: spacing.md,
   },
 });

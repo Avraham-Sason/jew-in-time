@@ -11,6 +11,7 @@ import {
 } from '@/services/biometricLock';
 import { useTaharahStore } from '@/stores/useTaharahStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 
@@ -63,7 +64,7 @@ export function TaharahLock({ children, recheck = 0 }: Props) {
         <SafeAreaView style={styles.fill} edges={['top', 'bottom']}>
           <View style={[styles.center, styles.fill, styles.cover]}>
             <Text style={[typography.title, styles.text, { color: colors.text }]}>{t('taharah.locked.title')}</Text>
-            <Text style={[typography.body, styles.text, { color: colors.textSub, marginTop: 8 }]}>
+            <Text style={[typography.body, styles.text, { color: colors.textSub, marginTop: spacing.sm }]}>
               {t('taharah.locked.body')}
             </Text>
             <Pressable
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cover: {
-    paddingHorizontal: 28,
+    paddingHorizontal: spacing.xxl,
   },
   text: {
     textAlign: 'center',
@@ -113,18 +114,18 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    marginTop: 24,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xxxl,
+    marginTop: spacing.xxl,
   },
   back: {
-    marginTop: 18,
-    padding: 6,
+    marginTop: spacing.xl,
+    padding: spacing.sm,
   },
   banner: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     textAlign: 'center',
   },
 });

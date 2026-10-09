@@ -1,16 +1,20 @@
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
-import Svg, { Path } from 'react-native-svg';
 import { DateTime } from 'luxon';
 import { HDate } from '@hebcal/core';
 import { hilulaDateLabel, upcomingHilulot } from '@/data/hilulot';
+import { ListRow } from '@/components/ListRow';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { SectionLabel } from '@/components/SectionLabel';
 import { SettingsSection } from '@/components/SettingsSection';
 import { useNow } from '@/hooks/useNow';
 import { HebcalService } from '@/services/HebcalService';
 import { useUserStore } from '@/stores/useUserStore';
+import { BRAND } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 
@@ -39,31 +43,7 @@ export default function HilulotScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
-        <Pressable
-          onPress={goBack}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-          hitSlop={10}
-          style={({ pressed }) => [
-            styles.backBtn,
-            { backgroundColor: pressed ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)' },
-          ]}
-        >
-          <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-            <Path
-              d={language === 'he' ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6'}
-              stroke={colors.headerText}
-              strokeWidth={2.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-          <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={[typography.title, { color: colors.headerText, marginTop: 10 }]}>{t('hilulot.title')}</Text>
-        <Text style={[typography.caption, { color: colors.headerSub, marginTop: 2 }]}>{t('hilulot.subtitle')}</Text>
-      </View>
+      <ScreenHeader title={t('hilulot.title')} subtitle={t('hilulot.subtitle')} onBack={goBack} />
       <ScrollView contentContainerStyle={styles.list}>
         <SettingsSection title={t('hilulot.notifications')}>
           <View style={styles.switchRow}>
@@ -74,32 +54,23 @@ export default function HilulotScreen() {
               value={enabled}
               onValueChange={setEnabled}
               accessibilityLabel={t('hilulot.notifications')}
-              thumbColor="#fff"
+              thumbColor={BRAND.white}
               trackColor={{ false: colors.border, true: colors.gold }}
             />
           </View>
         </SettingsSection>
-        <Text style={[typography.captionBold, styles.groupLabel, { color: colors.textSub }]}>
-          {t('hilulot.upcoming')}
-        </Text>
+        <SectionLabel text={t('hilulot.upcoming')} />
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {upcoming.map(({ hilula, day }) => (
-            <View key={hilula.id} style={[styles.row, { borderBottomColor: colors.border }]}>
-              <View style={[styles.icon, { backgroundColor: colors.goldLight }]}>
-                <Text style={{ fontSize: 17, color: colors.gold }}>✦</Text>
-              </View>
-              <View style={styles.rowMeta}>
-                <Text style={[typography.bodyBold, { color: colors.text }]}>
-                  {language === 'en' ? hilula.name.en : hilula.name.he}
-                </Text>
-                <Text style={[typography.small, { color: colors.textMuted, marginTop: 2 }]}>
-                  {hilulaDateLabel(day, locale)}
-                  {' · '}
-                  {DateTime.fromJSDate(day.greg()).setLocale(locale).toFormat('ccc d.M')}
-                </Text>
-              </View>
-              <Text style={[typography.captionBold, { color: colors.goldText }]}>{whenLabel(day.abs())}</Text>
-            </View>
+            <ListRow
+              key={hilula.id}
+              icon="hilula"
+              title={language === 'en' ? hilula.name.en : hilula.name.he}
+              caption={`${hilulaDateLabel(day, locale)} · ${DateTime.fromJSDate(day.greg()).setLocale(locale).toFormat('ccc d.M')}`}
+              trailing={
+                <Text style={[typography.captionBold, { color: colors.goldText }]}>{whenLabel(day.abs())}</Text>
+              }
+            />
           ))}
         </View>
       </ScrollView>
@@ -111,23 +82,9 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 14,
-  },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-  },
   list: {
-    padding: 18,
-    paddingBottom: 32,
+    padding: spacing.xl,
+    paddingBottom: spacing.xxxl,
   },
   switchRow: {
     flexDirection: 'row',
@@ -136,34 +93,11 @@ const styles = StyleSheet.create({
   },
   switchHint: {
     flex: 1,
-    paddingEnd: 12,
-  },
-  groupLabel: {
-    marginTop: 6,
-    marginBottom: 8,
+    paddingEnd: spacing.md,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  icon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowMeta: {
-    flex: 1,
-    minWidth: 0,
   },
 });

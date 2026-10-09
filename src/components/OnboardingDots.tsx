@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/tokens';
 
 export const ONBOARDING_STEPS = 5;
 
@@ -27,11 +28,11 @@ export function OnboardingDots({ step, total, style }: { step: number; total: nu
 const styles = StyleSheet.create({
   dots: {
     flexDirection: 'row',
-    gap: 5,
+    gap: spacing.xs,
     alignSelf: 'center',
   },
   dot: {
     height: 7,
-    borderRadius: 4,
+    borderRadius: radius.xs,
   },
 });

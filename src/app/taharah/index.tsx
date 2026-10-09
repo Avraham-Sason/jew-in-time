@@ -1,20 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
-import { DateTime } from 'luxon';
 import { useShallow } from 'zustand/react/shallow';
+import { Banner } from '@/components/Banner';
+import { BottomSheet } from '@/components/BottomSheet';
 import { ChipRow } from '@/components/ChipRow';
 import { formatDayLine } from '@/components/DayStepper';
-import { useQuietBlock } from '@/components/ShabbatScreen';
+import { HeaderPill, ScreenHeader } from '@/components/ScreenHeader';
+import { SectionLabel } from '@/components/SectionLabel';
 import { useNow } from '@/hooks/useNow';
 import { useTaharahStore } from '@/stores/useTaharahStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { ThemeColors } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
-import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
+import { fontFamilies, typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 import { BedikaResult, BedikaSlot, CleanDay, TaharahEvent, TaharahTask } from '@/types/taharah';
+import { clockOf } from '@/utils/clock';
 import { locationNoon } from '@/utils/locationDay';
 import { cleanDayIndex, deriveCycle } from '@/utils/taharah/cycle';
 import { civilHebrewDayAt, currentOnah, hebrewDay, onahIndex } from '@/utils/taharah/onot';
@@ -29,8 +33,6 @@ const UPCOMING_LIMIT = 6;
 const RECENT_LIMIT = 8;
 const BEDIKA_SLOTS: BedikaSlot[] = ['morning', 'evening'];
 const BEDIKA_RESULTS: BedikaResult[] = ['clean', 'notClean', 'doubtful'];
-
-const clock = (date: Date) => DateTime.fromJSDate(date).toFormat('HH:mm');
 
 function resultColor(colors: ThemeColors, result: BedikaResult | null): string {
   if (result === 'clean') return colors.safe;
@@ -105,7 +107,7 @@ export default function TaharahDashboard() {
       : renderHint(
           stageHint(state, events, settings.rules, settings.role, location, now, {
             date: (civil) => formatDayLine(civil, language),
-            clock,
+            clock: clockOf,
           }),
           t,
         );
@@ -131,64 +133,45 @@ export default function TaharahDashboard() {
   const showHefsek = !husband && (stage === 'niddah' || stage === 'awaitingHefsek');
   const showTevila = !husband && (stage === 'tevilaNight' || stage === 'awaitingTevila');
   const paused = stage === 'paused';
+  const listCard = [styles.listCard, { backgroundColor: colors.surface, borderColor: colors.border }];
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
-        <View style={styles.headerRow}>
-          <Pressable
-            onPress={close}
-            accessibilityRole="button"
-            hitSlop={10}
-            style={[styles.pill, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
-          >
-            <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
-          </Pressable>
-          <View style={styles.headerActions}>
-            <Pressable
-              onPress={() => router.push('/taharah/calendar')}
-              accessibilityRole="button"
-              style={[styles.pill, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
-            >
-              <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('taharah.calendar.title')}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => router.push('/taharah/settings')}
-              accessibilityRole="button"
-              style={[styles.pill, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
-            >
-              <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.settings')}</Text>
-            </Pressable>
-          </View>
-        </View>
-        <Text style={[typography.heading, { color: colors.headerText }]}>{t('taharah.home.title')}</Text>
-      </View>
+      <ScreenHeader
+        title={t('taharah.home.title')}
+        onBack={close}
+        actions={
+          <>
+            <HeaderPill label={t('taharah.calendar.title')} onPress={() => router.push('/taharah/calendar')} />
+            <HeaderPill label={t('common.settings')} onPress={() => router.push('/taharah/settings')} />
+          </>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[typography.title, { color: colors.text }]}>{t(`taharah.stage.${stage}`)}</Text>
-          {hint ? <Text style={[typography.body, { color: colors.textSub, marginTop: 4 }]}>{hint}</Text> : null}
+          {hint ? (
+            <Text style={[typography.body, { color: colors.textSub, marginTop: spacing.xs }]}>{hint}</Text>
+          ) : null}
           {state.tevilaDeferred ? (
-            <Text style={[typography.captionBold, { color: colors.warning, marginTop: 8 }]}>
+            <Text style={[typography.captionBold, { color: colors.warning, marginTop: spacing.sm }]}>
               {t('taharah.tevilaDeferred')}
             </Text>
           ) : null}
         </View>
 
         {!husband && state.stage === 'safek' && state.safekReason ? (
-          <View style={[styles.banner, { backgroundColor: colors.urgentBg, borderColor: colors.urgentBorder }]}>
-            <Text style={[typography.bodyBold, { color: colors.urgent }]}>
-              {t(`taharah.safek.${state.safekReason}`)}
-            </Text>
-            <Text style={[typography.caption, { color: colors.urgent, marginTop: 4 }]}>{t('taharah.askRav')}</Text>
-            <View style={styles.bannerActions}>
+          <View>
+            <Banner tone="accent" text={`${t(`taharah.safek.${state.safekReason}`)}\n${t('taharah.askRav')}`} />
+            <View style={styles.rulingActions}>
               {(['continue', 'restart'] as const).map((decision) => (
                 <Pressable
                   key={decision}
                   onPress={() => addEvent({ type: 'ruling', day: todayAbs, decision })}
                   accessibilityRole="button"
-                  style={[styles.bannerBtn, { backgroundColor: colors.surface, borderColor: colors.urgent }]}
+                  style={[styles.rulingBtn, { backgroundColor: colors.surface, borderColor: colors.urgent }]}
                 >
                   <Text style={[typography.captionBold, { color: colors.urgent }]}>
                     {t(`taharah.ruling.${decision}`)}
@@ -200,35 +183,39 @@ export default function TaharahDashboard() {
         ) : null}
 
         {kavua.map((pattern) => (
-          <View
+          <Banner
             key={pattern.kind}
-            style={[styles.banner, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}
-          >
-            <Text style={[typography.body, { color: colors.text }]}>
-              {pattern.kind === 'date'
+            tone="accent"
+            text={
+              pattern.kind === 'date'
                 ? t('taharah.kavuaHint.date', { day: pattern.dayOfMonth })
-                : t('taharah.kavuaHint.interval', { days: pattern.days })}
-            </Text>
-          </View>
+                : t('taharah.kavuaHint.interval', { days: pattern.days })
+            }
+            style={styles.flush}
+          />
         ))}
 
-        <Section title={t('taharah.today')}>
-          {tasks.length ? (
-            tasks.map((task, index) => (
-              <TaskRow
-                key={`${task.kind}-${task.day}-${index}`}
-                task={task}
-                last={index === tasks.length - 1}
-                onPress={isActionable(task) ? () => openTask(task) : undefined}
-              />
-            ))
-          ) : (
-            <Text style={[typography.body, styles.empty, { color: colors.textSub }]}>{t('taharah.todayEmpty')}</Text>
-          )}
-        </Section>
+        <View>
+          <SectionLabel text={t('taharah.today')} />
+          <View style={listCard}>
+            {tasks.length ? (
+              tasks.map((task, index) => (
+                <TaskRow
+                  key={`${task.kind}-${task.day}-${index}`}
+                  task={task}
+                  last={index === tasks.length - 1}
+                  onPress={isActionable(task) ? () => openTask(task) : undefined}
+                />
+              ))
+            ) : (
+              <Text style={[typography.body, styles.empty, { color: colors.textSub }]}>{t('taharah.todayEmpty')}</Text>
+            )}
+          </View>
+        </View>
 
         {!husband && state.cleanDays.length ? (
-          <Section title={t('taharah.cleanDays.title')} plain>
+          <View>
+            <SectionLabel text={t('taharah.cleanDays.title')} />
             <View style={styles.cleanGrid}>
               {state.cleanDays.map((day) => (
                 <CleanDayCell
@@ -240,75 +227,83 @@ export default function TaharahDashboard() {
                 />
               ))}
             </View>
-          </Section>
+          </View>
         ) : null}
 
         {upcoming.length ? (
-          <Section title={t('taharah.perishaList')}>
-            {upcoming.slice(0, UPCOMING_LIMIT).map((entry, index, list) => (
-              <View
-                key={onahIndex(entry.onah)}
-                style={[
-                  styles.row,
-                  index < list.length - 1 && {
-                    borderBottomColor: colors.border,
-                    borderBottomWidth: StyleSheet.hairlineWidth,
-                  },
-                ]}
-              >
-                <View style={styles.rowMain}>
-                  <Text style={[typography.bodyBold, { color: colors.text }]}>
-                    {formatDayLine(onahStartDate(entry.onah), language)}
+          <View>
+            <SectionLabel text={t('taharah.perishaList')} />
+            <View style={listCard}>
+              {upcoming.slice(0, UPCOMING_LIMIT).map((entry, index, list) => (
+                <View
+                  key={onahIndex(entry.onah)}
+                  style={[
+                    styles.row,
+                    index < list.length - 1 && {
+                      borderBottomColor: colors.border,
+                      borderBottomWidth: StyleSheet.hairlineWidth,
+                    },
+                  ]}
+                >
+                  <View style={styles.rowMain}>
+                    <Text style={[typography.bodyBold, { color: colors.text }]}>
+                      {formatDayLine(onahStartDate(entry.onah), language)}
+                    </Text>
+                    <Text style={[typography.caption, { color: colors.textSub }]}>
+                      {entry.reasons.map((reason) => t(`taharah.reason.${reason}`)).join(' · ')}
+                    </Text>
+                    {entry.disputed ? (
+                      <Text style={[typography.captionBold, { color: colors.warning }]}>{t('taharah.disputed')}</Text>
+                    ) : null}
+                  </View>
+                  <Text style={[typography.captionBold, { color: colors.goldText }]}>
+                    {t(`taharah.onah.${entry.onah.kind}`)}
                   </Text>
-                  <Text style={[typography.caption, { color: colors.textSub }]}>
-                    {entry.reasons.map((reason) => t(`taharah.reason.${reason}`)).join(' · ')}
-                  </Text>
-                  {entry.disputed ? (
-                    <Text style={[typography.captionBold, { color: colors.warning }]}>{t('taharah.disputed')}</Text>
-                  ) : null}
                 </View>
-                <Text style={[typography.captionBold, { color: colors.goldText }]}>
-                  {t(`taharah.onah.${entry.onah.kind}`)}
-                </Text>
-              </View>
-            ))}
-          </Section>
+              ))}
+            </View>
+          </View>
         ) : null}
 
         {recent.length ? (
-          <Section title={t('taharah.history.title')}>
-            {recent.map((event, index) => (
-              <View
-                key={event.id}
-                style={[
-                  styles.row,
-                  index < recent.length - 1 && {
-                    borderBottomColor: colors.border,
-                    borderBottomWidth: StyleSheet.hairlineWidth,
-                  },
-                ]}
-              >
-                <View style={styles.rowMain}>
-                  <Text style={[typography.bodyBold, { color: colors.text }]}>{t(`taharah.event.${event.type}`)}</Text>
-                  <Text style={[typography.caption, { color: colors.textSub }]}>
-                    {[formatDayLine(eventDate(event), language), eventDetail(event, t)].filter(Boolean).join(' · ')}
-                  </Text>
-                </View>
-                {index === 0 ? (
-                  <Pressable
-                    onPress={() => removeEvent(event.id)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    style={[styles.undoBtn, { borderColor: colors.border }]}
-                  >
-                    <Text style={[typography.small, { color: colors.goldText, fontFamily: 'Heebo_700Bold' }]}>
-                      {t('taharah.log.undo')}
+          <View>
+            <SectionLabel text={t('taharah.history.title')} />
+            <View style={listCard}>
+              {recent.map((event, index) => (
+                <View
+                  key={event.id}
+                  style={[
+                    styles.row,
+                    index < recent.length - 1 && {
+                      borderBottomColor: colors.border,
+                      borderBottomWidth: StyleSheet.hairlineWidth,
+                    },
+                  ]}
+                >
+                  <View style={styles.rowMain}>
+                    <Text style={[typography.bodyBold, { color: colors.text }]}>
+                      {t(`taharah.event.${event.type}`)}
                     </Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ))}
-          </Section>
+                    <Text style={[typography.caption, { color: colors.textSub }]}>
+                      {[formatDayLine(eventDate(event), language), eventDetail(event, t)].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                  {index === 0 ? (
+                    <Pressable
+                      onPress={() => removeEvent(event.id)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      style={[styles.undoBtn, { borderColor: colors.border }]}
+                    >
+                      <Text style={[typography.small, { color: colors.goldText, fontFamily: fontFamilies.heebo.bold }]}>
+                        {t('taharah.log.undo')}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          </View>
         ) : null}
       </ScrollView>
 
@@ -350,22 +345,6 @@ export default function TaharahDashboard() {
   );
 }
 
-function Section({ title, plain = false, children }: { title: string; plain?: boolean; children: React.ReactNode }) {
-  const { colors } = useTheme();
-  return (
-    <View style={styles.section}>
-      <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>{title}</Text>
-      {plain ? (
-        children
-      ) : (
-        <View style={[styles.listCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {children}
-        </View>
-      )}
-    </View>
-  );
-}
-
 function SecondaryButton({ label, onPress }: { label: string; onPress: () => void }) {
   const { colors } = useTheme();
   return (
@@ -386,8 +365,8 @@ function TaskRow({ task, last, onPress }: { task: TaharahTask; last: boolean; on
   const { t } = useI18n();
   const timeLine =
     task.kind === 'tevila'
-      ? t('taharah.task.from', { time: clock(task.start) })
-      : t('taharah.task.until', { time: clock(task.end) });
+      ? t('taharah.task.from', { time: clockOf(task.start) })
+      : t('taharah.task.until', { time: clockOf(task.end) });
   const details = [
     timeLine,
     task.cleanDayIndex ? t('taharah.cleanDays.day', { index: task.cleanDayIndex }) : null,
@@ -426,7 +405,7 @@ function TaskRow({ task, last, onPress }: { task: TaharahTask; last: boolean; on
           <Text
             style={[
               typography.micro,
-              { color: task.required ? colors.text : colors.textSub, fontFamily: 'Heebo_700Bold' },
+              { color: task.required ? colors.text : colors.textSub, fontFamily: fontFamilies.heebo.bold },
             ]}
           >
             {task.required ? t('taharah.task.required') : t('taharah.task.recommended')}
@@ -497,7 +476,6 @@ type SheetProps = {
 function BedikaSheet({ target, index, past, onClose, onSave }: SheetProps) {
   const { colors } = useTheme();
   const { language, t } = useI18n();
-  const quiet = useQuietBlock() !== null;
   const [slot, setSlot] = useState<BedikaSlot>('morning');
   const [result, setResult] = useState<BedikaResult>('clean');
 
@@ -514,50 +492,35 @@ function BedikaSheet({ target, index, past, onClose, onSave }: SheetProps) {
     : '';
 
   return (
-    <Modal animationType="fade" transparent visible={target !== null && !quiet} onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[typography.heading, { color: colors.text }]}>{t('taharah.bedika.record')}</Text>
-          <Text style={[typography.caption, { color: colors.textSub, marginTop: 2, marginBottom: 14 }]}>
-            {subtitle}
-          </Text>
-          <ChipRow
-            values={BEDIKA_SLOTS}
-            selected={slot}
-            onSelect={setSlot}
-            renderLabel={(value) => t(`taharah.bedika.${value}`)}
-          />
-          <ChipRow
-            values={BEDIKA_RESULTS}
-            selected={result}
-            onSelect={setResult}
-            renderLabel={(value) => t(`taharah.bedika.result.${value}`)}
-            style={styles.resultRow}
-          />
-          {past ? (
-            <Text style={[typography.caption, { color: colors.textMuted, marginTop: 12 }]}>
-              {t('taharah.bedika.pastDay')}
-            </Text>
-          ) : null}
-          <View style={styles.modalActions}>
-            <Pressable
-              onPress={onClose}
-              accessibilityRole="button"
-              style={[styles.modalBtn, { backgroundColor: colors.surface2 }]}
-            >
-              <Text style={[typography.bodyBold, { color: colors.text }]}>{t('common.cancel')}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => target && onSave(target.day, slot, result)}
-              accessibilityRole="button"
-              style={[styles.modalBtn, { backgroundColor: colors.gold }]}
-            >
-              <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.save')}</Text>
-            </Pressable>
-          </View>
-        </View>
+    <BottomSheet visible={target !== null} title={t('taharah.bedika.record')} caption={subtitle} onClose={onClose}>
+      <ChipRow
+        values={BEDIKA_SLOTS}
+        selected={slot}
+        onSelect={setSlot}
+        renderLabel={(value) => t(`taharah.bedika.${value}`)}
+      />
+      <ChipRow
+        values={BEDIKA_RESULTS}
+        selected={result}
+        onSelect={setResult}
+        renderLabel={(value) => t(`taharah.bedika.result.${value}`)}
+        style={styles.resultRow}
+      />
+      {past ? (
+        <Text style={[typography.caption, styles.pastNote, { color: colors.textMuted }]}>
+          {t('taharah.bedika.pastDay')}
+        </Text>
+      ) : null}
+      <View style={styles.sheetActions}>
+        <Pressable
+          onPress={() => target && onSave(target.day, slot, result)}
+          accessibilityRole="button"
+          style={[styles.sheetBtn, { backgroundColor: colors.gold }]}
+        >
+          <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.save')}</Text>
+        </Pressable>
       </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
@@ -565,166 +528,129 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 16,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  pill: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
   content: {
-    padding: 14,
-    paddingBottom: 20,
-    gap: 12,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 16,
+    padding: spacing.lg,
   },
-  banner: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
+  flush: {
+    marginBottom: 0,
   },
-  bannerActions: {
+  rulingActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
+    gap: spacing.sm,
   },
-  bannerBtn: {
+  rulingBtn: {
     flexGrow: 1,
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  section: {
-    gap: 8,
-  },
-  sectionTitle: {
-    paddingHorizontal: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
   listCard: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   rowMain: {
     flex: 1,
     gap: 2,
   },
   empty: {
-    padding: 14,
+    padding: spacing.lg,
     textAlign: 'center',
   },
   badge: {
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: 1,
-    paddingHorizontal: 9,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 3,
   },
   undoBtn: {
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
   cleanGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: spacing.sm,
   },
   cleanCell: {
     flexGrow: 1,
     flexBasis: 38,
     alignItems: 'center',
     gap: 2,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   dots: {
     flexDirection: 'row',
-    gap: 4,
+    gap: spacing.xs,
     marginTop: 2,
   },
   dot: {
     width: 8,
     height: 8,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     borderWidth: 1.5,
   },
   footer: {
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 10,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    gap: 8,
+    gap: spacing.sm,
   },
   primaryBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 14,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.lg,
   },
   secondaryRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   secondaryBtn: {
     flex: 1,
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md,
   },
   resultRow: {
-    marginTop: 10,
+    marginTop: spacing.md,
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(9,20,32,0.55)',
-    justifyContent: 'center',
-    padding: 22,
+  pastNote: {
+    marginTop: spacing.md,
   },
-  modalCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 20,
-  },
-  modalActions: {
+  sheetActions: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 18,
+    gap: spacing.md,
+    marginTop: spacing.xl,
   },
-  modalBtn: {
+  sheetBtn: {
     flex: 1,
-    borderRadius: 12,
-    paddingVertical: 12,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
 });

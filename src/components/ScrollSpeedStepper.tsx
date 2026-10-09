@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SIDDUR_SCROLL_SPEEDS, scrollSpeedLevel } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 
@@ -59,12 +60,12 @@ const styles = StyleSheet.create({
   group: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: 1,
   },
   step: {
     minWidth: 32,
-    paddingVertical: 4,
+    paddingVertical: spacing.xs,
     alignItems: 'center',
   },
   level: {

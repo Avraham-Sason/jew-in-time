@@ -3,7 +3,8 @@ import { Pressable, View, Text, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
-import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
+import { fontFamilies, typography } from '@/theme/typography';
 
 type Props = {
   name: string;
@@ -47,7 +48,7 @@ export function CompletedRow({ name, time, onPress, onUndo, undoLabel }: Props) 
       <Text style={[typography.small, { color: colors.textMuted }]}>{time}</Text>
       {onUndo ? (
         <Pressable onPress={onUndo} hitSlop={8} style={[styles.undoBtn, { borderColor: colors.border }]}>
-          <Text style={[typography.small, { color: colors.goldText, fontFamily: 'Heebo_700Bold' }]}>
+          <Text style={[typography.small, { color: colors.goldText, fontFamily: fontFamilies.heebo.bold }]}>
             {undoLabel ?? '↺'}
           </Text>
         </Pressable>
@@ -69,17 +70,17 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  tick: { width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+  tick: { width: 24, height: 24, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   name: { flex: 1 },
   undoBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
     borderWidth: 1,
   },
 });

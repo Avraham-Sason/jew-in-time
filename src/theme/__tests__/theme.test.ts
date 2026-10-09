@@ -1,24 +1,12 @@
-import {
-  T_LIGHT,
-  T_DARK,
-  T_PINK,
-  T_PURPLE,
-  T_BLUE,
-  T_PLUM,
-  THEMES,
-  THEME_NAMES,
-  DARK_THEMES,
-  isDarkTheme,
-  ThemeColors,
-} from '../colors';
+import fs from 'fs';
+import path from 'path';
+import { BRAND, T_LIGHT, T_DARK, T_PLUM, THEMES, THEME_NAMES, DARK_THEMES, isDarkTheme, ThemeColors } from '../colors';
 import { ribbonThresholds, durations, spacing, radius } from '../tokens';
+import { APP_FONTS, fontFamilies, typography } from '../typography';
 import he from '@/i18n/he.json';
 import en from '@/i18n/en.json';
 
 const COLOR = /^(#[0-9A-F]{6}|rgba\(.*\))$/i;
-
-const STATUS_TOKENS = ['urgent', 'urgentBg', 'urgentBorder', 'warning', 'safe'] as const;
-const IDENTITY_TOKENS = ['gold', 'headerBg', 'bg'] as const;
 
 const READABLE_PAIRS: readonly (readonly [keyof ThemeColors, keyof ThemeColors, number])[] = [
   ['text', 'bg', 4.5],
@@ -33,9 +21,6 @@ const READABLE_PAIRS: readonly (readonly [keyof ThemeColors, keyof ThemeColors, 
   ['headerAccent', 'headerBg', 4.5],
   ['textSub', 'surface', 4.0],
 ];
-
-const pick = <K extends keyof ThemeColors>(palette: ThemeColors, keys: readonly K[]) =>
-  Object.fromEntries(keys.map((key) => [key, palette[key]])) as Pick<ThemeColors, K>;
 
 const linear = (channel: number) => {
   const c = channel / 255;
@@ -55,12 +40,9 @@ const contrast = (a: string, b: string) => {
 
 describe('Theme', () => {
   it('THEMES lists exactly the named palettes, in order', () => {
-    expect(THEME_NAMES).toEqual(['gold', 'pink', 'purple', 'blue', 'dark', 'plum']);
+    expect(THEME_NAMES).toEqual(['gold', 'dark', 'plum']);
     expect(Object.keys(THEMES)).toEqual([...THEME_NAMES]);
     expect(THEMES.gold).toBe(T_LIGHT);
-    expect(THEMES.pink).toBe(T_PINK);
-    expect(THEMES.purple).toBe(T_PURPLE);
-    expect(THEMES.blue).toBe(T_BLUE);
     expect(THEMES.dark).toBe(T_DARK);
     expect(THEMES.plum).toBe(T_PLUM);
   });
@@ -87,19 +69,15 @@ describe('Theme', () => {
     expect(isDarkTheme('gold')).toBe(false);
   });
 
-  it('the light palettes share the status colours and white surfaces', () => {
-    for (const name of ['pink', 'purple', 'blue'] as const) {
-      const palette = THEMES[name];
-      expect({ name, surface: palette.surface, ...pick(palette, STATUS_TOKENS) }).toEqual({
-        name,
-        surface: '#FFFFFF',
-        ...pick(T_LIGHT, STATUS_TOKENS),
-      });
-    }
-    for (const token of IDENTITY_TOKENS) {
-      const values = [T_LIGHT, T_PINK, T_PURPLE, T_BLUE].map((palette) => palette[token]);
+  it('the palettes differ in background, accent and header', () => {
+    for (const token of ['bg', 'gold', 'headerBg'] as const) {
+      const values = THEME_NAMES.map((name) => THEMES[name][token]);
       expect({ token, distinct: new Set(values).size }).toEqual({ token, distinct: values.length });
     }
+  });
+
+  it('BRAND is the gold palette identity, independent of the active theme', () => {
+    expect(BRAND).toEqual({ navy: T_LIGHT.text, gold: T_LIGHT.gold, parchment: T_LIGHT.bg, white: '#FFFFFF' });
   });
 
   it.each(THEME_NAMES)('text stays readable in the %s palette (WCAG contrast)', (name) => {
@@ -143,10 +121,53 @@ describe('Theme', () => {
     }
   });
 
-  it('radius scale is monotonic (excluding full)', () => {
-    expect(radius.sm).toBeLessThan(radius.md);
-    expect(radius.md).toBeLessThan(radius.lg);
-    expect(radius.lg).toBeLessThan(radius.xl);
-    expect(radius.full).toBeGreaterThan(radius.xl);
+  it('radius scale is monotonic', () => {
+    const order = ['xs', 'sm', 'md', 'lg', 'xl', 'xxl', 'full'] as const;
+    for (let i = 1; i < order.length; i++) {
+      expect(radius[order[i]]).toBeGreaterThan(radius[order[i - 1]]);
+    }
+  });
+});
+
+describe('Typography', () => {
+  const sizes = (variant: keyof typeof typography) => typography[variant].fontSize!;
+  const loaded: readonly string[] = APP_FONTS;
+
+  it('font sizes rise from micro to display', () => {
+    expect(sizes('micro')).toBeLessThan(sizes('small'));
+    expect(sizes('small')).toBeLessThan(sizes('caption'));
+    expect(sizes('caption')).toBeLessThan(sizes('body'));
+    expect(sizes('body')).toBe(sizes('bodyBold'));
+    expect(sizes('body')).toBe(sizes('subheading'));
+    expect(sizes('subheading')).toBeLessThan(sizes('heading'));
+    expect(sizes('heading')).toBeLessThan(sizes('title'));
+    expect(sizes('title')).toBeLessThan(sizes('display'));
+  });
+
+  it('every line is taller than its font', () => {
+    for (const [variant, style] of Object.entries(typography)) {
+      expect({ variant, taller: style.lineHeight! > style.fontSize! }).toEqual({ variant, taller: true });
+    }
+  });
+
+  it('every family the app styles with is a loaded font', () => {
+    const families = [
+      ...Object.values(typography).map((style) => style.fontFamily),
+      ...Object.values(fontFamilies.heebo),
+      ...Object.values(fontFamilies.siddur),
+    ];
+    expect(families.filter((family) => !loaded.includes(family as string))).toEqual([]);
+  });
+
+  it('the unused Heebo weights are not loaded', () => {
+    expect(loaded).not.toContain('Heebo_300Light');
+    expect(loaded).not.toContain('Heebo_500Medium');
+  });
+
+  it('the root layout loads exactly APP_FONTS', () => {
+    const source = fs.readFileSync(path.join(__dirname, '..', '..', 'app', '_layout.tsx'), 'utf8');
+    expect(APP_FONTS.filter((font) => !source.includes(font))).toEqual([]);
+    expect(source).not.toContain('Heebo_300Light');
+    expect(source).not.toContain('Heebo_500Medium');
   });
 });

@@ -1,17 +1,23 @@
 import React, { useMemo, useState } from 'react';
-import { I18nManager, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { ChipRow } from '@/components/ChipRow';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { SegmentedControl } from '@/components/SegmentedControl';
 import { useCustomMitzvotStore, makeCustomMitzvahId } from '@/stores/useCustomMitzvotStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
+import { BRAND } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
-import { useQuietBlock } from '@/components/ShabbatScreen';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 import { TIME_PATTERN, timeToMinutes } from '@/utils/clock';
 import { ContentBlock, CustomMitzvah, MitzvahCategory, Reminder, ReminderAnchor, SkipContext } from '@/types/mitzvah';
 
 const CATEGORIES: MitzvahCategory[] = ['daily-morning', 'daily-afternoon', 'daily-evening', 'daily-allday', 'learning'];
+const CONTENT_TYPES: ContentBlock['type'][] = ['text', 'blessing', 'link'];
 
 function emptyReminder(): Reminder {
   return { anchor: 'start', offsetMin: 0, label: '' };
@@ -38,7 +44,6 @@ function cleanContentBlocks(blocks: ContentBlock[]): ContentBlock[] | undefined 
 
 export default function CustomMitzvahScreen() {
   const { colors } = useTheme();
-  const quiet = useQuietBlock() !== null;
   const { t, language } = useI18n();
   const router = useRouter();
   const { id: rawId } = useLocalSearchParams<{ id?: string }>();
@@ -170,20 +175,19 @@ export default function CustomMitzvahScreen() {
 
   const inputDir = language === 'he' ? 'rtl' : 'ltr';
   const selectedReminder = reminders[selectedReminderIndex];
+  const anchorOptions: { value: ReminderAnchor; label: string }[] = [
+    { value: 'start', label: t('reminder.anchor.start') },
+    { value: 'end', label: t('reminder.anchor.end') },
+  ];
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
       <Stack.Screen options={{ title: titleText, headerShown: false }} />
+      <ScreenHeader title={titleText} onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.surface2 }]}>
-            <Text style={[typography.bodyBold, { color: colors.text }]}>{t('common.back')}</Text>
-          </Pressable>
-          <Text style={[typography.title, { color: colors.text }]}>{titleText}</Text>
-          <View style={{ width: 60 }} />
-        </View>
-
-        <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>{t('custom.name')}</Text>
+        <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: spacing.sm }]}>
+          {t('custom.name')}
+        </Text>
         <TextInput
           value={name}
           onChangeText={setName}
@@ -200,9 +204,9 @@ export default function CustomMitzvahScreen() {
           ]}
         />
 
-        <View style={[styles.row, { marginTop: 14 }]}>
+        <View style={[styles.row, { marginTop: spacing.lg }]}>
           <View style={{ flex: 1 }}>
-            <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>
+            <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: spacing.sm }]}>
               {t('custom.startTime')}
             </Text>
             <TextInput
@@ -224,7 +228,7 @@ export default function CustomMitzvahScreen() {
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>
+            <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: spacing.sm }]}>
               {t('custom.endTime')}
             </Text>
             <TextInput
@@ -246,34 +250,28 @@ export default function CustomMitzvahScreen() {
             />
           </View>
         </View>
-        <Text style={[typography.small, { color: colors.textMuted, marginTop: 6 }]}>{t('custom.timeFormatHint')}</Text>
+        <Text style={[typography.small, { color: colors.textMuted, marginTop: spacing.sm }]}>
+          {t('custom.timeFormatHint')}
+        </Text>
 
-        <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 18, marginBottom: 8 }]}>
+        <Text
+          style={[typography.captionBold, { color: colors.textSub, marginTop: spacing.xl, marginBottom: spacing.sm }]}
+        >
           {t('custom.category')}
         </Text>
-        <View style={styles.wrapRow}>
-          {CATEGORIES.map((value) => {
-            const active = category === value;
-            return (
-              <Pressable
-                key={value}
-                onPress={() => setCategory(value)}
-                style={[styles.pill, { backgroundColor: active ? colors.gold : colors.surface2 }]}
-              >
-                <Text style={[typography.small, { color: active ? colors.onGold : colors.textSub }]}>
-                  {t(`library.category.${value}`)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <ChipRow
+          values={CATEGORIES}
+          selected={category}
+          onSelect={setCategory}
+          renderLabel={(value) => t(`library.category.${value}`)}
+        />
 
-        <View style={[styles.switchRow, { marginTop: 18 }]}>
+        <View style={[styles.switchRow, { marginTop: spacing.xl }]}>
           <Text style={[typography.bodyBold, { color: colors.text }]}>{t('custom.skipShabbat')}</Text>
           <Switch
             value={skipShabbat}
             onValueChange={setSkipShabbat}
-            thumbColor="#fff"
+            thumbColor={BRAND.white}
             trackColor={{ false: colors.border, true: colors.gold }}
           />
         </View>
@@ -282,12 +280,12 @@ export default function CustomMitzvahScreen() {
           <Switch
             value={skipYomtov}
             onValueChange={setSkipYomtov}
-            thumbColor="#fff"
+            thumbColor={BRAND.white}
             trackColor={{ false: colors.border, true: colors.gold }}
           />
         </View>
 
-        <Text style={[typography.subheading, { color: colors.text, marginTop: 20, marginBottom: 10 }]}>
+        <Text style={[typography.subheading, { color: colors.text, marginTop: spacing.xl, marginBottom: spacing.md }]}>
           {t('custom.reminders')}
         </Text>
         {reminders.map((r, idx) => (
@@ -307,14 +305,20 @@ export default function CustomMitzvahScreen() {
                   color: colors.text,
                   borderColor: colors.border,
                   writingDirection: inputDir,
-                  marginBottom: 10,
+                  marginBottom: spacing.md,
                 },
               ]}
             />
             <View style={styles.row}>
-              <AnchorPick value={r.anchor} onChange={(v) => updateReminder(idx, { anchor: v })} />
+              <SegmentedControl
+                tone="surface"
+                options={anchorOptions}
+                value={r.anchor}
+                onChange={(v) => updateReminder(idx, { anchor: v })}
+                style={styles.anchor}
+              />
               <View style={{ flex: 1 }}>
-                <Text style={[typography.small, { color: colors.textMuted, marginBottom: 4 }]}>
+                <Text style={[typography.small, { color: colors.textMuted, marginBottom: spacing.xs }]}>
                   {r.anchor === 'start' ? t('custom.reminderOffsetFromStart') : t('custom.reminderOffsetBeforeEnd')}
                 </Text>
                 <TextInput
@@ -354,26 +358,18 @@ export default function CustomMitzvahScreen() {
 
         {reminders.length ? (
           <View style={[styles.editorSection, { borderColor: colors.border }]}>
-            <Text style={[typography.subheading, { color: colors.text, marginBottom: 8 }]}>
+            <Text style={[typography.subheading, { color: colors.text, marginBottom: spacing.sm }]}>
               {t('custom.bodyVariants')}
             </Text>
-            <View style={styles.wrapRow}>
-              {reminders.map((_, idx) => {
-                const active = idx === selectedReminderIndex;
-                return (
-                  <Pressable
-                    key={idx}
-                    onPress={() => setSelectedReminderIndex(idx)}
-                    style={[styles.anchorPill, { backgroundColor: active ? colors.gold : colors.surface2 }]}
-                  >
-                    <Text style={[typography.small, { color: active ? colors.onGold : colors.textSub }]}>
-                      {idx + 1}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Text style={[typography.small, { color: colors.textMuted, marginTop: 8, marginBottom: 6 }]}>
+            <ChipRow
+              values={reminders.map((_, idx) => idx)}
+              selected={selectedReminderIndex}
+              onSelect={setSelectedReminderIndex}
+              renderLabel={(idx) => String(idx + 1)}
+            />
+            <Text
+              style={[typography.small, { color: colors.textMuted, marginTop: spacing.sm, marginBottom: spacing.sm }]}
+            >
               {t('custom.bodyVariantsHint')}
             </Text>
             <TextInput
@@ -397,7 +393,7 @@ export default function CustomMitzvahScreen() {
         ) : null}
 
         <View style={[styles.editorSection, { borderColor: colors.border }]}>
-          <Text style={[typography.subheading, { color: colors.text, marginBottom: 10 }]}>
+          <Text style={[typography.subheading, { color: colors.text, marginBottom: spacing.md }]}>
             {t('custom.contentBlocks')}
           </Text>
           {contentBlocks.map((block, idx) => (
@@ -405,22 +401,12 @@ export default function CustomMitzvahScreen() {
               key={idx}
               style={[styles.contentEditorCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
-              <View style={styles.wrapRow}>
-                {(['text', 'blessing', 'link'] as ContentBlock['type'][]).map((type) => {
-                  const active = block.type === type;
-                  return (
-                    <Pressable
-                      key={type}
-                      onPress={() => changeContentType(idx, type)}
-                      style={[styles.anchorPill, { backgroundColor: active ? colors.gold : colors.surface2 }]}
-                    >
-                      <Text style={[typography.small, { color: active ? colors.onGold : colors.textSub }]}>
-                        {t(`custom.contentType.${type}`)}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <ChipRow
+                values={CONTENT_TYPES}
+                selected={block.type}
+                onSelect={(type) => changeContentType(idx, type)}
+                renderLabel={(type) => t(`custom.contentType.${type}`)}
+              />
               <TextInput
                 value={block.he}
                 onChangeText={(value) => updateContentBlock(idx, { ...block, he: value } as ContentBlock)}
@@ -435,7 +421,7 @@ export default function CustomMitzvahScreen() {
                     color: colors.text,
                     borderColor: colors.border,
                     writingDirection: inputDir,
-                    marginTop: 10,
+                    marginTop: spacing.md,
                   },
                 ]}
               />
@@ -454,8 +440,8 @@ export default function CustomMitzvahScreen() {
                       color: colors.text,
                       borderColor: colors.border,
                       writingDirection: 'ltr',
-                      textAlign: I18nManager.isRTL ? 'right' : 'left',
-                      marginTop: 10,
+                      textAlign: 'left',
+                      marginTop: spacing.md,
                     },
                   ]}
                 />
@@ -477,7 +463,7 @@ export default function CustomMitzvahScreen() {
         </View>
 
         {error ? (
-          <Text style={[typography.captionBold, { color: colors.urgent, marginTop: 14, textAlign: 'center' }]}>
+          <Text style={[typography.captionBold, { color: colors.urgent, marginTop: spacing.lg, textAlign: 'center' }]}>
             {error}
           </Text>
         ) : null}
@@ -496,155 +482,91 @@ export default function CustomMitzvahScreen() {
         ) : null}
       </ScrollView>
 
-      <Modal
-        animationType="fade"
-        transparent
-        visible={deleteVisible && !quiet}
-        onRequestClose={() => setDeleteVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[typography.heading, { color: colors.text, marginBottom: 8 }]}>
-              {t('custom.deleteConfirmTitle')}
-            </Text>
-            <Text style={[typography.body, { color: colors.textSub, marginBottom: 18 }]}>
-              {t('custom.deleteConfirmBody')}
-            </Text>
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={() => setDeleteVisible(false)}
-                style={[styles.modalBtn, { backgroundColor: colors.surface2 }]}
-              >
-                <Text style={[typography.bodyBold, { color: colors.text }]}>{t('common.cancel')}</Text>
-              </Pressable>
-              <Pressable onPress={onDelete} style={[styles.modalBtn, { backgroundColor: colors.urgent }]}>
-                <Text style={[typography.bodyBold, { color: colors.onUrgent }]}>{t('common.delete')}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ConfirmDialog
+        visible={deleteVisible}
+        title={t('custom.deleteConfirmTitle')}
+        body={t('custom.deleteConfirmBody')}
+        confirmLabel={t('common.delete')}
+        destructive
+        onConfirm={onDelete}
+        onCancel={() => setDeleteVisible(false)}
+      />
     </SafeAreaView>
-  );
-}
-
-function AnchorPick({ value, onChange }: { value: ReminderAnchor; onChange: (v: ReminderAnchor) => void }) {
-  const { colors } = useTheme();
-  const { t } = useI18n();
-  return (
-    <View style={{ flexDirection: 'row', gap: 6 }}>
-      {(['start', 'end'] as ReminderAnchor[]).map((opt) => {
-        const active = value === opt;
-        return (
-          <Pressable
-            key={opt}
-            onPress={() => onChange(opt)}
-            style={[styles.anchorPill, { backgroundColor: active ? colors.gold : colors.surface2 }]}
-          >
-            <Text style={[typography.small, { color: active ? colors.onGold : colors.textSub }]}>
-              {t(`reminder.anchor.${opt}`)}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  content: { padding: 16, paddingBottom: 40 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  backBtn: {
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
+  content: { padding: spacing.lg, paddingBottom: spacing.xxxl },
   input: {
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     fontSize: 16,
   },
   multiInput: {
     minHeight: 86,
     textAlignVertical: 'top',
   },
-  row: { flexDirection: 'row', gap: 10, alignItems: 'flex-end' },
-  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 },
-  anchorPill: { borderRadius: 14, paddingHorizontal: 10, paddingVertical: 8 },
+  row: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-end' },
+  anchor: { flex: 1 },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   reminderCard: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 12,
-    marginBottom: 10,
+    padding: spacing.md,
+    marginBottom: spacing.md,
   },
   iconBtn: {
     width: 40,
     height: 40,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addBtn: {
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: spacing.sm,
   },
   editorSection: {
     borderTopWidth: 1,
-    marginTop: 18,
-    paddingTop: 16,
+    marginTop: spacing.xl,
+    paddingTop: spacing.lg,
   },
   contentEditorCard: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 12,
-    marginBottom: 10,
+    padding: spacing.md,
+    marginBottom: spacing.md,
   },
   deleteBlockBtn: {
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
-    paddingVertical: 10,
+    paddingVertical: spacing.md,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: spacing.md,
   },
   primaryBtn: {
-    borderRadius: 14,
-    paddingVertical: 13,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
     alignItems: 'center',
-    marginTop: 18,
+    marginTop: spacing.xl,
   },
   dangerBtn: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    paddingVertical: 13,
+    paddingVertical: spacing.md,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: spacing.md,
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(9,20,32,0.55)',
-    justifyContent: 'center',
-    padding: 22,
-  },
-  modalCard: { borderRadius: 18, borderWidth: 1, padding: 20 },
-  modalActions: { flexDirection: 'row', gap: 10 },
-  modalBtn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
 });

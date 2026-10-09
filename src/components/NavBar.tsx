@@ -2,21 +2,21 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { AppLogo } from '@/components/AppLogo';
 import { useTheme } from '@/theme/ThemeProvider';
+import { spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 
 type Props = {
   title: string;
   subtitle?: string;
-  left?: React.ReactNode;
-  right?: React.ReactNode;
+  actions?: React.ReactNode;
 };
 
-export function NavBar({ title, subtitle, left, right }: Props) {
+export function NavBar({ title, subtitle, actions }: Props) {
   const { colors } = useTheme();
 
   return (
     <View style={[styles.wrap, { backgroundColor: colors.headerBg }]}>
-      {right ?? <AppLogo size={28} />}
+      <AppLogo size={28} />
       <View style={styles.center}>
         <Text style={[typography.subheading, styles.title, { color: colors.headerText }]} numberOfLines={1}>
           {title}
@@ -27,7 +27,7 @@ export function NavBar({ title, subtitle, left, right }: Props) {
           </Text>
         ) : null}
       </View>
-      <View style={styles.edge}>{left}</View>
+      <View style={styles.edge}>{actions}</View>
     </View>
   );
 }
@@ -36,9 +36,9 @@ const styles = StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
   },
   center: {
     flex: 1,

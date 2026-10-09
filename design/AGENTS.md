@@ -8,6 +8,7 @@
 
 - Child design bundles own their own source transcripts, prototypes, and implementation guidance.
 - Production app code remains owned by [../src/AGENTS.md](../src/AGENTS.md).
+- [stage1-previews/index.html](stage1-previews/index.html) is the self-contained stage 1 preview page (logo variants, icon styles, palettes and type scale) the product owner uses to choose a direction; it is source material, never imported by the app.
 
 ## Local Contracts
 

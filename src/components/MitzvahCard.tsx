@@ -10,13 +10,16 @@ import Animated, {
 import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '@/theme/ThemeProvider';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
-import { typography } from '@/theme/typography';
-import { durations } from '@/theme/tokens';
+import { fontFamilies, typography } from '@/theme/typography';
+import { durations, radius, spacing } from '@/theme/tokens';
+import { IconTile } from './IconTile';
+import type { IconName } from './MitzvahIcon';
 import { TimeRibbon } from './TimeRibbon';
 import { useI18n } from '@/i18n';
 
 type Props = {
   name: string;
+  icon?: IconName;
   timeLeft: string;
   pct: number;
   urgent?: boolean;
@@ -46,7 +49,7 @@ function OpenBook({ color }: { color: string }) {
   );
 }
 
-function Checkmark({ color = '#fff', size = 13, width = 1.8 }: { color?: string; size?: number; width?: number }) {
+function Checkmark({ color, size = 13, width = 1.8 }: { color: string; size?: number; width?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 13 13" fill="none">
       <Path d="M2 6.5L5 9.5L11 3.5" stroke={color} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" />
@@ -56,6 +59,7 @@ function Checkmark({ color = '#fff', size = 13, width = 1.8 }: { color?: string;
 
 export function MitzvahCard({
   name,
+  icon = 'custom',
   timeLeft,
   pct,
   urgent,
@@ -129,9 +133,7 @@ export function MitzvahCard({
       ]}
     >
       <View style={styles.row}>
-        <View style={[styles.icon, { backgroundColor: done ? colors.surface2 : colors.goldLight }]}>
-          <Text style={{ fontSize: 17, color: done ? colors.textMuted : colors.gold }}>✦</Text>
-        </View>
+        <IconTile name={icon} tone={done ? 'done' : 'accent'} />
         <View style={styles.meta}>
           <Text
             style={[
@@ -146,22 +148,36 @@ export function MitzvahCard({
             {name}
           </Text>
           {done && (
-            <Text style={[typography.micro, { color: colors.safe, fontWeight: '600', marginTop: 2 }]}>
+            <Text
+              style={[typography.micro, { color: colors.safe, fontFamily: fontFamilies.heebo.semibold, marginTop: 2 }]}
+            >
               ✓ {t('state.completed')}
             </Text>
           )}
           {!done && statusText ? (
-            <Text style={[typography.micro, { color: statusColor, fontWeight: '600', marginTop: 2 }]}>
+            <Text
+              style={[typography.micro, { color: statusColor, fontFamily: fontFamilies.heebo.semibold, marginTop: 2 }]}
+            >
               {statusText}
             </Text>
           ) : null}
           {urgent && !done && !statusText && (
-            <Text style={[typography.micro, { color: colors.urgent, fontWeight: '600', marginTop: 2 }]}>
+            <Text
+              style={[
+                typography.micro,
+                { color: colors.urgent, fontFamily: fontFamilies.heebo.semibold, marginTop: 2 },
+              ]}
+            >
               ⚠ {t('state.urgentSoon')}
             </Text>
           )}
           {readOnly && !done && !statusText && (
-            <Text style={[typography.micro, { color: colors.textMuted, fontWeight: '600', marginTop: 2 }]}>
+            <Text
+              style={[
+                typography.micro,
+                { color: colors.textMuted, fontFamily: fontFamilies.heebo.semibold, marginTop: 2 },
+              ]}
+            >
               {t('state.readOnly')}
             </Text>
           )}
@@ -224,25 +240,18 @@ export function MitzvahCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 14,
-    marginBottom: 10,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     overflow: 'hidden',
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  icon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   meta: { flex: 1, minWidth: 0 },
   checkBtn: {
     width: 30,
     height: 30,
-    borderRadius: 9,
+    borderRadius: radius.md,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -254,13 +263,13 @@ const styles = StyleSheet.create({
   },
   stamp: {
     borderWidth: 3,
-    paddingVertical: 5,
-    paddingHorizontal: 18,
-    borderRadius: 6,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.sm,
   },
   stampText: {
     fontSize: 21,
-    fontWeight: '900',
+    fontFamily: fontFamilies.heebo.black,
     letterSpacing: 3,
   },
 });
