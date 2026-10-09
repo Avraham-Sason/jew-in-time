@@ -114,7 +114,7 @@ Store copy lives in [release/](release).
 - [src/hooks/](src/hooks) - Shared React hooks (`useNow`).
 - [src/i18n/](src/i18n) - Flat [he.json](src/i18n/he.json) and [en.json](src/i18n/en.json) dictionaries plus a tiny translation wrapper.
 - [src/testing/](src/testing) - Test-only fixture helpers. Never imported by shipped code.
-- [locales/](locales) - Native string tables (`he.json`, `en.json`) wired by `locales` in [app.json](app.json): the app's display name per language on iOS (`CFBundleDisplayName`) and Android (`app_name`), and the iOS location and Face ID permission prompts. They are native, so a change ships only in a build.
+- [locales/](locales) - Native string tables (`he.json`, `en.json`) wired by `locales` in [app.json](app.json): the app's display name per language on iOS (`CFBundleDisplayName`) and Android (`app_name`), and the iOS location and Face ID permission prompts. Each file is split into `ios` and `android` objects, because Expo writes every top-level key into Android `strings.xml` and Android lint rejects a translated key with no default-locale entry. They are native, so a change ships only in a build.
 - [scripts/](scripts) - Local workflow scripts and Expo config plugins.
 - [scripts/siddur/](scripts/siddur) - Build from pinned Sefaria and Wikisource sources to [assets/siddur/](assets/siddur), the generated nusach texts.
 - [design/jew-in-time/](design/jew-in-time) - Claude Design handoff. Use it only for UI/design work; read its README and Hi-Fi prototype before porting visuals. [design/stage1-previews/index.html](design/stage1-previews/index.html) is the preview board for the shipped design system (logo, icon styles, palettes, type scale).
