@@ -4,48 +4,31 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
 import { NavBar } from '@/components/NavBar';
+import { HeaderPill } from '@/components/ScreenHeader';
+import { SegmentedControl } from '@/components/SegmentedControl';
 import { getLocationName } from '@/data/cities';
-import { MITZVOT } from '@/data/mitzvot';
-import { customToMitzvah } from '@/data/customMitzvotAdapter';
-import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
+import { useDayModel } from '@/hooks/useDayModel';
 import { HebcalService } from '@/services/HebcalService';
 import { Completions, useCompletionsStore } from '@/stores/useCompletionsStore';
-import { enabledSinceOf, useMitzvotStore } from '@/stores/useMitzvotStore';
-import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
-import { typography } from '@/theme/typography';
-import { Mitzvah } from '@/types/mitzvah';
+import { radius, spacing } from '@/theme/tokens';
+import { fontFamilies, typography } from '@/theme/typography';
 import { buildDayTimeline } from '@/utils/buildDayTimeline';
 import { latestCheckIn, pendingCheckInIds } from '@/utils/checkIn';
+import { clockOf } from '@/utils/clock';
 import { useI18n } from '@/i18n';
 
-type ViewMode = 'day' | 'week' | 'month';
+const VIEW_MODES = ['day', 'week', 'month'] as const;
+type ViewMode = (typeof VIEW_MODES)[number];
 
 const EMPTY_COMPLETIONS = Object.freeze({}) as Completions;
 
 export default function ScheduleScreen() {
   const { colors } = useTheme();
-  const { language, t } = useI18n();
+  const { t } = useI18n();
+  const { enabled, location, language, settings, checkInInput } = useDayModel();
   const router = useRouter();
-  const activeMap = useMitzvotStore((s) => s.activeMitzvot);
-  const customMap = useCustomMitzvotStore((s) => s.items);
   const completions = useCompletionsStore((s) => s.completions);
-  const location = useUserStore((s) => s.location);
-  const nusach = useUserStore((s) => s.nusach);
-  const halachicOpinions = useUserStore((s) => s.halachicOpinions);
-  const inIsrael = useUserStore((s) => s.inIsrael);
-
-  const allMitzvot = useMemo<Mitzvah[]>(() => {
-    const customs = Object.values(customMap)
-      .sort((a, b) => a.createdAt - b.createdAt)
-      .map(customToMitzvah);
-    return [...MITZVOT, ...customs].filter((m) => m.nuschaotSupported.includes(nusach));
-  }, [customMap, nusach]);
-  const enabledMitzvot = useMemo(
-    () => allMitzvot.filter((item) => activeMap[item.id]?.enabled),
-    [allMitzvot, activeMap],
-  );
-  const settings = useMemo(() => ({ nusach, halachicOpinions, inIsrael }), [nusach, halachicOpinions, inIsrael]);
   const [view, setView] = useState<ViewMode>('day');
   const [cursor, setCursor] = useState(DateTime.now());
   const today = DateTime.now().startOf('day');
@@ -58,25 +41,16 @@ export default function ScheduleScreen() {
   const dayItems = useMemo(() => {
     if (view !== 'day') return [];
     const date = cursor.startOf('day').toJSDate();
-    return buildDayTimeline(date, enabledMitzvot, dayCompletions, location, settings, language, t);
-  }, [view, enabledMitzvot, dayCompletions, cursor, location, settings, language, t]);
+    return buildDayTimeline(date, enabled, dayCompletions, location, settings, language, t);
+  }, [view, enabled, dayCompletions, cursor, location, settings, language, t]);
 
   const checkIns = useCompletionsStore((s) => s.checkIns);
   const skipped = useCompletionsStore((s) => s.skipped);
   const pendingIds = useMemo(() => {
     if (view !== 'day') return new Set<string>();
-    const enabledSince = enabledSinceOf(activeMap);
-    const checkIn = latestCheckIn({
-      mitzvot: enabledMitzvot,
-      completions,
-      skipped,
-      checkIns,
-      enabledSince,
-      location,
-      settings,
-    });
-    return pendingCheckInIds(checkIn, cursor.toISODate() ?? '');
-  }, [view, enabledMitzvot, completions, skipped, checkIns, activeMap, location, settings, cursor]);
+    return pendingCheckInIds(latestCheckIn(checkInInput()), cursor.toISODate() ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- completions, skipped and checkIns re-run the memo on purpose; checkInInput() reads them from the store
+  }, [view, checkInInput, completions, skipped, checkIns, cursor]);
 
   const weekDays = useMemo(() => {
     if (view !== 'week') return [];
@@ -85,20 +59,14 @@ export default function ScheduleScreen() {
     const start = cursor.startOf('day').minus({ days: cursor.weekday % 7 });
     return Array.from({ length: 7 }, (_, index) => {
       const day = start.plus({ days: index });
-      const items = buildDayTimeline(
-        day.toJSDate(),
-        enabledMitzvot,
-        completions,
-        location,
-        settings,
-        language,
-        t,
-      ).filter((item) => item.type === 'mitzvah');
+      const items = buildDayTimeline(day.toJSDate(), enabled, completions, location, settings, language, t).filter(
+        (item) => item.type === 'mitzvah',
+      );
       const count = items.length;
       const holidays = HebcalService.getHolidays(day.toJSDate(), location);
       return { day, count, holidays, items: items.slice(0, 4) };
     });
-  }, [view, enabledMitzvot, completions, cursor, location, settings, language, t]);
+  }, [view, enabled, completions, cursor, location, settings, language, t]);
 
   // 42 cells × (hebcal calendar + zmanim + every window) on the render thread. Deferred behind
   // InteractionManager the way the history screen already does, so opening the tab is not a freeze.
@@ -120,15 +88,9 @@ export default function ScheduleScreen() {
       const day = gridStart.plus({ days: index });
       const holidays = HebcalService.getHolidays(day.toJSDate(), location);
       const hebrew = HebcalService.getHebrewDate(day.toJSDate());
-      const openCount = buildDayTimeline(
-        day.toJSDate(),
-        enabledMitzvot,
-        completions,
-        location,
-        settings,
-        language,
-        t,
-      ).filter((item) => item.type === 'mitzvah' && !item.done).length;
+      const openCount = buildDayTimeline(day.toJSDate(), enabled, completions, location, settings, language, t).filter(
+        (item) => item.type === 'mitzvah' && !item.done,
+      ).length;
       return {
         day,
         inMonth: day.month === cursor.month,
@@ -137,7 +99,7 @@ export default function ScheduleScreen() {
         openCount,
       };
     });
-  }, [view, monthReady, cursor, enabledMitzvot, completions, location, settings, language, t]);
+  }, [view, monthReady, cursor, enabled, completions, location, settings, language, t]);
 
   const highlightIndex = useMemo(() => {
     if (!isSelectedToday) return -1;
@@ -156,48 +118,29 @@ export default function ScheduleScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
       <NavBar title={t('schedule.title')} subtitle={subtitle} />
       <View style={[styles.controls, { backgroundColor: colors.headerBg }]}>
-        <View style={[styles.toggleWrap, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
-          {(['day', 'week', 'month'] as ViewMode[]).map((value) => (
-            <Pressable
-              key={value}
-              onPress={() => setView(value)}
-              style={[
-                styles.toggle,
-                {
-                  backgroundColor: view === value ? colors.headerAccent : 'transparent',
-                },
-              ]}
-            >
-              <Text style={[typography.small, { color: view === value ? colors.headerBg : colors.headerSub }]}>
-                {t(`schedule.${value}`)}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <SegmentedControl
+          tone="header"
+          options={VIEW_MODES.map((value) => ({ value, label: t(`schedule.${value}`) }))}
+          value={view}
+          onChange={setView}
+          style={styles.viewToggle}
+        />
         <View style={styles.navRow}>
-          <Pressable
+          <HeaderPill
+            label={prevArrow}
             onPress={() => setCursor((prev) => shift(prev, view, -1))}
-            accessibilityRole="button"
             accessibilityLabel={t('common.previous')}
-            hitSlop={10}
-            style={styles.navBtn}
-          >
-            <Text style={[typography.bodyBold, { color: colors.headerText }]}>{prevArrow}</Text>
-          </Pressable>
+          />
           <Text style={[typography.captionBold, { color: colors.headerText }]}>
             {view === 'month'
               ? t(`month.${cursor.month - 1}`)
               : cursor.setLocale(language).toFormat(language === 'he' ? 'cccc d LLL' : 'ccc LLL d')}
           </Text>
-          <Pressable
+          <HeaderPill
+            label={nextArrow}
             onPress={() => setCursor((prev) => shift(prev, view, 1))}
-            accessibilityRole="button"
             accessibilityLabel={t('common.next')}
-            hitSlop={10}
-            style={styles.navBtn}
-          >
-            <Text style={[typography.bodyBold, { color: colors.headerText }]}>{nextArrow}</Text>
-          </Pressable>
+          />
         </View>
       </View>
 
@@ -244,7 +187,7 @@ export default function ScheduleScreen() {
               >
                 {highlight ? <View style={[styles.nowLine, { backgroundColor: colors.urgent }]} /> : null}
                 <Text style={[typography.small, styles.timeCol, { color: colors.textMuted }]}>
-                  {DateTime.fromJSDate(item.time).toFormat('HH:mm')}
+                  {clockOf(item.time)}
                 </Text>
                 <View style={styles.dotCol}>
                   <View
@@ -281,7 +224,7 @@ export default function ScheduleScreen() {
                             : item.type === 'zman'
                               ? colors.textSub
                               : colors.text,
-                        fontFamily: item.type === 'mitzvah' ? 'Heebo_600SemiBold' : 'Heebo_400Regular',
+                        fontFamily: item.type === 'mitzvah' ? fontFamilies.heebo.semibold : fontFamilies.heebo.regular,
                         textDecorationLine: item.done ? 'line-through' : 'none',
                       },
                     ]}
@@ -289,7 +232,13 @@ export default function ScheduleScreen() {
                     {item.name}
                   </Text>
                   {statusText ? (
-                    <Text style={[typography.micro, { color: statusColor, fontWeight: '600', marginTop: 2 }]}>
+                    <Text
+                      style={[
+                        typography.micro,
+                        styles.statusText,
+                        { color: statusColor, fontFamily: fontFamilies.heebo.semibold },
+                      ]}
+                    >
                       {statusText}
                     </Text>
                   ) : null}
@@ -311,9 +260,7 @@ export default function ScheduleScreen() {
             );
           })}
           {!dayItems.length ? (
-            <Text style={[typography.body, { color: colors.textSub, textAlign: 'center', paddingTop: 28 }]}>
-              {t('schedule.noItems')}
-            </Text>
+            <Text style={[typography.body, styles.emptyText, { color: colors.textSub }]}>{t('schedule.noItems')}</Text>
           ) : null}
         </ScrollView>
       ) : null}
@@ -335,8 +282,8 @@ export default function ScheduleScreen() {
               <Text style={[typography.captionBold, { color: colors.text }]}>
                 {t(`weekday.short.${day.weekday % 7}`)}
               </Text>
-              <Text style={[typography.title, { color: colors.text, marginTop: 6 }]}>{day.day}</Text>
-              <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>
+              <Text style={[typography.title, styles.weekDayNumber, { color: colors.text }]}>{day.day}</Text>
+              <Text style={[typography.small, styles.weekCount, { color: colors.textMuted }]}>
                 {t('schedule.weekCount', { count })}
               </Text>
               <View style={styles.weekDots}>
@@ -358,10 +305,7 @@ export default function ScheduleScreen() {
                 </View>
               ) : null}
               {holidays.length ? (
-                <Text
-                  style={[typography.micro, { color: colors.urgent, marginTop: 8, textAlign: 'center' }]}
-                  numberOfLines={2}
-                >
+                <Text style={[typography.micro, styles.weekHoliday, { color: colors.urgent }]} numberOfLines={2}>
                   {holidays[0]}
                 </Text>
               ) : null}
@@ -395,7 +339,7 @@ export default function ScheduleScreen() {
               >
                 {cell.openCount > 0 ? (
                   <View style={[styles.monthBadge, { backgroundColor: colors.gold }]}>
-                    <Text style={[typography.micro, { color: colors.onGold, fontFamily: 'Heebo_700Bold' }]}>
+                    <Text style={[typography.micro, { color: colors.onGold, fontFamily: fontFamilies.heebo.bold }]}>
                       {cell.openCount}
                     </Text>
                   </View>
@@ -423,40 +367,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   controls: {
-    paddingHorizontal: 18,
-    paddingBottom: 12,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.md,
   },
-  toggleWrap: {
-    flexDirection: 'row',
-    borderRadius: 10,
-    padding: 3,
-    marginBottom: 10,
-  },
-  toggle: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 7,
-    paddingVertical: 6,
+  viewToggle: {
+    marginBottom: spacing.md,
   },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  navBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
   scrollContent: {
-    paddingBottom: 14,
+    paddingBottom: spacing.lg,
   },
   timelineRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     position: 'relative',
   },
@@ -477,46 +407,63 @@ const styles = StyleSheet.create({
   dot: {
     width: 9,
     height: 9,
-    borderRadius: 9,
+    borderRadius: radius.full,
     borderWidth: 1.5,
   },
   rowMeta: {
     flex: 1,
   },
+  statusText: {
+    marginTop: 2,
+  },
+  emptyText: {
+    textAlign: 'center',
+    paddingTop: spacing.xxl,
+  },
   trailing: {
     width: 24,
     height: 24,
-    borderRadius: 7,
+    borderRadius: radius.sm,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   weekWrap: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 10,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
   },
   weekCard: {
     width: 120,
     minHeight: 160,
-    borderRadius: 18,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    padding: 14,
+    padding: spacing.lg,
     alignItems: 'center',
+  },
+  weekDayNumber: {
+    marginTop: spacing.sm,
+  },
+  weekCount: {
+    marginTop: spacing.sm,
+  },
+  weekHoliday: {
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
   weekDots: {
     flexDirection: 'row',
-    gap: 5,
-    marginTop: 12,
+    gap: spacing.xs,
+    marginTop: spacing.md,
   },
   weekDot: {
     width: 8,
     height: 8,
-    borderRadius: 8,
+    borderRadius: radius.full,
   },
   weekPreview: {
     width: '100%',
-    marginTop: 10,
+    marginTop: spacing.md,
     gap: 2,
   },
   weekPreviewText: {
@@ -524,13 +471,13 @@ const styles = StyleSheet.create({
   },
   monthWrap: {
     flex: 1,
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 10,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
   },
   monthHeader: {
     flexDirection: 'row',
-    marginBottom: 6,
+    marginBottom: spacing.sm,
   },
   monthHeaderCell: {
     flex: 1,
@@ -539,14 +486,14 @@ const styles = StyleSheet.create({
   monthGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: spacing.sm,
   },
   monthCell: {
     width: '13%',
     aspectRatio: 0.9,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 8,
+    padding: spacing.sm,
     position: 'relative',
   },
   monthBadge: {
@@ -555,15 +502,15 @@ const styles = StyleSheet.create({
     right: 4,
     minWidth: 18,
     height: 18,
-    borderRadius: 9,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: spacing.xs,
   },
   ping: {
     width: 7,
     height: 7,
-    borderRadius: 7,
+    borderRadius: radius.full,
     marginTop: 'auto',
   },
 });

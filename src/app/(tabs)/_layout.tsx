@@ -23,7 +23,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="schedule" />
       <Tabs.Screen name="history" />
       <Tabs.Screen name="home" />
-      <Tabs.Screen name="library" />
+      <Tabs.Screen name="siddur" />
       <Tabs.Screen name="settings" />
     </Tabs>
   );

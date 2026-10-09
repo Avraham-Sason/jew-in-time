@@ -115,7 +115,8 @@ export function handleNotificationResponse(response: Notifications.NotificationR
   }
 
   if (response.actionIdentifier === DEFAULT_NOTIFICATION_ACTION) {
-    openMitzvahDetail(data);
+    if (data.hasText) openSiddur(data, response.notification.request.identifier);
+    else openMitzvahDetail(data);
   }
 }
 

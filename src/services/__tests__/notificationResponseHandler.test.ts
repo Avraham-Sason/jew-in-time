@@ -35,12 +35,18 @@ jest.mock('expo-notifications', () => ({
   addNotificationResponseReceivedListener: (listener: unknown) => mockAddNotificationResponseReceivedListener(listener),
   setNotificationHandler: jest.fn(),
   SchedulableTriggerInputTypes: { DATE: 'date' },
-  AndroidImportance: { HIGH: 'high' },
-  AndroidNotificationVisibility: { PUBLIC: 'public' },
+  AndroidImportance: { HIGH: 'high', DEFAULT: 'default' },
+  AndroidNotificationVisibility: { PUBLIC: 'public', PRIVATE: 'private' },
 }));
 
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
-jest.mock('expo-background-fetch', () => ({ registerTaskAsync: jest.fn(), BackgroundFetchResult: {} }));
+jest.mock('expo-background-task', () => ({
+  registerTaskAsync: jest.fn(),
+  unregisterTaskAsync: jest.fn(),
+  getStatusAsync: jest.fn(),
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
+}));
 
 jest.mock('expo-router', () => ({
   router: {
@@ -141,6 +147,93 @@ describe('notificationResponseHandler', () => {
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/mitzvah/[id]',
       params: { id: 'sefirat_haomer', highlightContent: '1' },
+    });
+  });
+
+  it('opens the mitzvah detail from the default tap on a reminder that offers no text', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+    listener(
+      response(
+        DEFAULT_NOTIFICATION_ACTION,
+        { mitzvahId: 'candle_lighting', dateKey: '2026-11-13', hasText: false },
+        'candle_lighting__2026-11-13__0',
+      ),
+    );
+
+    expect(mockRouterPush).toHaveBeenCalledTimes(1);
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/mitzvah/[id]',
+      params: { id: 'candle_lighting', highlightContent: '0' },
+    });
+  });
+
+  it('opens the nusach text for the notification date from the default tap on a reminder that has one', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+    listener(
+      response(
+        DEFAULT_NOTIFICATION_ACTION,
+        {
+          mitzvahId: 'tefillin',
+          dateKey: '2026-05-06',
+          hasText: true,
+          fullContent: [{ type: 'blessing', he: 'ברכה' }],
+        },
+        'tefillin__2026-05-06__0',
+      ),
+    );
+
+    expect(mockRouterPush).toHaveBeenCalledTimes(1);
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/siddur/[id]',
+      params: { id: 'tefillin', date: '2026-05-06' },
+    });
+    expect(mockMarkDoneFromNotificationData).not.toHaveBeenCalled();
+  });
+
+  it('takes the date of a default text tap from the identifier when the payload lacks it', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+    listener(
+      response(DEFAULT_NOTIFICATION_ACTION, { mitzvahId: 'havdalah', hasText: true }, 'havdalah__2026-10-10__0'),
+    );
+
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/siddur/[id]',
+      params: { id: 'havdalah', date: '2026-10-10' },
+    });
+  });
+
+  it('falls back to the mitzvah screen when a default text tap has no recoverable date', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+
+    listener(response(DEFAULT_NOTIFICATION_ACTION, { mitzvahId: 'havdalah', hasText: true }, 'not-a-mitzvah-id'));
+
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/mitzvah/[id]',
+      params: { id: 'havdalah', highlightContent: '0' },
+    });
+  });
+
+  it('replays a default text tap that arrived before the router was mounted', () => {
+    initNotificationResponseHandler();
+    const listener = mockAddNotificationResponseReceivedListener.mock.calls[0][0];
+    mockRouterPush.mockImplementationOnce(() => {
+      throw new Error('navigator not mounted');
+    });
+
+    listener(response(DEFAULT_NOTIFICATION_ACTION, { mitzvahId: 'shacharit', dateKey: '2026-05-06', hasText: true }));
+    consumePendingNotificationRoute();
+
+    expect(mockRouterPush).toHaveBeenCalledTimes(2);
+    expect(mockRouterPush).toHaveBeenLastCalledWith({
+      pathname: '/siddur/[id]',
+      params: { id: 'shacharit', date: '2026-05-06' },
     });
   });
 
@@ -408,6 +501,13 @@ describe('notificationResponseHandler', () => {
       );
       listener(
         response(DEFAULT_NOTIFICATION_ACTION, { mitzvahId: 'candle_lighting' }, 'candle_lighting__2026-11-13__0'),
+      );
+      listener(
+        response(
+          DEFAULT_NOTIFICATION_ACTION,
+          { mitzvahId: 'havdalah', dateKey: '2026-11-14', hasText: true },
+          'havdalah__2026-11-14__0',
+        ),
       );
       listener(response(DEFAULT_NOTIFICATION_ACTION, { kind: 'blockNotice' }, 'blockNotice:2026-11-14'));
       listener(

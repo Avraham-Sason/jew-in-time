@@ -4,14 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
 import { NavBar } from '@/components/NavBar';
-import { MITZVOT } from '@/data/mitzvot';
-import { customToMitzvah } from '@/data/customMitzvotAdapter';
-import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
+import { SectionLabel } from '@/components/SectionLabel';
+import { useDayModel } from '@/hooks/useDayModel';
 import { useCompletionsStore } from '@/stores/useCompletionsStore';
 import { enabledSinceOf, useMitzvotStore } from '@/stores/useMitzvotStore';
-import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
-import { typography } from '@/theme/typography';
+import { radius, spacing } from '@/theme/tokens';
+import { fontFamilies, typography } from '@/theme/typography';
 import { computeStats } from '@/utils/historyStats';
 import { useI18n } from '@/i18n';
 
@@ -31,30 +30,14 @@ function alphaFor(percent: number) {
 
 export default function HistoryScreen() {
   const { colors } = useTheme();
-  const { language, t } = useI18n();
+  const { t } = useI18n();
+  const { enabled, location, settings, nameFor } = useDayModel();
   const router = useRouter();
   const activeMap = useMitzvotStore((s) => s.activeMitzvot);
-  const customMap = useCustomMitzvotStore((s) => s.items);
   const completions = useCompletionsStore((s) => s.completions);
   const checkIns = useCompletionsStore((s) => s.checkIns);
   const archivedDays = useCompletionsStore((s) => s.archivedDays);
   const skipped = useCompletionsStore((s) => s.skipped);
-  const location = useUserStore((s) => s.location);
-  const nusach = useUserStore((s) => s.nusach);
-  const halachicOpinions = useUserStore((s) => s.halachicOpinions);
-  const inIsrael = useUserStore((s) => s.inIsrael);
-
-  const allMitzvot = useMemo(() => {
-    const customs = Object.values(customMap)
-      .sort((a, b) => a.createdAt - b.createdAt)
-      .map(customToMitzvah);
-    return [...MITZVOT, ...customs].filter((m) => m.nuschaotSupported.includes(nusach));
-  }, [customMap, nusach]);
-  const enabled = useMemo(
-    () => allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled),
-    [allMitzvot, activeMap],
-  );
-  const settings = useMemo(() => ({ nusach, halachicOpinions, inIsrael }), [nusach, halachicOpinions, inIsrael]);
   const [stats, setStats] = useState(EMPTY_STATS);
   const [statsReady, setStatsReady] = useState(false);
 
@@ -90,10 +73,9 @@ export default function HistoryScreen() {
     [enabled, stats.perMitzvah],
   );
 
-  const nameFor = (id: string) => {
+  const nameForId = (id: string) => {
     const mitzvah = enabled.find((item) => item.id === id);
-    if (!mitzvah) return id;
-    return language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he;
+    return mitzvah ? nameFor(mitzvah) : id;
   };
 
   return (
@@ -107,9 +89,7 @@ export default function HistoryScreen() {
           </Text>
         </View>
 
-        <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>
-          {t('history.gridTitle')}
-        </Text>
+        <SectionLabel text={t('history.gridTitle')} />
         <View style={styles.grid}>
           {statsReady
             ? stats.daily.map((day) => {
@@ -142,9 +122,7 @@ export default function HistoryScreen() {
               ))}
         </View>
 
-        <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>
-          {t('history.perMitzvah')}
-        </Text>
+        <SectionLabel text={t('history.perMitzvah')} />
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {byMitzvah.map(({ mitzvah, stat }) => (
             <Pressable
@@ -153,7 +131,7 @@ export default function HistoryScreen() {
               style={[styles.statRow, { borderBottomColor: colors.border }]}
             >
               <Text style={[typography.bodyBold, { color: colors.text, flex: 1 }]} numberOfLines={1}>
-                {language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he}
+                {nameFor(mitzvah)}
               </Text>
               <Text style={[typography.captionBold, { color: colors.goldText }]}>
                 {t('history.percent', { percent: stat.percent })}
@@ -161,13 +139,11 @@ export default function HistoryScreen() {
             </Pressable>
           ))}
           {!byMitzvah.length ? (
-            <Text style={[typography.body, { color: colors.textMuted, padding: 14 }]}>{t('history.empty')}</Text>
+            <Text style={[typography.body, styles.emptyText, { color: colors.textMuted }]}>{t('history.empty')}</Text>
           ) : null}
         </View>
 
-        <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSub }]}>
-          {t('history.missedYesterday')}
-        </Text>
+        <SectionLabel text={t('history.missedYesterday')} />
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {stats.missedYesterday.map((id) => (
             <Pressable
@@ -175,11 +151,11 @@ export default function HistoryScreen() {
               onPress={() => router.push({ pathname: '/mitzvah/[id]', params: { id } })}
               style={[styles.statRow, { borderBottomColor: colors.border }]}
             >
-              <Text style={[typography.bodyBold, { color: colors.text }]}>{nameFor(id)}</Text>
+              <Text style={[typography.bodyBold, { color: colors.text }]}>{nameForId(id)}</Text>
             </Pressable>
           ))}
           {!stats.missedYesterday.length ? (
-            <Text style={[typography.body, { color: colors.textMuted, padding: 14 }]}>
+            <Text style={[typography.body, styles.emptyText, { color: colors.textMuted }]}>
               {t('history.noMissedYesterday')}
             </Text>
           ) : null}
@@ -194,51 +170,49 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 14,
-    paddingBottom: 26,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   streakCard: {
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: spacing.lg,
   },
   streakNumber: {
     fontSize: 54,
-    fontFamily: 'Heebo_900Black',
+    fontFamily: fontFamilies.heebo.black,
     lineHeight: 62,
-  },
-  sectionTitle: {
-    marginTop: 10,
-    marginBottom: 10,
-    paddingHorizontal: 4,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 7,
+    gap: spacing.sm,
   },
   gridCell: {
     width: '15%',
     aspectRatio: 1,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   card: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
   },
+  emptyText: {
+    padding: spacing.lg,
+  },
   statRow: {
     minHeight: 48,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
     justifyContent: 'space-between',
   },
 });

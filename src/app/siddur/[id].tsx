@@ -6,7 +6,6 @@ import {
   I18nManager,
   LayoutChangeEvent,
   Linking,
-  Modal,
   PixelRatio,
   Platform,
   Pressable,
@@ -52,9 +51,12 @@ import { HebcalService } from '@/services/HebcalService';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
 import { SIDDUR_FONT_SIZES, SIDDUR_SCROLL_SPEEDS, scrollSpeedLevel, useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
-import { useQuietBlock } from '@/components/ShabbatScreen';
+import { BottomSheet, SheetAction } from '@/components/BottomSheet';
+import { HEADER_PILL_BG, ScreenHeader } from '@/components/ScreenHeader';
 import { ScrollSpeedStepper } from '@/components/ScrollSpeedStepper';
+import { useQuietBlock } from '@/components/ShabbatScreen';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
+import { radius, spacing } from '@/theme/tokens';
 import { fontFamilies, typography } from '@/theme/typography';
 import { PassageLabel, Run, SegmentBlock, SiddurSection, SiddurSegment, SiddurText } from '@/types/siddur';
 import {
@@ -79,6 +81,7 @@ const AUTO_SCROLL_RESUME_MS = 700;
 const AUTO_SCROLL_DRIFT_PX = 24;
 const AUTO_SCROLL_MAX_FRAME_MS = 100;
 const PIXEL_RATIO = PixelRatio.get();
+const PILL_BORDER = 'rgba(255,255,255,0.18)';
 // iOS reports every non-animated scrollTo as the end of a fling, and the JS ScrollView then counts
 // itself as animating and swallows the next tap. Moving the contentOffset prop scrolls without that.
 const SCROLLS_BY_PROP = Platform.OS === 'ios';
@@ -269,7 +272,7 @@ export default function SiddurScreen() {
   const features = useMemo(() => dayFeatures(hebrewDay, place), [hebrewDay, place]);
   const available = standalone
     ? hasStandaloneText(standalone, nusach, features)
-    : Boolean(requestedDate && mitzvah && hasSiddurText(mitzvah, nusach, requestedDate, place));
+    : Boolean(mitzvah && hasSiddurText(mitzvah, nusach, windowDate, place));
   const done = useCompletionsStore((s) => Boolean(mitzvah && s.completions[dateKey(windowDate)]?.[mitzvah.id]));
   const markDone = useCompletionsStore((s) => s.markDone);
   const [attempt, setAttempt] = useState(0);
@@ -366,10 +369,7 @@ export default function SiddurScreen() {
   const name = mitzvah ? nameOf(mitzvah.name) : standalone ? nameOf(STANDALONE_TEXTS[standalone].name) : '';
   const hebrewDateLabel = language === 'he' ? hebrewDay.renderGematriya() : hebrewDay.render('en');
   const occasions = HebcalService.getHolidays(hebrewDay.greg(), location, language);
-  const dated = Boolean(requestedDate || standalone);
-  const subtitle = (dated ? [t(`nusach.${nusach}`), hebrewDateLabel, ...occasions] : [t(`nusach.${nusach}`)]).join(
-    ' · ',
-  );
+  const subtitle = [t(`nusach.${nusach}`), hebrewDateLabel, ...occasions].join(' · ');
   const listExtraData = useMemo(
     () => ({ fontSize, language, colors, openedOptional }),
     [fontSize, language, colors, openedOptional],
@@ -473,7 +473,7 @@ export default function SiddurScreen() {
       return (
         <View style={styles.center}>
           <ActivityIndicator color={colors.gold} />
-          <Text style={[typography.body, { color: colors.textSub, marginTop: 10 }]}>{t('siddur.loading')}</Text>
+          <Text style={[typography.body, { color: colors.textSub, marginTop: spacing.md }]}>{t('siddur.loading')}</Text>
         </View>
       );
     }
@@ -484,7 +484,7 @@ export default function SiddurScreen() {
           <Pressable
             onPress={() => setAttempt((value) => value + 1)}
             accessibilityRole="button"
-            style={[styles.pill, { backgroundColor: colors.gold, marginTop: 12 }]}
+            style={[styles.pill, { backgroundColor: colors.gold, marginTop: spacing.md }]}
           >
             <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('errors.retry')}</Text>
           </Pressable>
@@ -504,29 +504,11 @@ export default function SiddurScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
-        <View style={styles.headerTop}>
-          <Pressable
-            onPress={goBack}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-            hitSlop={10}
-            style={({ pressed }) => [
-              styles.backBtn,
-              { backgroundColor: pressed ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)' },
-            ]}
-          >
-            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-              <Path
-                d={language === 'he' ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6'}
-                stroke={colors.headerText}
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-            <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
-          </Pressable>
+      <ScreenHeader
+        title={name}
+        subtitle={subtitle}
+        onBack={goBack}
+        actions={
           <View style={styles.headerControls}>
             <Pressable
               onPress={toggleAutoScroll}
@@ -538,7 +520,7 @@ export default function SiddurScreen() {
                 styles.autoScrollBtn,
                 autoScrollOn
                   ? { backgroundColor: colors.gold, borderColor: colors.gold }
-                  : { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.18)' },
+                  : { backgroundColor: HEADER_PILL_BG, borderColor: PILL_BORDER },
                 { opacity: pressed ? 0.7 : 1 },
               ]}
             >
@@ -551,52 +533,47 @@ export default function SiddurScreen() {
             </Pressable>
             <ScrollSpeedStepper tone="header" level={scrollSpeed} onChange={setScrollSpeed} />
           </View>
+        }
+      >
+        <View style={styles.headerControls}>
+          {sections.length > 1 && currentSection ? (
+            <Pressable
+              onPress={() => setPickerOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('siddur.pickSection')}: ${titleOf(currentSection)}`}
+              style={({ pressed }) => [
+                styles.picker,
+                { backgroundColor: pressed ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)' },
+              ]}
+            >
+              <Text style={[typography.bodyBold, styles.pickerLabel, { color: colors.headerText }]} numberOfLines={1}>
+                {titleOf(currentSection)}
+              </Text>
+              <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M6 9l6 6 6-6"
+                  stroke={colors.headerText}
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </Pressable>
+          ) : null}
+          <SizeButton
+            label="A−"
+            accessibilityLabel={t('siddur.smaller')}
+            disabled={currentIndex === 0}
+            onPress={() => setFontSize(SIDDUR_FONT_SIZES[Math.max(0, currentIndex - 1)])}
+          />
+          <SizeButton
+            label="A+"
+            accessibilityLabel={t('siddur.larger')}
+            disabled={currentIndex === SIDDUR_FONT_SIZES.length - 1}
+            onPress={() => setFontSize(SIDDUR_FONT_SIZES[Math.min(SIDDUR_FONT_SIZES.length - 1, currentIndex + 1)])}
+          />
         </View>
-        <View style={styles.titleRow}>
-          <View style={styles.titleBlock}>
-            <Text style={[typography.title, { color: colors.headerText }]}>{name}</Text>
-            <Text style={[typography.caption, { color: colors.headerSub, marginTop: 2 }]}>{subtitle}</Text>
-          </View>
-          <View style={styles.headerControls}>
-            <SizeButton
-              label="A−"
-              accessibilityLabel={t('siddur.smaller')}
-              disabled={currentIndex === 0}
-              onPress={() => setFontSize(SIDDUR_FONT_SIZES[Math.max(0, currentIndex - 1)])}
-            />
-            <SizeButton
-              label="A+"
-              accessibilityLabel={t('siddur.larger')}
-              disabled={currentIndex === SIDDUR_FONT_SIZES.length - 1}
-              onPress={() => setFontSize(SIDDUR_FONT_SIZES[Math.min(SIDDUR_FONT_SIZES.length - 1, currentIndex + 1)])}
-            />
-          </View>
-        </View>
-        {sections.length > 1 && currentSection ? (
-          <Pressable
-            onPress={() => setPickerOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel={`${t('siddur.pickSection')}: ${titleOf(currentSection)}`}
-            style={({ pressed }) => [
-              styles.picker,
-              { backgroundColor: pressed ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)' },
-            ]}
-          >
-            <Text style={[typography.bodyBold, styles.pickerLabel, { color: colors.headerText }]} numberOfLines={1}>
-              {titleOf(currentSection)}
-            </Text>
-            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M6 9l6 6 6-6"
-                stroke={colors.headerText}
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-          </Pressable>
-        ) : null}
-      </View>
+      </ScreenHeader>
 
       {body ?? (
         <Animated.FlatList
@@ -644,7 +621,7 @@ export default function SiddurScreen() {
                   </>
                 ) : (
                   <>
-                    <Text style={[typography.heading, { color: colors.goldText, marginBottom: 8 }]}>
+                    <Text style={[typography.heading, { color: colors.goldText, marginBottom: spacing.sm }]}>
                       {titleOf(section)}
                     </Text>
                     {sectionBody(section)}
@@ -686,7 +663,7 @@ export default function SiddurScreen() {
                       onPress={() => Linking.openURL(credit.url).catch(() => {})}
                       accessibilityRole="link"
                     >
-                      <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>
+                      <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing.xs }]}>
                         {credit.title} · {credit.license}
                       </Text>
                     </Pressable>
@@ -698,66 +675,33 @@ export default function SiddurScreen() {
         />
       )}
 
-      <Modal
-        animationType="slide"
-        transparent
-        visible={pickerOpen && !quiet}
-        onRequestClose={() => setPickerOpen(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setPickerOpen(false)}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.close')}
-          />
-          <View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[typography.heading, { color: colors.text, marginBottom: 6 }]}>{t('siddur.pickSection')}</Text>
-            <ScrollView ref={pickerRef} style={styles.sheetList}>
-              {sections.map((section, index) => {
-                const selected = section === currentSection;
-                return (
-                  <Pressable
-                    key={section.title.he}
-                    onPress={() => {
-                      setPickerOpen(false);
-                      jumpTo(index);
-                    }}
-                    onLayout={
-                      selected
-                        ? (event) =>
-                            pickerRef.current?.scrollTo({
-                              y: Math.max(0, event.nativeEvent.layout.y - 96),
-                              animated: false,
-                            })
-                        : undefined
-                    }
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    style={[
-                      styles.sheetAction,
-                      {
-                        borderBottomColor: colors.border,
-                        backgroundColor: selected ? colors.goldLight : 'transparent',
-                      },
-                    ]}
-                  >
-                    <Text style={[typography.subheading, { color: selected ? colors.gold : colors.text }]}>
-                      {titleOf(section)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-            <Pressable
-              onPress={() => setPickerOpen(false)}
-              style={[styles.closeBtn, { backgroundColor: colors.surface2 }]}
-            >
-              <Text style={[typography.bodyBold, { color: colors.textSub }]}>{t('common.close')}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      <BottomSheet visible={pickerOpen} title={t('siddur.pickSection')} onClose={() => setPickerOpen(false)}>
+        <ScrollView ref={pickerRef} style={styles.sheetList}>
+          {sections.map((section, index) => {
+            const selected = section === currentSection;
+            return (
+              <SheetAction
+                key={section.title.he}
+                label={titleOf(section)}
+                selected={selected}
+                onLayout={
+                  selected
+                    ? (event) =>
+                        pickerRef.current?.scrollTo({
+                          y: Math.max(0, event.nativeEvent.layout.y - 96),
+                          animated: false,
+                        })
+                    : undefined
+                }
+                onPress={() => {
+                  setPickerOpen(false);
+                  jumpTo(index);
+                }}
+              />
+            );
+          })}
+        </ScrollView>
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -791,7 +735,7 @@ function SizeButton({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled }}
       hitSlop={6}
-      style={[styles.sizeBtn, { backgroundColor: 'rgba(255,255,255,0.12)', opacity: disabled ? 0.4 : 1 }]}
+      style={[styles.sizeBtn, { backgroundColor: HEADER_PILL_BG, opacity: disabled ? 0.4 : 1 }]}
     >
       <Text style={[typography.captionBold, { color: colors.headerText }]}>{label}</Text>
     </Pressable>
@@ -892,63 +836,34 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 12,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-  },
   headerControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   autoScrollBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.full,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginTop: 10,
-  },
-  titleBlock: {
-    flex: 1,
-  },
   sizeBtn: {
     minWidth: 40,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: 999,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.full,
     alignItems: 'center',
   },
   picker: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 12,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
   },
@@ -956,56 +871,56 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 14,
-    paddingBottom: 32,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
   },
   card: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   segment: {
-    borderRadius: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    marginBottom: 6,
+    borderRadius: radius.md,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
   },
   addedToday: {
     borderWidth: 1,
-    borderRadius: 10,
-    paddingTop: 4,
-    marginBottom: 6,
+    borderRadius: radius.md,
+    paddingTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
   addedTodayLabel: {
     textAlign: RIGHT_EDGE,
-    paddingHorizontal: 6,
+    paddingHorizontal: spacing.sm,
     marginBottom: 2,
   },
   optionalToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginBottom: 6,
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm,
   },
   optionalLabel: {
     flex: 1,
   },
   labeledBody: {
-    marginBottom: 6,
+    marginBottom: spacing.sm,
   },
   labeledLeftEdge: {
     borderLeftWidth: 2,
-    paddingLeft: 4,
+    paddingLeft: spacing.xs,
   },
   labeledRightEdge: {
     borderRightWidth: 2,
-    paddingRight: 4,
+    paddingRight: spacing.xs,
   },
   minyanLabel: {
-    paddingHorizontal: 6,
+    paddingHorizontal: spacing.sm,
     marginBottom: 2,
   },
   hebrew: {
@@ -1016,64 +931,36 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.heebo.regular,
     textAlign: LEFT_EDGE,
     writingDirection: 'ltr',
-    marginTop: 4,
-    marginBottom: 4,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    padding: spacing.xxl,
   },
   pill: {
-    borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
+    borderRadius: radius.full,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xxl,
   },
   doneBtn: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    marginTop: 4,
+    paddingVertical: spacing.lg,
+    marginTop: spacing.xs,
   },
   doneText: {
     textAlign: 'center',
-    paddingVertical: 14,
+    paddingVertical: spacing.lg,
   },
   credits: {
-    marginTop: 18,
-    paddingHorizontal: 4,
-  },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(9,20,32,0.4)',
-    padding: 16,
-  },
-  sheet: {
-    maxHeight: '70%',
-    borderRadius: 22,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 12,
+    marginTop: spacing.xl,
+    paddingHorizontal: spacing.xs,
   },
   sheetList: {
-    flexGrow: 0,
-    flexShrink: 1,
-  },
-  sheetAction: {
-    paddingVertical: 14,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  closeBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 13,
-    marginTop: 14,
+    maxHeight: 420,
   },
 });

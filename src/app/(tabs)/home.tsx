@@ -1,36 +1,40 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppState, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import * as Updates from 'expo-updates';
-import { NavBar } from '@/components/NavBar';
-import { MitzvahCard } from '@/components/MitzvahCard';
+import { Banner, BannerTone } from '@/components/Banner';
+import { BottomSheet, SheetAction } from '@/components/BottomSheet';
 import { CompletedRow } from '@/components/CompletedRow';
+import { IconTile } from '@/components/IconTile';
+import { ListRow } from '@/components/ListRow';
+import { iconFor } from '@/components/MitzvahIcon';
+import { MitzvahCard } from '@/components/MitzvahCard';
+import { NavBar } from '@/components/NavBar';
+import { SectionLabel } from '@/components/SectionLabel';
+import { useDayModel } from '@/hooks/useDayModel';
 import { useNow } from '@/hooks/useNow';
 import { getLocationName } from '@/data/cities';
-import { MITZVOT } from '@/data/mitzvot';
 import { hasSiddurText, siddurPlace } from '@/data/siddur';
-import { customToMitzvah } from '@/data/customMitzvotAdapter';
-import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
 import { HebcalService } from '@/services/HebcalService';
 import { StorageService } from '@/services/StorageService';
 import { CompletionService } from '@/services/CompletionService';
 import { useCompletionsStore } from '@/stores/useCompletionsStore';
-import { enabledSinceOf, useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useTaharahStore } from '@/stores/useTaharahStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useQuietBlock } from '@/components/ShabbatScreen';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
-import { typography } from '@/theme/typography';
-import { durations } from '@/theme/tokens';
+import { fontFamilies, typography } from '@/theme/typography';
+import { durations, radius, spacing } from '@/theme/tokens';
+import { clockOf, formatRemaining } from '@/utils/clock';
 import { isSkippedAt } from '@/utils/skipRules';
 import { checkInLastDay, checkInPhraseKey, latestCheckIn, overlapsBlock } from '@/utils/checkIn';
-import { ComputeContext, Mitzvah, MitzvahWindow } from '@/types/mitzvah';
+import { ComputeContext, Mitzvah, MitzvahWindow, UserSettings } from '@/types/mitzvah';
 import { TaharahEvent, TaharahSettings } from '@/types/taharah';
 import { Location } from '@/types/zmanim';
 import { deriveCycle } from '@/utils/taharah/cycle';
@@ -39,12 +43,14 @@ import { renderHint, stageHint, visibleStage } from '@/utils/taharah/summary';
 import { taharahTasksFor } from '@/utils/taharah/tasks';
 import { ZmanimService } from '@/services/ZmanimService';
 import {
+  NotificationScheduler,
   syncNotificationPermissionStatus,
   dismissCompletedPresentedNotifications,
   refreshSchedulingOnForeground,
 } from '@/services/NotificationScheduler';
+import { clearLastError, reportError, useLastError } from '@/services/errors';
 import { downloadNewUpdate, reloadIntoUpdate } from '@/services/appUpdates';
-import { useI18n, t as translate } from '@/i18n';
+import { useI18n } from '@/i18n';
 
 type LiveItem = {
   mitzvah: Mitzvah;
@@ -60,19 +66,8 @@ const EMPTY_DAY_STATE = Object.freeze({}) as Record<string, number>;
 const PROFILE_INTRO_KEY = 'profile:intro-dismissed';
 
 type Translate = (scope: string, options?: Record<string, unknown>) => string;
+type BannerSpec = { tone: BannerTone; text: string; onPress?: () => void };
 type TaharahCardData = { title: string; caption: string; concealed: boolean };
-
-function formatRemaining(ms: number): string {
-  const totalMin = Math.max(0, Math.round(ms / 60000));
-  if (totalMin >= 60) {
-    const hours = Math.floor(totalMin / 60);
-    const minutes = String(totalMin % 60).padStart(2, '0');
-    return `${hours}:${minutes} ${translate('time.unit.hours')}`;
-  }
-  return `${totalMin} ${translate('time.unit.minutes')}`;
-}
-
-const clockOf = (date: Date) => DateTime.fromJSDate(date).toFormat('HH:mm');
 
 function taharahCardFor(
   events: readonly TaharahEvent[],
@@ -102,28 +97,25 @@ function taharahCardFor(
   };
 }
 
-function buildContext(date: Date): ComputeContext | null {
-  const { location, nusach, halachicOpinions, inIsrael } = useUserStore.getState();
+function buildContext(date: Date, location: Location, settings: UserSettings): ComputeContext | null {
   const zmanim = ZmanimService.getZmanim(date, location);
   if (!zmanim) return null;
-  return { date, location, settings: { nusach, halachicOpinions, inIsrael }, zmanim };
+  return { date, location, settings, zmanim };
 }
 
 export default function HomeScreen() {
   const { colors } = useTheme();
   const quiet = useQuietBlock() !== null;
-  const { language, t } = useI18n();
+  const { t } = useI18n();
+  const { allMitzvot, enabled, location, nusach, inIsrael, language, settings, nameFor, checkInInput } = useDayModel();
   const router = useRouter();
   const { isUpdatePending } = Updates.useUpdates();
   const user = useUserStore(
     useShallow((s) => ({
-      location: s.location,
       locationStatus: s.locationStatus,
       notificationPermission: s.notificationPermission,
     })),
   );
-  const nusach = useUserStore((s) => s.nusach);
-  const inIsrael = useUserStore((s) => s.inIsrael);
   const isOnboarded = useUserStore((s) => s.isOnboarded);
   const gender = useUserStore((s) => s.gender);
   const maritalStatus = useUserStore((s) => s.maritalStatus);
@@ -131,8 +123,6 @@ export default function HomeScreen() {
   const taharahEvents = useTaharahStore((s) => s.events);
   const taharahSettings = useTaharahStore((s) => s.settings);
   const taharahLockEnabled = useTaharahStore((s) => s.lockEnabled);
-  const activeMap = useMitzvotStore((s) => s.activeMitzvot);
-  const customMap = useCustomMitzvotStore((s) => s.items);
   const todayKey = CompletionService.getDateKey();
   const doneMap = useCompletionsStore((s) => s.completions[todayKey] ?? EMPTY_DAY_STATE);
   const skippedMap = useCompletionsStore((s) => s.skipped[todayKey] ?? EMPTY_DAY_STATE);
@@ -144,6 +134,7 @@ export default function HomeScreen() {
   const tickedAt = useNow();
   const [stampingId, setStampingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const lastError = useLastError();
   const [introDismissed, setIntroDismissed] = useState(() => StorageService.get<boolean>(PROFILE_INTRO_KEY) === true);
   const stampTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -161,33 +152,16 @@ export default function HomeScreen() {
     taharahCard,
   } = useMemo(() => {
     const now = new Date();
-    const ctx = buildContext(now);
-    const hebrew = HebcalService.getHebrewDateAt(now, user.location);
+    const ctx = buildContext(now, location, settings);
+    const hebrew = HebcalService.getHebrewDateAt(now, location);
     const greg = DateTime.fromJSDate(now)
       .setLocale(language)
       .toFormat(language === 'he' ? 'cccc · d LLLL' : 'cccc · LLL d');
-    const parasha = HebcalService.getParasha(now, user.location);
-    const subtitleText = [greg, getLocationName(user.location, language), parasha].filter(Boolean).join(' · ');
+    const parasha = HebcalService.getParasha(now, location);
+    const subtitleText = [greg, getLocationName(location, language), parasha].filter(Boolean).join(' · ');
 
-    const customs = Object.values(customMap)
-      .sort((a, b) => a.createdAt - b.createdAt)
-      .map(customToMitzvah);
-    const allMitzvot = [...MITZVOT, ...customs].filter((m) => m.nuschaotSupported.includes(nusach));
-    const enabled = allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled);
-    const place = siddurPlace(user.location, inIsrael);
-    const { halachicOpinions } = useUserStore.getState();
-    const found = latestCheckIn(
-      {
-        mitzvot: enabled,
-        completions,
-        skipped,
-        checkIns,
-        enabledSince: enabledSinceOf(activeMap),
-        location: user.location,
-        settings: { nusach, halachicOpinions, inIsrael },
-      },
-      now,
-    );
+    const place = siddurPlace(location, inIsrael);
+    const found = latestCheckIn(checkInInput(), now);
     const openCheckIn = found?.open ? found : null;
     const currentItems: LiveItem[] = [];
     const upcomingItems: LiveItem[] = [];
@@ -204,8 +178,8 @@ export default function HomeScreen() {
         return [
           {
             id,
-            name: language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he,
-            time: wasSkipped ? t('state.skipped') : DateTime.fromMillis(ts).toFormat('HH:mm'),
+            name: nameFor(mitzvah),
+            time: wasSkipped ? t('state.skipped') : clockOf(new Date(ts)),
             timestamp: ts,
             wasSkipped,
           },
@@ -219,18 +193,17 @@ export default function HomeScreen() {
     for (const mitzvah of enabled) {
       const window = ctx ? mitzvah.computeWindow(ctx) : null;
       if (!window) continue;
-      if (isSkippedAt(mitzvah, window.start, user.location, { nusach, inIsrael })) continue;
+      if (isSkippedAt(mitzvah, window.start, location, settings)) continue;
       applicable += 1;
-      const name = language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he;
       const totalMs = window.end.getTime() - window.start.getTime();
       const remainingMs = window.end.getTime() - now.getTime();
       const item: LiveItem = {
         mitzvah,
         window,
         pct: totalMs > 0 ? Math.max(0, Math.min(1, remainingMs / totalMs)) : 0,
-        timeLeft: formatRemaining(remainingMs),
+        timeLeft: formatRemaining(remainingMs, t),
         urgent: remainingMs <= 45 * 60 * 1000,
-        name,
+        name: nameFor(mitzvah),
         hasText: hasSiddurText(mitzvah, nusach, now, place),
       };
       // The card being stamped stays put until its animation ends, even though the completion is
@@ -267,13 +240,16 @@ export default function HomeScreen() {
       checkIn: openCheckIn,
       taharahCard:
         taharahEnabled && !quiet
-          ? taharahCardFor(taharahEvents, taharahSettings, user.location, now, language, t, taharahLockEnabled)
+          ? taharahCardFor(taharahEvents, taharahSettings, location, now, language, t, taharahLockEnabled)
           : null,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- tick and tickedAt re-run the memo on purpose; it reads the clock itself
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tick and tickedAt re-run the memo on purpose, it reads the clock itself; the completion maps are triggers too, checkInInput() reads them from the store
   }, [
-    activeMap,
-    customMap,
+    allMitzvot,
+    enabled,
+    nameFor,
+    checkInInput,
+    settings,
     doneMap,
     skippedMap,
     completions,
@@ -281,7 +257,7 @@ export default function HomeScreen() {
     checkIns,
     language,
     t,
-    user.location,
+    location,
     tick,
     stampingId,
     nusach,
@@ -325,6 +301,47 @@ export default function HomeScreen() {
     router.push('/(tabs)/settings');
   };
 
+  const pickBanner = (): BannerSpec | null => {
+    if (zmanimUnavailable) {
+      return { tone: 'warning', text: t('home.zmanimUnavailable'), onPress: () => router.push('/(tabs)/settings') };
+    }
+    if (user.notificationPermission !== 'granted') {
+      return {
+        tone: 'urgent',
+        text: t('home.notificationsDenied'),
+        onPress: () => Linking.openSettings().catch(() => {}),
+      };
+    }
+    if (checkIn) {
+      return {
+        tone: 'accent',
+        text: t('checkin.banner', {
+          in: t(checkInPhraseKey(checkIn.block)),
+          deadline: t('checkin.deadline', {
+            day: DateTime.fromJSDate(checkInLastDay(checkIn.block)).setLocale(language).toFormat('cccc'),
+          }),
+        }),
+        onPress: () => router.push('/checkin'),
+      };
+    }
+    if (user.locationStatus === 'missing') {
+      return { tone: 'warning', text: t('home.noLocation'), onPress: () => router.push('/(tabs)/settings') };
+    }
+    if (user.locationStatus === 'timeout') return { tone: 'warning', text: t('home.gpsTimeout') };
+    if (isUpdatePending) return { tone: 'safe', text: t('home.updateReady'), onPress: () => reloadIntoUpdate() };
+    if (isOnboarded && (gender === null || maritalStatus === null) && !introDismissed) {
+      return { tone: 'accent', text: t('home.completeProfile'), onPress: openProfileIntro };
+    }
+    return null;
+  };
+  const banner = pickBanner();
+
+  const errorScope = lastError?.scope === 'schedule' || lastError?.scope === 'reset' ? lastError.scope : null;
+  const retryLastError = () => {
+    clearLastError();
+    if (errorScope === 'schedule') NotificationScheduler.rebuild().catch((error) => reportError('schedule', error));
+  };
+
   const openText = (item: LiveItem) =>
     item.hasText
       ? () => router.push({ pathname: '/siddur/[id]', params: { id: item.mitzvah.id, date: todayKey } })
@@ -338,16 +355,8 @@ export default function HomeScreen() {
     }
   };
 
-  const selectedNameRaw = selectedId
-    ? (() => {
-        const standard = MITZVOT.find((item) => item.id === selectedId);
-        if (standard) return language === 'en' && standard.name.en ? standard.name.en : standard.name.he;
-        const custom = customMap[selectedId];
-        return custom?.name;
-      })()
-    : undefined;
-  const selectedName = selectedNameRaw;
-  const selectedMitzvah = selectedId && selectedNameRaw ? { id: selectedId } : undefined;
+  const selectedMitzvah = selectedId ? allMitzvot.find((item) => item.id === selectedId) : undefined;
+  const selectedName = selectedMitzvah ? nameFor(selectedMitzvah) : undefined;
 
   useEffect(() => {
     return () => {
@@ -358,13 +367,13 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    syncNotificationPermissionStatus().catch(() => {});
+    syncNotificationPermissionStatus().catch((error) => reportError('schedule', error));
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         setTick((value) => value + 1);
-        syncNotificationPermissionStatus().catch(() => {});
+        syncNotificationPermissionStatus().catch((error) => reportError('schedule', error));
         dismissCompletedPresentedNotifications().catch(() => {});
-        refreshSchedulingOnForeground().catch(() => {});
+        refreshSchedulingOnForeground().catch((error) => reportError('schedule', error));
         downloadNewUpdate().catch(() => {});
       }
     });
@@ -376,146 +385,23 @@ export default function HomeScreen() {
       <NavBar
         title={hebrewTitle}
         subtitle={subtitle}
-        left={
+        actions={
           <View style={[styles.counter, { backgroundColor: `${colors.headerAccent}22` }]}>
-            <Text style={[typography.small, { color: colors.headerAccent, fontFamily: 'Heebo_700Bold' }]}>
+            <Text style={[typography.small, { color: colors.headerAccent, fontFamily: fontFamilies.heebo.bold }]}>
               {doneCount}/{Math.max(totalActive, doneCount)}
             </Text>
           </View>
         }
       />
       <ScrollView contentContainerStyle={styles.content}>
-        {zmanimUnavailable ? (
+        {errorScope ? (
           <Banner
-            text={t('home.zmanimUnavailable')}
-            color={colors.warning}
-            textColor={colors.text}
-            background={`${colors.warning}18`}
+            tone="warning"
+            text={t('home.lastError', { what: t(`errors.scope.${errorScope}`) })}
+            onPress={retryLastError}
           />
         ) : null}
-        {user.locationStatus === 'missing' ? (
-          <Banner
-            text={t('home.noLocation')}
-            color={colors.warning}
-            textColor={colors.text}
-            background={`${colors.warning}18`}
-            onPress={() => router.push('/(tabs)/settings')}
-          />
-        ) : null}
-        {user.locationStatus === 'timeout' ? (
-          <Banner
-            text={t('home.gpsTimeout')}
-            color={colors.warning}
-            textColor={colors.text}
-            background={`${colors.warning}18`}
-          />
-        ) : null}
-        {checkIn ? (
-          <Banner
-            text={t('checkin.banner', {
-              in: t(checkInPhraseKey(checkIn.block)),
-              deadline: t('checkin.deadline', {
-                day: DateTime.fromJSDate(checkInLastDay(checkIn.block)).setLocale(language).toFormat('cccc'),
-              }),
-            })}
-            color={colors.gold}
-            textColor={colors.goldText}
-            background={colors.goldLight}
-            onPress={() => router.push('/checkin')}
-          />
-        ) : null}
-        {user.notificationPermission !== 'granted' ? (
-          <Banner
-            text={t('home.notificationsDenied')}
-            color={colors.urgent}
-            background={colors.urgentBg}
-            onPress={() => Linking.openSettings().catch(() => {})}
-          />
-        ) : null}
-        {isUpdatePending ? (
-          <Banner
-            text={t('home.updateReady')}
-            color={colors.safe}
-            textColor={colors.text}
-            background={`${colors.safe}18`}
-            onPress={() => reloadIntoUpdate()}
-          />
-        ) : null}
-        {isOnboarded && (gender === null || maritalStatus === null) && !introDismissed ? (
-          <Banner
-            text={t('home.completeProfile')}
-            color={colors.gold}
-            textColor={colors.goldText}
-            background={colors.goldLight}
-            onPress={openProfileIntro}
-          />
-        ) : null}
-
-        <Pressable
-          onPress={() => router.push('/siddur')}
-          accessibilityRole="button"
-          accessibilityLabel={t('siddur.catalog.open')}
-          style={({ pressed }) => [
-            styles.siddurRow,
-            { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
-            shadowStyle(colors.shadow, shadowPresets.cardSoft),
-          ]}
-        >
-          <View style={[styles.siddurIcon, { backgroundColor: colors.goldLight }]}>
-            <Text style={{ fontSize: 15, color: colors.gold }}>✦</Text>
-          </View>
-          <View style={styles.siddurMeta}>
-            <Text style={[typography.bodyBold, { color: colors.text }]}>{t('siddur.catalog.title')}</Text>
-            <Text style={[typography.small, { color: colors.textMuted }]} numberOfLines={1}>
-              {t('siddur.catalog.caption')}
-            </Text>
-          </View>
-          <Text style={[typography.bodyBold, { color: colors.textMuted }]}>{language === 'he' ? '‹' : '›'}</Text>
-        </Pressable>
-
-        {taharahCard ? (
-          <Pressable
-            onPress={() => router.push('/taharah')}
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.nextCard,
-              { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
-              shadowStyle(colors.shadow, shadowPresets.cardSoft),
-            ]}
-          >
-            {taharahCard.concealed ? null : (
-              <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>
-                {t('taharah.home.title')}
-              </Text>
-            )}
-            <Text style={[typography.heading, { color: colors.text }]}>{taharahCard.title}</Text>
-            {taharahCard.caption ? (
-              <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>{taharahCard.caption}</Text>
-            ) : null}
-          </Pressable>
-        ) : null}
-
-        {nextUp ? (
-          <Pressable
-            onPress={() => openDetail(nextUp.mitzvah.id)}
-            onLongPress={() => setSelectedId(nextUp.mitzvah.id)}
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.nextCard,
-              { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
-              shadowStyle(colors.shadow, shadowPresets.cardSoft),
-            ]}
-          >
-            <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>{t('home.nextUp')}</Text>
-            <Text style={[typography.heading, { color: colors.text }]}>{nextUp.name}</Text>
-            <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>
-              {t('detail.timeRange', {
-                start: DateTime.fromJSDate(nextUp.window.start).toFormat('HH:mm'),
-                end: DateTime.fromJSDate(nextUp.window.end).toFormat('HH:mm'),
-              })}
-            </Text>
-          </Pressable>
-        ) : null}
+        {banner ? <Banner tone={banner.tone} text={banner.text} onPress={banner.onPress} /> : null}
 
         <SectionLabel text={t('home.relevantNow')} />
         <View style={styles.list}>
@@ -523,6 +409,7 @@ export default function HomeScreen() {
             current.map((item, index) => (
               <Animated.View key={item.mitzvah.id} entering={FadeInDown.delay(index * 40).duration(280)}>
                 <MitzvahCard
+                  icon={iconFor(item.mitzvah.icon)}
                   name={item.name}
                   timeLeft={item.timeLeft}
                   pct={item.pct}
@@ -537,7 +424,7 @@ export default function HomeScreen() {
             ))
           ) : (
             <View style={styles.emptyWrap}>
-              <Text style={[styles.emptyStar, { color: colors.gold }]}>✦</Text>
+              <IconTile name="sparkle" tone="accent" size={48} style={styles.emptyIcon} />
               <Text style={[typography.body, { color: colors.textSub, textAlign: 'center' }]}>
                 {doneCount >= totalActive && totalActive > 0 ? t('home.allDone') : t('home.noActive')}
               </Text>
@@ -545,130 +432,119 @@ export default function HomeScreen() {
           )}
         </View>
 
-        <SectionLabel text={`${t('home.missed')} (${missed.length})`} />
-        <View style={styles.list}>
-          {missed.length ? (
-            missed.map((item, index) => (
-              <Animated.View key={item.mitzvah.id} entering={FadeInDown.delay(index * 30).duration(260)}>
-                <MitzvahCard
-                  name={item.name}
-                  timeLeft=""
-                  pct={0}
-                  urgent
-                  hideProgress
-                  statusText={t('home.passedAt', { time: clockOf(item.window.end) })}
-                  statusTone="urgent"
-                  stamping={stampingId === item.mitzvah.id}
-                  onComplete={() => complete(item.mitzvah.id)}
-                  onOpenText={openText(item)}
-                  onPress={() => openDetail(item.mitzvah.id)}
-                  onLongPress={() => setSelectedId(item.mitzvah.id)}
-                />
-              </Animated.View>
-            ))
-          ) : (
-            <Text style={[typography.body, { color: colors.textMuted, padding: 14 }]}>{t('home.noMissed')}</Text>
-          )}
-        </View>
-
-        <SectionLabel text={`${t('home.completed')} (${completed.length})`} />
-        <View style={[styles.completedCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {completed.map((item) => (
-            <CompletedRow
-              key={item.id}
-              name={item.name}
-              time={item.time}
-              onPress={() => openDetail(item.id)}
-              onUndo={() => undoComplete(item.id)}
-              undoLabel={t('home.undo')}
+        {nextUp ? (
+          <View
+            style={[
+              styles.nextUpCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              shadowStyle(colors.shadow, shadowPresets.cardSoft),
+            ]}
+          >
+            <ListRow
+              icon={iconFor(nextUp.mitzvah.icon)}
+              iconTone="muted"
+              title={t('home.nextUp')}
+              caption={t('home.nextAt', { name: nextUp.name, time: clockOf(nextUp.window.start) })}
+              onPress={() => openDetail(nextUp.mitzvah.id)}
+              onLongPress={() => setSelectedId(nextUp.mitzvah.id)}
+              style={styles.nextUpRow}
             />
-          ))}
-          {!completed.length ? (
-            <Text style={[typography.body, { color: colors.textMuted, padding: 18 }]}>-</Text>
-          ) : null}
-        </View>
+          </View>
+        ) : null}
+
+        {missed.length ? (
+          <>
+            <SectionLabel text={t('home.missed')} count={missed.length} />
+            <View style={styles.list}>
+              {missed.map((item, index) => (
+                <Animated.View key={item.mitzvah.id} entering={FadeInDown.delay(index * 30).duration(260)}>
+                  <MitzvahCard
+                    icon={iconFor(item.mitzvah.icon)}
+                    name={item.name}
+                    timeLeft=""
+                    pct={0}
+                    urgent
+                    hideProgress
+                    statusText={t('home.passedAt', { time: clockOf(item.window.end) })}
+                    statusTone="urgent"
+                    stamping={stampingId === item.mitzvah.id}
+                    onComplete={() => complete(item.mitzvah.id)}
+                    onOpenText={openText(item)}
+                    onPress={() => openDetail(item.mitzvah.id)}
+                    onLongPress={() => setSelectedId(item.mitzvah.id)}
+                  />
+                </Animated.View>
+              ))}
+            </View>
+          </>
+        ) : null}
+
+        {completed.length ? (
+          <>
+            <SectionLabel text={t('home.completed')} count={completed.length} />
+            <View style={[styles.completedCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {completed.map((item) => (
+                <CompletedRow
+                  key={item.id}
+                  name={item.name}
+                  time={item.time}
+                  onPress={() => openDetail(item.id)}
+                  onUndo={() => undoComplete(item.id)}
+                  undoLabel={t('home.undo')}
+                />
+              ))}
+            </View>
+          </>
+        ) : null}
+
+        {taharahCard ? (
+          <Pressable
+            onPress={() => router.push('/taharah')}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.taharahCard,
+              { backgroundColor: colors.surface, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+              shadowStyle(colors.shadow, shadowPresets.cardSoft),
+            ]}
+          >
+            {taharahCard.concealed ? null : (
+              <Text style={[typography.captionBold, styles.cardLabel, { color: colors.textSub }]}>
+                {t('taharah.home.title')}
+              </Text>
+            )}
+            <Text style={[typography.heading, { color: colors.text }]}>{taharahCard.title}</Text>
+            {taharahCard.caption ? (
+              <Text style={[typography.caption, styles.cardCaption, { color: colors.textMuted }]}>
+                {taharahCard.caption}
+              </Text>
+            ) : null}
+          </Pressable>
+        ) : null}
       </ScrollView>
 
-      <Modal
-        animationType="slide"
-        transparent
-        visible={Boolean(selectedMitzvah) && !quiet}
-        onRequestClose={() => setSelectedId(null)}
+      <BottomSheet
+        visible={Boolean(selectedMitzvah)}
+        title={t('home.quick.title')}
+        caption={selectedName}
+        onClose={() => setSelectedId(null)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[typography.heading, { color: colors.text, marginBottom: 10 }]}>{t('home.quick.title')}</Text>
-            <Text style={[typography.caption, { color: colors.textMuted, marginBottom: 14 }]}>{selectedName}</Text>
-            <SheetAction
-              label={t('home.quick.details')}
-              onPress={() => {
-                if (!selectedId) return;
-                setSelectedId(null);
-                openDetail(selectedId);
-              }}
-            />
-            <SheetAction
-              label={t('home.quick.skipToday')}
-              onPress={() => {
-                if (!selectedId) return;
-                skipToday(selectedId);
-              }}
-            />
-            <Pressable
-              onPress={() => setSelectedId(null)}
-              style={[styles.closeBtn, { backgroundColor: colors.surface2 }]}
-            >
-              <Text style={[typography.bodyBold, { color: colors.textSub }]}>{t('common.close')}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+        <SheetAction
+          label={t('home.quick.details')}
+          onPress={() => {
+            if (!selectedId) return;
+            setSelectedId(null);
+            openDetail(selectedId);
+          }}
+        />
+        <SheetAction
+          label={t('home.quick.skipToday')}
+          onPress={() => {
+            if (!selectedId) return;
+            skipToday(selectedId);
+          }}
+        />
+      </BottomSheet>
     </SafeAreaView>
-  );
-}
-
-function Banner({
-  text,
-  color,
-  textColor = color,
-  background,
-  onPress,
-}: {
-  text: string;
-  color: string;
-  textColor?: string;
-  background: string;
-  onPress?: () => void;
-}) {
-  const content = <Text style={[typography.captionBold, { color: textColor }]}>{text}</Text>;
-  if (onPress) {
-    return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [
-          styles.banner,
-          { backgroundColor: background, borderColor: color, opacity: pressed ? 0.7 : 1 },
-        ]}
-        accessibilityRole="button"
-      >
-        {content}
-      </Pressable>
-    );
-  }
-  return <View style={[styles.banner, { backgroundColor: background, borderColor: color }]}>{content}</View>;
-}
-
-function SectionLabel({ text }: { text: string }) {
-  const { colors } = useTheme();
-  return <Text style={[typography.captionBold, styles.sectionLabel, { color: colors.textSub }]}>{text}</Text>;
-}
-
-function SheetAction({ label, onPress }: { label: string; onPress: () => void }) {
-  const { colors } = useTheme();
-  return (
-    <Pressable onPress={onPress} style={[styles.sheetAction, { borderBottomColor: colors.border }]}>
-      <Text style={[typography.subheading, { color: colors.text }]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -677,92 +553,49 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 14,
-    paddingBottom: 24,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   counter: {
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  banner: {
-    borderRadius: 14,
+  taharahCard: {
+    borderRadius: radius.lg,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 10,
+    padding: spacing.lg,
+    marginTop: spacing.lg,
   },
-  nextCard: {
-    borderRadius: 16,
+  cardLabel: {
+    marginBottom: spacing.sm,
+  },
+  cardCaption: {
+    marginTop: spacing.xs,
+  },
+  nextUpCard: {
+    borderRadius: radius.lg,
     borderWidth: 1,
-    padding: 14,
-    marginBottom: 14,
+    marginBottom: spacing.lg,
   },
-  siddurRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 14,
-  },
-  siddurIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  siddurMeta: {
-    flex: 1,
-    minWidth: 0,
-  },
-  sectionLabel: {
-    marginTop: 6,
-    marginBottom: 10,
-    paddingHorizontal: 4,
+  nextUpRow: {
+    borderBottomWidth: 0,
+    borderRadius: radius.lg,
   },
   list: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   emptyWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 28,
+    paddingVertical: spacing.xxl,
   },
-  emptyStar: {
-    fontSize: 32,
-    marginBottom: 10,
+  emptyIcon: {
+    marginBottom: spacing.md,
   },
   completedCard: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
-  },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(9,20,32,0.4)',
-    padding: 16,
-  },
-  sheet: {
-    borderRadius: 22,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 12,
-  },
-  sheetAction: {
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  closeBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 13,
-    marginTop: 14,
   },
 });

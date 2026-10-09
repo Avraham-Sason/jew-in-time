@@ -28,6 +28,7 @@ describe('expo-router routes', () => {
     expect(routes).toContain('siddur/index');
     expect(routes).toContain('checkin');
     expect(routes).toContain('hilulot');
+    expect(routes).toContain('mitzvot');
   });
 
   it('discovers taharah routes', () => {
@@ -41,7 +42,7 @@ describe('expo-router routes', () => {
     expect(routes).toContain('(tabs)/home');
     expect(routes).toContain('(tabs)/schedule');
     expect(routes).toContain('(tabs)/history');
-    expect(routes).toContain('(tabs)/library');
+    expect(routes).toContain('(tabs)/siddur');
     expect(routes).toContain('(tabs)/settings');
     expect(routes).toContain('(tabs)/index');
   });
@@ -57,6 +58,20 @@ describe('expo-router routes', () => {
     const layout = fs.readFileSync(path.join(APP_DIR, '_layout.tsx'), 'utf8');
     const referencesFlatOnboarding = /Stack\.Screen\s+name="onboarding"\s*\/>/.test(layout);
     expect(referencesFlatOnboarding).toBe(false);
+  });
+
+  it('registers every root Stack.Screen under a name expo-router resolves, and the taharah group once', () => {
+    const layout = fs.readFileSync(path.join(APP_DIR, '_layout.tsx'), 'utf8');
+    const names = [...layout.matchAll(/<Stack\.Screen\s+name="([^"]+)"/g)].map((match) => match[1]);
+    const unresolved = names.filter((name) => {
+      const isFile = fs.existsSync(path.join(APP_DIR, `${name}.tsx`));
+      const isNestedLayout = fs.existsSync(path.join(APP_DIR, name, '_layout.tsx'));
+      const parent = path.dirname(name);
+      const insideNestedLayout = parent !== '.' && fs.existsSync(path.join(APP_DIR, parent, '_layout.tsx'));
+      return !(isFile || isNestedLayout) || insideNestedLayout;
+    });
+    expect(unresolved).toEqual([]);
+    expect(names.filter((name) => name === 'taharah')).toHaveLength(1);
   });
 
   it('BUG-014 regression — (tabs)/_layout.tsx hides index tab', () => {

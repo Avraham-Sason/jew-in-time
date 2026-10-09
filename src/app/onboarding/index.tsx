@@ -6,6 +6,7 @@ import { AppLogo } from '@/components/AppLogo';
 import { ONBOARDING_STEPS, OnboardingDots } from '@/components/OnboardingDots';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 
@@ -43,16 +44,18 @@ export default function WelcomeScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <AppLogo size={64} />
-            <Text style={[typography.title, { color: colors.text, marginTop: 12 }]}>
-              {t('onboarding.registerTitle')}
+            <Text style={[typography.display, { color: colors.text, marginTop: spacing.md }]}>
+              {t('onboarding.welcomeTitle')}
             </Text>
-            <Text style={[typography.body, styles.body, { color: colors.textSub }]}>
-              {t('onboarding.registerBody')}
-            </Text>
+            <Text style={[typography.body, styles.body, { color: colors.textSub }]}>{t('onboarding.welcomeBody')}</Text>
           </View>
 
           <View style={styles.form}>
-            <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>
+            <Text style={[typography.heading, { color: colors.text }]}>{t('onboarding.registerTitle')}</Text>
+            <Text style={[typography.body, styles.registerBody, { color: colors.textSub }]}>
+              {t('onboarding.registerBody')}
+            </Text>
+            <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: spacing.sm }]}>
               {t('settings.profileName')}
             </Text>
             <TextInput
@@ -66,9 +69,16 @@ export default function WelcomeScreen() {
               autoCapitalize="words"
               style={[styles.input, inputStyle, error ? { borderColor: colors.urgent } : null]}
             />
-            {error ? <Text style={[typography.small, { color: colors.urgent, marginTop: 4 }]}>{error}</Text> : null}
+            {error ? (
+              <Text style={[typography.small, { color: colors.urgent, marginTop: spacing.xs }]}>{error}</Text>
+            ) : null}
 
-            <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 14, marginBottom: 6 }]}>
+            <Text
+              style={[
+                typography.captionBold,
+                { color: colors.textSub, marginTop: spacing.lg, marginBottom: spacing.sm },
+              ]}
+            >
               {t('settings.profilePhone')}
             </Text>
             <TextInput
@@ -83,7 +93,7 @@ export default function WelcomeScreen() {
         </ScrollView>
         <View style={styles.footer}>
           <OnboardingDots step={0} total={ONBOARDING_STEPS} />
-          <Pressable onPress={submit} style={[styles.cta, { backgroundColor: colors.gold }]}>
+          <Pressable onPress={submit} accessibilityRole="button" style={[styles.cta, { backgroundColor: colors.gold }]}>
             <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.continue')}</Text>
           </Pressable>
         </View>
@@ -95,40 +105,44 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    padding: 18,
+    padding: spacing.xl,
   },
   flex: { flex: 1 },
   content: {
     flexGrow: 1,
-    paddingBottom: 16,
+    paddingBottom: spacing.lg,
   },
   header: {
     alignItems: 'center',
-    paddingTop: 18,
-    paddingBottom: 22,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
   },
   body: {
     textAlign: 'center',
     lineHeight: 22,
-    marginTop: 8,
+    marginTop: spacing.sm,
+  },
+  registerBody: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.lg,
   },
   form: {
-    paddingHorizontal: 4,
+    paddingHorizontal: spacing.xs,
   },
   input: {
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     fontSize: 16,
   },
   footer: {
-    gap: 12,
+    gap: spacing.md,
   },
   cta: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 13,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
   },
 });

@@ -6,7 +6,9 @@ import { ChoiceRow } from '@/components/ChoiceRow';
 import { ONBOARDING_STEPS, OnboardingDots } from '@/components/OnboardingDots';
 import { chooseGender, chooseMaritalStatus, setTaharahTracking, taharahOffered } from '@/stores/taharahOptIn';
 import { useUserStore } from '@/stores/useUserStore';
+import { BRAND } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 
@@ -26,7 +28,9 @@ export default function ProfileScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <Text style={[typography.title, { color: colors.text }]}>{t('onboarding.profileTitle')}</Text>
-      <Text style={[typography.body, { color: colors.textSub, marginTop: 4 }]}>{t('onboarding.profileBody')}</Text>
+      <Text style={[typography.body, { color: colors.textSub, marginTop: spacing.xs }]}>
+        {t('onboarding.profileBody')}
+      </Text>
       <ScrollView contentContainerStyle={styles.list}>
         <Text style={[typography.captionBold, { color: colors.textSub }]}>{t('profile.gender')}</Text>
         {GENDERS.map((option) => (
@@ -38,7 +42,7 @@ export default function ProfileScreen() {
           />
         ))}
 
-        <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 10 }]}>
+        <Text style={[typography.captionBold, { color: colors.textSub, marginTop: spacing.md }]}>
           {t('profile.maritalStatus')}
         </Text>
         {MARITAL_STATUSES.map((option) => (
@@ -55,7 +59,7 @@ export default function ProfileScreen() {
             <Text style={[typography.subheading, { color: colors.text }]}>
               {t(gender === 'female' ? 'taharah.optIn.woman.title' : 'taharah.optIn.husband.title')}
             </Text>
-            <Text style={[typography.small, { color: colors.textSub, marginTop: 4 }]}>
+            <Text style={[typography.small, { color: colors.textSub, marginTop: spacing.xs }]}>
               {t(gender === 'female' ? 'taharah.optIn.woman.body' : 'taharah.optIn.husband.body')}
             </Text>
             <View style={styles.switchRow}>
@@ -65,11 +69,11 @@ export default function ProfileScreen() {
               <Switch
                 value={taharahEnabled}
                 onValueChange={setTaharahTracking}
-                thumbColor="#fff"
+                thumbColor={BRAND.white}
                 trackColor={{ false: colors.border, true: colors.gold }}
               />
             </View>
-            <Text style={[typography.small, { color: colors.textMuted, marginTop: 10 }]}>
+            <Text style={[typography.small, { color: colors.textMuted, marginTop: spacing.md }]}>
               {t('taharah.disclaimer')}
             </Text>
           </View>
@@ -94,41 +98,41 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    padding: 18,
+    padding: spacing.xl,
   },
   list: {
-    paddingTop: 16,
-    gap: 8,
+    paddingTop: spacing.lg,
+    gap: spacing.sm,
     flexGrow: 1,
   },
   card: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1.5,
-    padding: 14,
-    marginTop: 10,
+    padding: spacing.lg,
+    marginTop: spacing.md,
   },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   switchLabel: {
     flex: 1,
-    paddingEnd: 12,
+    paddingEnd: spacing.md,
   },
   dots: {
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
   cta: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 13,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
   },
   backBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
 });

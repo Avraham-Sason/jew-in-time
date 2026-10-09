@@ -12,14 +12,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import Animated, { FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { ChipRow } from '@/components/ChipRow';
 import { ONBOARDING_STEPS, OnboardingDots } from '@/components/OnboardingDots';
 import { LocationService } from '@/services/LocationService';
+import { reportError } from '@/services/errors';
 import { requestNotificationPermissions, syncNotificationPermissionStatus } from '@/services/NotificationScheduler';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
-import { CITIES, getLocationName } from '@/data/cities';
+import { CITIES, findCityByName, getLocationName } from '@/data/cities';
+
+const CITY_NAMES = CITIES.map((city) => city.name);
 
 export default function OnboardingLocationScreen() {
   const { colors } = useTheme();
@@ -32,9 +37,10 @@ export default function OnboardingLocationScreen() {
   // 'denied' for a permission never asked yet.
   const [refused, setRefused] = useState(false);
   const notificationsGranted = user.notificationPermission === 'granted';
+  const locationReady = user.locationStatus === 'ready';
 
   useEffect(() => {
-    syncNotificationPermissionStatus().catch(() => {});
+    syncNotificationPermissionStatus().catch((error) => reportError('schedule', error));
   }, []);
 
   const refreshLocation = async () => {
@@ -75,11 +81,13 @@ export default function OnboardingLocationScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <Text style={[typography.title, { color: colors.text }]}>{t('onboarding.locationTitle')}</Text>
-      <Text style={[typography.body, { color: colors.textSub, marginTop: 4 }]}>{t('onboarding.locationBody')}</Text>
+      <Text style={[typography.body, { color: colors.textSub, marginTop: spacing.xs }]}>
+        {t('onboarding.locationBody')}
+      </Text>
 
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[typography.bodyBold, { color: colors.text }]}>{getLocationName(user.location, language)}</Text>
-        <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
+        <Text style={[typography.small, { color: colors.textMuted, marginTop: spacing.xs }]}>
           {t(`settings.locationStatus.${user.locationStatus}`)}
         </Text>
         <Pressable
@@ -93,22 +101,19 @@ export default function OnboardingLocationScreen() {
         </Pressable>
       </View>
 
-      <View style={[styles.cityWrap, { borderColor: colors.border }]}>
-        {CITIES.map((city) => {
-          const selected = city.name === user.location.name;
-          return (
-            <Pressable
-              key={city.name}
-              onPress={() => user.setLocationState(city, 'ready', 'manual')}
-              style={[styles.cityPill, { backgroundColor: selected ? colors.gold : colors.surface2 }]}
-            >
-              <Text style={[typography.small, { color: selected ? colors.onGold : colors.textSub }]}>
-                {getLocationName(city, language)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <ChipRow
+        values={CITY_NAMES}
+        selected={user.location.name}
+        onSelect={(name) => {
+          const city = findCityByName(name);
+          if (city) user.setLocationState(city, 'ready', 'manual');
+        }}
+        renderLabel={(name) => {
+          const city = findCityByName(name);
+          return city ? getLocationName(city, language) : name;
+        }}
+        style={styles.cities}
+      />
 
       {notificationsGranted ? null : (
         <Animated.View
@@ -116,7 +121,7 @@ export default function OnboardingLocationScreen() {
           style={[styles.card, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}
         >
           <Text style={[typography.subheading, { color: colors.text }]}>{t('onboarding.notificationsTitle')}</Text>
-          <Text style={[typography.small, { color: colors.textSub, marginTop: 4 }]}>
+          <Text style={[typography.small, { color: colors.textSub, marginTop: spacing.xs }]}>
             {refused ? t('onboarding.notificationsBlocked') : t('onboarding.notificationsBody')}
           </Text>
           <Pressable
@@ -144,10 +149,18 @@ export default function OnboardingLocationScreen() {
       <OnboardingDots step={3} total={ONBOARDING_STEPS} style={styles.dots} />
       <Pressable
         onPress={() => router.push('/onboarding/ready')}
-        style={[styles.cta, { backgroundColor: colors.gold }]}
+        disabled={!locationReady}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !locationReady }}
+        style={[styles.cta, { backgroundColor: colors.gold }, locationReady ? null : styles.ctaDisabled]}
       >
         <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('common.continue')}</Text>
       </Pressable>
+      {locationReady ? null : (
+        <Text style={[typography.small, styles.locationHint, { color: colors.textMuted }]}>
+          {t('onboarding.locationRequired')}
+        </Text>
+      )}
       <Pressable onPress={() => router.back()} style={styles.backBtn}>
         <Text style={[typography.small, { color: colors.textSub }]}>{t('common.back')}</Text>
       </Pressable>
@@ -158,46 +171,45 @@ export default function OnboardingLocationScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    padding: 18,
+    padding: spacing.xl,
   },
   card: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1.5,
-    padding: 14,
-    marginTop: 18,
+    padding: spacing.lg,
+    marginTop: spacing.xl,
   },
   secondaryBtn: {
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
+    marginTop: spacing.md,
   },
-  cityWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 14,
-  },
-  cityPill: {
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  cities: {
+    marginTop: spacing.lg,
   },
   dots: {
     marginTop: 'auto',
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
   cta: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 13,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+  },
+  ctaDisabled: {
+    opacity: 0.5,
+  },
+  locationHint: {
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
   backBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
 });

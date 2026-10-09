@@ -1,46 +1,31 @@
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { DateTime } from 'luxon';
+import { Banner } from '@/components/Banner';
 import { MitzvahCard } from '@/components/MitzvahCard';
-import { MITZVOT } from '@/data/mitzvot';
-import { customToMitzvah } from '@/data/customMitzvotAdapter';
-import { useCustomMitzvotStore } from '@/stores/useCustomMitzvotStore';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { useDayModel } from '@/hooks/useDayModel';
 import { Completions, useCompletionsStore } from '@/stores/useCompletionsStore';
-import { enabledSinceOf, useMitzvotStore } from '@/stores/useMitzvotStore';
-import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { buildDayTimeline } from '@/utils/buildDayTimeline';
 import { latestCheckIn, pendingCheckInIds } from '@/utils/checkIn';
-import { useI18n, t as translate } from '@/i18n';
+import { clockOf, formatRemaining } from '@/utils/clock';
+import { useI18n } from '@/i18n';
 
 const EMPTY_COMPLETIONS = Object.freeze({}) as Completions;
 
-function formatRemaining(ms: number): string {
-  const totalMin = Math.max(0, Math.round(ms / 60000));
-  if (totalMin >= 60) {
-    const hours = Math.floor(totalMin / 60);
-    const minutes = String(totalMin % 60).padStart(2, '0');
-    return `${hours}:${minutes} ${translate('time.unit.hours')}`;
-  }
-  return `${totalMin} ${translate('time.unit.minutes')}`;
-}
-
 export default function DayRoute() {
   const { colors } = useTheme();
-  const { language, t } = useI18n();
+  const { t } = useI18n();
+  const { enabled, location, language, settings, checkInInput } = useDayModel();
   const router = useRouter();
   const params = useLocalSearchParams<{ date?: string }>();
-  const activeMap = useMitzvotStore((s) => s.activeMitzvot);
-  const customMap = useCustomMitzvotStore((s) => s.items);
   const completions = useCompletionsStore((s) => s.completions);
   const markDone = useCompletionsStore((s) => s.markDone);
-  const location = useUserStore((s) => s.location);
-  const nusach = useUserStore((s) => s.nusach);
-  const halachicOpinions = useUserStore((s) => s.halachicOpinions);
-  const inIsrael = useUserStore((s) => s.inIsrael);
 
   const dateParam = typeof params.date === 'string' ? params.date : '';
   const parsed = useMemo(() => DateTime.fromISO(dateParam).startOf('day'), [dateParam]);
@@ -51,18 +36,6 @@ export default function DayRoute() {
   const isFuture = valid && parsed > today;
   const readOnly = valid && !isToday;
 
-  const allMitzvot = useMemo(() => {
-    const customs = Object.values(customMap)
-      .sort((a, b) => a.createdAt - b.createdAt)
-      .map(customToMitzvah);
-    return [...MITZVOT, ...customs].filter((m) => m.nuschaotSupported.includes(nusach));
-  }, [customMap, nusach]);
-
-  const enabled = useMemo(
-    () => allMitzvot.filter((mitzvah) => activeMap[mitzvah.id]?.enabled),
-    [allMitzvot, activeMap],
-  );
-  const settings = useMemo(() => ({ nusach, halachicOpinions, inIsrael }), [nusach, halachicOpinions, inIsrael]);
   const date = useMemo(() => (valid ? parsed.toJSDate() : new Date()), [valid, parsed]);
   const displayCompletions = isFuture ? EMPTY_COMPLETIONS : completions;
   const items = useMemo(
@@ -80,18 +53,9 @@ export default function DayRoute() {
   // A Shabbat / Yom Tov day is marked in its check-in, never here: past days stay read-only.
   const pending = useMemo(() => {
     if (!valid) return new Set<string>();
-    const enabledSince = enabledSinceOf(activeMap);
-    const checkIn = latestCheckIn({
-      mitzvot: enabled,
-      completions,
-      skipped,
-      checkIns,
-      enabledSince,
-      location,
-      settings,
-    });
-    return pendingCheckInIds(checkIn, dateParam);
-  }, [valid, enabled, completions, skipped, checkIns, activeMap, location, settings, dateParam]);
+    return pendingCheckInIds(latestCheckIn(checkInInput()), dateParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- completions, skipped and checkIns re-run the memo on purpose; checkInInput() reads them from the store
+  }, [valid, checkInInput, completions, skipped, checkIns, dateParam]);
 
   const title = valid
     ? parsed.setLocale(language).toFormat(language === 'he' ? 'cccc d LLLL yyyy' : 'cccc, LLL d yyyy')
@@ -101,44 +65,25 @@ export default function DayRoute() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { backgroundColor: colors.headerBg }]}>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          hitSlop={10}
-          style={[styles.backBtn, { backgroundColor: 'rgba(255,255,255,0.12)' }]}
-        >
-          <Text style={[typography.captionBold, { color: colors.headerText }]}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={[typography.heading, { color: colors.headerText }]}>{t('day.title')}</Text>
-        <Text style={[typography.caption, { color: colors.headerSub, marginTop: 2 }]}>{title}</Text>
-      </View>
+      <ScreenHeader title={title} subtitle={isToday ? t('day.title') : undefined} onBack={() => router.back()} />
       {!valid ? (
-        <Text style={[typography.body, { color: colors.urgent, padding: 18, textAlign: 'center' }]}>
+        <Text style={[typography.body, { color: colors.urgent, padding: spacing.xl, textAlign: 'center' }]}>
           {t('day.invalid')}
         </Text>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           {pending.size ? (
-            <Pressable
-              onPress={() => router.push('/checkin')}
-              accessibilityRole="button"
-              style={[styles.banner, { backgroundColor: colors.goldLight, borderColor: colors.gold }]}
-            >
-              <Text style={[typography.captionBold, { color: colors.goldText }]}>{t('day.pendingBanner')}</Text>
-            </Pressable>
+            <Banner tone="accent" text={t('day.pendingBanner')} onPress={() => router.push('/checkin')} />
           ) : bannerText ? (
-            <View style={[styles.banner, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
-              <Text style={[typography.captionBold, { color: colors.textSub }]}>{bannerText}</Text>
-            </View>
+            <Banner tone="info" text={bannerText} />
           ) : null}
           {items.map((item) => {
             const totalMs = item.windowEnd ? item.windowEnd.getTime() - item.time.getTime() : 1;
             const remainingMs = item.windowEnd ? item.windowEnd.getTime() - Date.now() : 0;
             const pct = totalMs > 0 ? Math.max(0, Math.min(1, remainingMs / totalMs)) : 0;
             const timeRange = t('detail.timeRange', {
-              start: DateTime.fromJSDate(item.time).toFormat('HH:mm'),
-              end: DateTime.fromJSDate(item.windowEnd ?? item.time).toFormat('HH:mm'),
+              start: clockOf(item.time),
+              end: clockOf(item.windowEnd ?? item.time),
             });
             const waiting = !item.done && Boolean(item.mitzvahId && pending.has(item.mitzvahId));
             const missed = isPast && !item.done && !waiting;
@@ -153,7 +98,7 @@ export default function DayRoute() {
               <MitzvahCard
                 key={item.id}
                 name={item.name}
-                timeLeft={missed ? t('day.missed') : isFuture ? timeRange : formatRemaining(remainingMs)}
+                timeLeft={missed ? t('day.missed') : isFuture ? timeRange : formatRemaining(remainingMs, t)}
                 pct={missed ? 0 : pct}
                 urgent={missed || (isToday && item.urgent)}
                 done={item.done}
@@ -169,7 +114,7 @@ export default function DayRoute() {
             );
           })}
           {!items.length ? (
-            <Text style={[typography.body, { color: colors.textSub, textAlign: 'center', paddingTop: 28 }]}>
+            <Text style={[typography.body, { color: colors.textSub, textAlign: 'center', paddingTop: spacing.xxl }]}>
               {t('day.noItems')}
             </Text>
           ) : null}
@@ -183,26 +128,8 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 16,
-  },
-  backBtn: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    marginBottom: 10,
-  },
   content: {
-    padding: 14,
-    paddingBottom: 28,
-  },
-  banner: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-    marginBottom: 12,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
 });

@@ -1,18 +1,7 @@
-import React, { useState } from 'react';
-import {
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { appVersionLabel } from '@/services/appUpdates';
 import { LocationService } from '@/services/LocationService';
 import {
@@ -21,6 +10,7 @@ import {
   syncNotificationPermissionStatus,
 } from '@/services/NotificationScheduler';
 import { AppResetService } from '@/services/AppResetService';
+import { reportError } from '@/services/errors';
 import { openBatteryOptimizationSettings, supportsBatteryOptimizationSettings } from '@/services/deviceSettings';
 import {
   chooseGender,
@@ -29,14 +19,20 @@ import {
   setTaharahTracking,
   taharahOffered,
 } from '@/stores/taharahOptIn';
+import { useMitzvotStore, type ActiveMitzvahState } from '@/stores/useMitzvotStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useShallow } from 'zustand/react/shallow';
+import { BRAND } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
 import { ChipRow } from '@/components/ChipRow';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ListRow } from '@/components/ListRow';
+import { NavBar } from '@/components/NavBar';
+import { SectionLabel } from '@/components/SectionLabel';
 import { ThemeSwatchRow } from '@/components/ThemeSwatchRow';
 import { SettingsSection } from '@/components/SettingsSection';
 import { ScrollSpeedStepper } from '@/components/ScrollSpeedStepper';
-import { useQuietBlock } from '@/components/ShabbatScreen';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 import { CITIES, getLocationName } from '@/data/cities';
@@ -49,9 +45,12 @@ const GENDERS = ['male', 'female'] as const;
 const MARITAL_STATUSES = ['married', 'single'] as const;
 const CITY_INDEXES = CITIES.map((_, index) => index);
 
+// Returns a number, so the subscription re-renders only when the count itself changes.
+const selectEnabledCount = (state: { activeMitzvot: Record<string, ActiveMitzvahState> }): number =>
+  Object.values(state.activeMitzvot).filter((active) => active.enabled).length;
+
 export default function SettingsScreen() {
   const { colors } = useTheme();
-  const quiet = useQuietBlock() !== null;
   const { t, language } = useI18n();
   const router = useRouter();
   // One shallow slice: subscribing to the whole store re-rendered every section on each permission
@@ -64,6 +63,7 @@ export default function SettingsScreen() {
       maritalStatus: s.maritalStatus,
       notificationsEnabled: s.notificationsEnabled,
       notificationPermission: s.notificationPermission,
+      hilulotEnabled: s.hilulotEnabled,
       nusach: s.nusach,
       siddurAutoScroll: s.siddurAutoScroll,
       siddurScrollSpeed: s.siddurScrollSpeed,
@@ -76,6 +76,7 @@ export default function SettingsScreen() {
       setLocationState: s.setLocationState,
       setLocationStatus: s.setLocationStatus,
       setNotificationsEnabled: s.setNotificationsEnabled,
+      setHilulotEnabled: s.setHilulotEnabled,
       setProfileName: s.setProfileName,
       setProfilePhone: s.setProfilePhone,
       setSiddurAutoScroll: s.setSiddurAutoScroll,
@@ -85,6 +86,7 @@ export default function SettingsScreen() {
       setKsOpinion: s.setKsOpinion,
     })),
   );
+  const enabledMitzvotCount = useMitzvotStore(selectEnabledCount);
   // Held locally and committed on blur. Bound straight to the store, every keystroke serialised
   // the whole user store to MMKV and re-rendered the entire settings tree.
   const [nameDraft, setNameDraft] = useState(user.profileName);
@@ -92,6 +94,12 @@ export default function SettingsScreen() {
   const [statusText, setStatusText] = useState('');
   const [resetVisible, setResetVisible] = useState(false);
   const [resetting, setResetting] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      syncNotificationPermissionStatus().catch((error) => reportError('schedule', error));
+    }, []),
+  );
 
   const performReset = async () => {
     setResetting(true);
@@ -137,15 +145,11 @@ export default function SettingsScreen() {
         return;
       }
       user.setNotificationsEnabled(true);
-      NotificationScheduler.rebuild().catch(() => {});
+      NotificationScheduler.rebuild().catch((error) => reportError('schedule', error));
     } else {
       user.setNotificationsEnabled(false);
-      NotificationScheduler.cancelAll().catch(() => {});
+      NotificationScheduler.cancelAll().catch((error) => reportError('schedule', error));
     }
-  };
-
-  const refreshPermStatus = async () => {
-    await syncNotificationPermissionStatus();
   };
 
   const permGranted = user.notificationPermission === 'granted';
@@ -153,14 +157,122 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
-      <Stack.Screen options={{ title: t('settings.title'), headerShown: false }} />
+      <NavBar title={t('settings.title')} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[typography.title, { color: colors.text, marginBottom: 12 }]}>{t('settings.title')}</Text>
-
-        <SettingsSection title={t('settings.profile')}>
-          <Text style={[typography.captionBold, { color: colors.textSub, marginBottom: 6 }]}>
-            {t('settings.profileName')}
+        <SettingsSection title={t('settings.notifications')}>
+          <SwitchRow
+            label={t('settings.notificationsToggle')}
+            hint={
+              notifActive
+                ? t('settings.notificationsActiveHint')
+                : user.notificationsEnabled && !permGranted
+                  ? t('settings.notificationsBlockedHint')
+                  : t('settings.notificationsOffHint')
+            }
+            value={user.notificationsEnabled}
+            onValueChange={onToggleNotifications}
+          />
+          <Row
+            label={t('settings.notificationsOsStatus')}
+            value={permGranted ? t('settings.notificationsGranted') : t('settings.notificationsDenied')}
+          />
+          {!permGranted ? <PrimaryButton label={t('settings.openOsSettings')} onPress={openOsSettings} /> : null}
+          {/* Exact alarms are declared in the manifest, but OEM battery managers can still defer
+              them. Exempting the app is the one part only the user can do. */}
+          {supportsBatteryOptimizationSettings() ? (
+            <>
+              <Text style={[typography.small, styles.groupGap, { color: colors.textMuted }]}>
+                {t('settings.batteryHint')}
+              </Text>
+              <PrimaryButton label={t('settings.batteryAction')} onPress={() => openBatteryOptimizationSettings()} />
+            </>
+          ) : null}
+          <SwitchRow
+            style={styles.groupGap}
+            label={t('hilulot.notifications')}
+            hint={t('hilulot.caption')}
+            value={user.hilulotEnabled}
+            onValueChange={user.setHilulotEnabled}
+          />
+          <Text style={[typography.small, styles.note, { color: colors.textMuted }]}>
+            {Platform.OS === 'ios' ? t('settings.iosHint') : t('settings.androidHint')}
           </Text>
+        </SettingsSection>
+
+        <SettingsSection title={t('settings.zmanim')}>
+          <Text style={[typography.bodyBold, { color: colors.text }]}>{getLocationName(user.location, language)}</Text>
+          <Text style={[typography.small, styles.hint, { color: colors.textMuted }]}>
+            {t(`settings.locationStatus.${user.locationStatus}`)}
+          </Text>
+          <PrimaryButton label={t('settings.useCurrentLocation')} onPress={refreshLocation} />
+          {statusText ? (
+            <Text style={[typography.small, styles.note, { color: colors.textMuted }]}>{statusText}</Text>
+          ) : null}
+          <SectionLabel text={t('settings.pickCity')} style={styles.fieldLabel} />
+          <ChipRow
+            values={CITY_INDEXES}
+            selected={CITIES.findIndex((city) => city.name === user.location.name)}
+            onSelect={(index) => user.setLocationState(CITIES[index], 'ready', 'manual')}
+            renderLabel={(index) => getLocationName(CITIES[index], language)}
+          />
+          <SectionLabel text={t('settings.nusach')} style={styles.fieldLabel} />
+          <ChipRow
+            values={NUSACHAOT}
+            selected={user.nusach}
+            onSelect={chooseNusach}
+            renderLabel={(value) => t(`nusach.${value}`)}
+          />
+          <SectionLabel text={t('settings.opinion')} style={styles.fieldLabel} />
+          <ChipRow
+            values={OPINIONS}
+            selected={user.halachicOpinions.ksSofZman}
+            onSelect={(value) => user.setKsOpinion(value)}
+            renderLabel={(value) => t(`settings.opinion.${value}`)}
+          />
+        </SettingsSection>
+
+        <SettingsSection title={t('settings.display')}>
+          <SectionLabel text={t('settings.theme')} style={styles.firstFieldLabel} />
+          <ThemeSwatchRow
+            selected={user.theme}
+            onSelect={(value) => user.setTheme(value)}
+            labelFor={(value) => t(`settings.theme.${value}`)}
+          />
+          <SectionLabel text={t('settings.language')} style={styles.fieldLabel} />
+          <ChipRow
+            values={LANGS}
+            selected={user.language}
+            onSelect={(value) => user.setLanguage(value)}
+            renderLabel={(value) => t(`settings.language.${value}`)}
+          />
+          <SectionLabel text={t('settings.reading')} style={styles.fieldLabel} />
+          <SwitchRow
+            label={t('settings.autoScroll')}
+            hint={t('settings.autoScrollHint')}
+            value={user.siddurAutoScroll}
+            onValueChange={user.setSiddurAutoScroll}
+          />
+          <View style={[styles.row, styles.speedRow]}>
+            <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.autoScrollSpeed')}</Text>
+            <ScrollSpeedStepper tone="surface" level={user.siddurScrollSpeed} onChange={user.setSiddurScrollSpeed} />
+          </View>
+        </SettingsSection>
+
+        <SettingsSection>
+          <ListRow
+            icon="custom"
+            title={t('settings.mitzvot')}
+            caption={t('settings.mitzvotCaption', { count: enabledMitzvotCount })}
+            onPress={() => router.push('/mitzvot')}
+            trailing={
+              <Text style={[typography.bodyBold, { color: colors.textMuted }]}>{language === 'he' ? '‹' : '›'}</Text>
+            }
+            style={styles.embeddedRow}
+          />
+        </SettingsSection>
+
+        <SettingsSection title={t('settings.privacy')}>
+          <SectionLabel text={t('settings.profileName')} style={styles.firstFieldLabel} />
           <TextInput
             value={nameDraft}
             onChangeText={setNameDraft}
@@ -178,9 +290,7 @@ export default function SettingsScreen() {
             ]}
             autoCapitalize="words"
           />
-          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 12, marginBottom: 6 }]}>
-            {t('settings.profilePhone')}
-          </Text>
+          <SectionLabel text={t('settings.profilePhone')} style={styles.fieldLabel} />
           <TextInput
             value={phoneDraft}
             onChangeText={setPhoneDraft}
@@ -198,231 +308,63 @@ export default function SettingsScreen() {
               },
             ]}
           />
-          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 12, marginBottom: 8 }]}>
-            {t('profile.gender')}
-          </Text>
+          <SectionLabel text={t('profile.gender')} style={styles.fieldLabel} />
           <ChipRow
             values={GENDERS}
             selected={user.gender}
             onSelect={chooseGender}
             renderLabel={(value) => t(`profile.gender.${value}`)}
           />
-          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 12, marginBottom: 8 }]}>
-            {t('profile.maritalStatus')}
-          </Text>
+          <SectionLabel text={t('profile.maritalStatus')} style={styles.fieldLabel} />
           <ChipRow
             values={MARITAL_STATUSES}
             selected={user.maritalStatus}
             onSelect={chooseMaritalStatus}
             renderLabel={(value) => t(`profile.maritalStatus.${value}.${user.gender ?? 'neutral'}`)}
           />
-        </SettingsSection>
 
-        <SettingsSection title={t('settings.notifications')}>
-          <View style={styles.switchRow}>
-            <View style={{ flex: 1, paddingEnd: 12 }}>
-              <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.notificationsToggle')}</Text>
-              <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
-                {notifActive
-                  ? t('settings.notificationsActiveHint')
-                  : user.notificationsEnabled && !permGranted
-                    ? t('settings.notificationsBlockedHint')
-                    : t('settings.notificationsOffHint')}
-              </Text>
-            </View>
-            <Switch
-              value={user.notificationsEnabled}
-              onValueChange={onToggleNotifications}
-              thumbColor="#fff"
-              trackColor={{ false: colors.border, true: colors.gold }}
-            />
-          </View>
-          <Row
-            label={t('settings.notificationsOsStatus')}
-            value={permGranted ? t('settings.notificationsGranted') : t('settings.notificationsDenied')}
-          />
-          {!permGranted ? (
-            <Pressable onPress={openOsSettings} style={[styles.primaryBtn, { backgroundColor: colors.gold }]}>
-              <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.openOsSettings')}</Text>
-            </Pressable>
-          ) : null}
-          <Pressable onPress={refreshPermStatus} style={[styles.primaryBtn, { backgroundColor: colors.surface2 }]}>
-            <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.refreshPermStatus')}</Text>
-          </Pressable>
-          <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>
-            {Platform.OS === 'ios' ? t('settings.iosHint') : t('settings.androidHint')}
-          </Text>
-        </SettingsSection>
-
-        {/* Exact alarms are declared in the manifest, but OEM battery managers can still defer
-            them. Exempting the app is the one part only the user can do. */}
-        {supportsBatteryOptimizationSettings() ? (
-          <SettingsSection title={t('settings.batteryTitle')}>
-            <Text style={[typography.small, { color: colors.textMuted }]}>{t('settings.batteryHint')}</Text>
-            <Pressable
-              onPress={() => openBatteryOptimizationSettings()}
-              accessibilityRole="button"
-              style={[styles.primaryBtn, { backgroundColor: colors.gold }]}
-            >
-              <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.batteryAction')}</Text>
-            </Pressable>
-          </SettingsSection>
-        ) : null}
-
-        <SettingsSection title={t('settings.nusach')}>
-          <ChipRow
-            values={NUSACHAOT}
-            selected={user.nusach}
-            onSelect={chooseNusach}
-            renderLabel={(value) => t(`nusach.${value}`)}
-          />
-        </SettingsSection>
-
-        <SettingsSection title={t('settings.reading')}>
-          <View style={styles.switchRow}>
-            <View style={{ flex: 1, paddingEnd: 12 }}>
-              <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.autoScroll')}</Text>
-              <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
-                {t('settings.autoScrollHint')}
-              </Text>
-            </View>
-            <Switch
-              value={user.siddurAutoScroll}
-              onValueChange={user.setSiddurAutoScroll}
-              thumbColor="#fff"
-              trackColor={{ false: colors.border, true: colors.gold }}
-            />
-          </View>
-          <View style={[styles.row, { marginTop: 14 }]}>
-            <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.autoScrollSpeed')}</Text>
-            <ScrollSpeedStepper tone="surface" level={user.siddurScrollSpeed} onChange={user.setSiddurScrollSpeed} />
-          </View>
-        </SettingsSection>
-
-        {taharahOffered(user) ? (
-          <SettingsSection title={t('settings.taharah')}>
-            <View style={styles.switchRow}>
-              <View style={{ flex: 1, paddingEnd: 12 }}>
-                <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.taharahEnabled')}</Text>
-                <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
-                  {t(user.gender === 'female' ? 'taharah.optIn.woman.body' : 'taharah.optIn.husband.body')}
-                </Text>
-              </View>
-              <Switch
+          {taharahOffered(user) ? (
+            <>
+              <SectionLabel text={t('settings.taharah')} style={styles.fieldLabel} />
+              <SwitchRow
+                label={t('settings.taharahEnabled')}
+                hint={t(user.gender === 'female' ? 'taharah.optIn.woman.body' : 'taharah.optIn.husband.body')}
                 value={user.taharahEnabled}
                 onValueChange={setTaharahTracking}
-                thumbColor="#fff"
-                trackColor={{ false: colors.border, true: colors.gold }}
               />
-            </View>
-            {user.taharahEnabled ? (
-              <Pressable
-                onPress={() => router.push('/taharah/settings')}
-                accessibilityRole="button"
-                style={[styles.primaryBtn, { backgroundColor: colors.gold }]}
-              >
-                <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.taharahOpen')}</Text>
-              </Pressable>
-            ) : null}
-            <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>{t('taharah.disclaimer')}</Text>
-          </SettingsSection>
-        ) : null}
-
-        <SettingsSection title={t('settings.location')}>
-          <Text style={[typography.bodyBold, { color: colors.text }]}>{getLocationName(user.location, language)}</Text>
-          <Text style={[typography.small, { color: colors.textMuted, marginTop: 4 }]}>
-            {t(`settings.locationStatus.${user.locationStatus}`)}
-          </Text>
-          <Pressable onPress={refreshLocation} style={[styles.primaryBtn, { backgroundColor: colors.gold }]}>
-            <Text style={[typography.bodyBold, { color: colors.onGold }]}>{t('settings.useCurrentLocation')}</Text>
-          </Pressable>
-          {statusText ? (
-            <Text style={[typography.small, { color: colors.textMuted, marginTop: 8 }]}>{statusText}</Text>
+              {user.taharahEnabled ? (
+                <PrimaryButton label={t('settings.taharahOpen')} onPress={() => router.push('/taharah/settings')} />
+              ) : null}
+              <Text style={[typography.small, styles.note, { color: colors.textMuted }]}>
+                {t('taharah.disclaimer')}
+              </Text>
+            </>
           ) : null}
-          <Text style={[typography.captionBold, { color: colors.textSub, marginTop: 14, marginBottom: 8 }]}>
-            {t('settings.pickCity')}
+
+          <Pressable
+            onPress={() => setResetVisible(true)}
+            accessibilityRole="button"
+            style={[styles.dangerBtn, { backgroundColor: colors.urgentBg, borderColor: colors.urgent }]}
+          >
+            <Text style={[typography.bodyBold, { color: colors.urgent }]}>{t('settings.logout')}</Text>
+          </Pressable>
+
+          <Text style={[typography.small, styles.versionText, { color: colors.textMuted }]}>
+            {t('settings.version', { version: appVersionLabel() })}
           </Text>
-          <ChipRow
-            values={CITY_INDEXES}
-            selected={CITIES.findIndex((city) => city.name === user.location.name)}
-            onSelect={(index) => user.setLocationState(CITIES[index], 'ready', 'manual')}
-            renderLabel={(index) => getLocationName(CITIES[index], language)}
-          />
         </SettingsSection>
-
-        <SettingsSection title={t('settings.theme')}>
-          <ThemeSwatchRow
-            selected={user.theme}
-            onSelect={(value) => user.setTheme(value)}
-            labelFor={(value) => t(`settings.theme.${value}`)}
-          />
-        </SettingsSection>
-
-        <SettingsSection title={t('settings.language')}>
-          <ChipRow
-            values={LANGS}
-            selected={user.language}
-            onSelect={(value) => user.setLanguage(value)}
-            renderLabel={(value) => t(`settings.language.${value}`)}
-          />
-        </SettingsSection>
-
-        <SettingsSection title={t('settings.opinion')}>
-          <ChipRow
-            values={OPINIONS}
-            selected={user.halachicOpinions.ksSofZman}
-            onSelect={(value) => user.setKsOpinion(value)}
-            renderLabel={(value) => t(`settings.opinion.${value}`)}
-          />
-        </SettingsSection>
-
-        <Pressable
-          onPress={() => setResetVisible(true)}
-          style={[styles.dangerBtn, { backgroundColor: colors.urgentBg, borderColor: colors.urgent }]}
-        >
-          <Text style={[typography.bodyBold, { color: colors.urgent }]}>{t('settings.logout')}</Text>
-        </Pressable>
-
-        <Text style={[typography.small, styles.versionText, { color: colors.textMuted }]}>
-          {t('settings.version', { version: appVersionLabel() })}
-        </Text>
       </ScrollView>
 
-      <Modal
-        animationType="fade"
-        transparent
-        visible={resetVisible && !quiet}
-        onRequestClose={() => setResetVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[typography.heading, { color: colors.text, marginBottom: 8 }]}>
-              {t('settings.logoutConfirmTitle')}
-            </Text>
-            <Text style={[typography.body, { color: colors.textSub, marginBottom: 18 }]}>
-              {t('settings.logoutConfirmBody')}
-            </Text>
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={() => setResetVisible(false)}
-                disabled={resetting}
-                style={[styles.modalBtn, { backgroundColor: colors.surface2 }]}
-              >
-                <Text style={[typography.bodyBold, { color: colors.text }]}>{t('common.cancel')}</Text>
-              </Pressable>
-              <Pressable
-                onPress={performReset}
-                disabled={resetting}
-                style={[styles.modalBtn, { backgroundColor: colors.urgent, opacity: resetting ? 0.6 : 1 }]}
-              >
-                <Text style={[typography.bodyBold, { color: colors.onUrgent }]}>
-                  {t('settings.logoutConfirmAction')}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ConfirmDialog
+        visible={resetVisible}
+        title={t('settings.logoutConfirmTitle')}
+        body={t('settings.logoutConfirmBody')}
+        confirmLabel={t('settings.logoutConfirmAction')}
+        destructive
+        busy={resetting}
+        onConfirm={performReset}
+        onCancel={() => setResetVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -430,10 +372,50 @@ export default function SettingsScreen() {
 function Row({ label, value }: { label: string; value: string }) {
   const { colors } = useTheme();
   return (
-    <View style={[styles.row, { marginTop: 12 }]}>
+    <View style={[styles.row, styles.statusRow]}>
       <Text style={[typography.bodyBold, { color: colors.text }]}>{label}</Text>
       <Text style={[typography.body, { color: colors.goldText }]}>{value}</Text>
     </View>
+  );
+}
+
+type SwitchRowProps = {
+  label: string;
+  hint: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+  style?: React.ComponentProps<typeof View>['style'];
+};
+
+function SwitchRow({ label, hint, value, onValueChange, style }: SwitchRowProps) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.switchRow, style]}>
+      <View style={styles.switchMeta}>
+        <Text style={[typography.bodyBold, { color: colors.text }]}>{label}</Text>
+        <Text style={[typography.small, styles.hint, { color: colors.textMuted }]}>{hint}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        accessibilityLabel={label}
+        thumbColor={BRAND.white}
+        trackColor={{ false: colors.border, true: colors.gold }}
+      />
+    </View>
+  );
+}
+
+function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={[styles.primaryBtn, { backgroundColor: colors.gold }]}
+    >
+      <Text style={[typography.bodyBold, { color: colors.onGold }]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -442,65 +424,77 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 16,
-    paddingBottom: 28,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   primaryBtn: {
-    borderRadius: 14,
-    paddingVertical: 12,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  statusRow: {
+    marginTop: spacing.md,
+  },
+  speedRow: {
+    marginTop: spacing.lg,
+  },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  switchMeta: {
+    flex: 1,
+    paddingEnd: spacing.md,
+  },
+  hint: {
+    marginTop: spacing.xs,
+  },
+  note: {
+    marginTop: spacing.sm,
+  },
+  groupGap: {
+    marginTop: spacing.lg,
+  },
+  fieldLabel: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+    paddingHorizontal: 0,
+  },
+  firstFieldLabel: {
+    marginTop: 0,
+    marginBottom: spacing.sm,
+    paddingHorizontal: 0,
+  },
+  embeddedRow: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    borderBottomWidth: 0,
+  },
   input: {
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     fontSize: 16,
   },
   dangerBtn: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    paddingVertical: 14,
+    paddingVertical: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: spacing.xl,
   },
   versionText: {
     textAlign: 'center',
-    marginTop: 16,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(9,20,32,0.55)',
-    justifyContent: 'center',
-    padding: 22,
-  },
-  modalCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 20,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  modalBtn: {
-    flex: 1,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: spacing.lg,
   },
 });

@@ -5,7 +5,8 @@ jest.mock('react-native-mmkv', () => {
 
 import he from '../he.json';
 import en from '../en.json';
-import { t, setLocale } from '../index';
+import { useUserStore } from '@/stores/useUserStore';
+import { t, translate, setLocale } from '../index';
 
 describe('i18n', () => {
   it('0.4.a parity — same keys in he+en', () => {
@@ -50,7 +51,74 @@ describe('i18n', () => {
     const values = [...Object.values(he), ...Object.values(en)].join('\n');
     expect(values).not.toContain('יהודי כשר');
     expect(values).not.toContain('Jew In Time');
+    expect(values).not.toContain('Jewish Time');
     expect((he as Record<string, string>)['app.name']).toBe('יהודי בזמן');
-    expect((en as Record<string, string>)['app.name']).toBe('Jewish Time');
+    expect((en as Record<string, string>)['app.name']).toBe('Jew in Time');
+  });
+});
+
+describe('i18n gender-aware lookup', () => {
+  const heTable = he as Record<string, string>;
+  const enTable = en as Record<string, string>;
+  const feminineKeys = Object.keys(heTable).filter((k) => k.endsWith('.f'));
+
+  beforeEach(() => {
+    useUserStore.setState({ language: 'he', gender: null });
+  });
+
+  afterAll(() => {
+    useUserStore.setState({ language: 'he', gender: null });
+  });
+
+  it('every .f key has a base key and says something different in Hebrew', () => {
+    expect(feminineKeys.length).toBeGreaterThan(0);
+    for (const k of feminineKeys) {
+      const base = k.slice(0, -2);
+      expect(heTable[base]).toBeTruthy();
+      expect(heTable[k]).not.toBe(heTable[base]);
+      expect(enTable[k]).toBe(enTable[base]);
+    }
+  });
+
+  it('a female user reads the .f variant', () => {
+    useUserStore.setState({ gender: 'female' });
+    expect(t('onboarding.registerTitle')).toBe(heTable['onboarding.registerTitle.f']);
+    expect(t('onboarding.registerTitle')).not.toBe(heTable['onboarding.registerTitle']);
+    expect(t('checkin.banner', { in: 'x', deadline: 'y' })).toBe('סמני מה עשית x, עד y');
+  });
+
+  it('a male or unanswered user reads the base key', () => {
+    expect(t('onboarding.registerTitle')).toBe(heTable['onboarding.registerTitle']);
+    useUserStore.setState({ gender: 'male' });
+    expect(t('onboarding.registerTitle')).toBe(heTable['onboarding.registerTitle']);
+  });
+
+  it('a key without a .f variant is unchanged for a female user', () => {
+    useUserStore.setState({ gender: 'female' });
+    expect(t('home.quick.skipToday')).toBe(heTable['home.quick.skipToday']);
+  });
+
+  it('a .f key called directly returns itself', () => {
+    for (const gender of [null, 'male', 'female'] as const) {
+      useUserStore.setState({ gender });
+      expect(t('onboarding.registerTitle.f')).toBe(heTable['onboarding.registerTitle.f']);
+    }
+  });
+
+  it('translate takes an explicit gender and ignores the store', () => {
+    expect(translate('onboarding.locationTitle', undefined, 'he', 'female')).toBe(
+      heTable['onboarding.locationTitle.f'],
+    );
+    useUserStore.setState({ gender: 'female' });
+    expect(translate('onboarding.locationTitle', undefined, 'he', 'male')).toBe(heTable['onboarding.locationTitle']);
+  });
+
+  it('English follows the same lookup', () => {
+    useUserStore.setState({ language: 'en', gender: 'female' });
+    expect(t('onboarding.registerTitle')).toBe(enTable['onboarding.registerTitle.f']);
+  });
+
+  it('interpolates the home next-mitzvah line', () => {
+    expect(t('home.nextAt', { name: 'x', time: 'y' })).toBe('x · y');
   });
 });

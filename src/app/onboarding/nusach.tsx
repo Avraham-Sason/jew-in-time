@@ -7,6 +7,7 @@ import { ONBOARDING_STEPS, OnboardingDots } from '@/components/OnboardingDots';
 import { chooseNusach } from '@/stores/taharahOptIn';
 import { useUserStore } from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 
@@ -22,7 +23,9 @@ export default function NusachScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <Text style={[typography.title, { color: colors.text }]}>{t('onboarding.nusachTitle')}</Text>
-      <Text style={[typography.body, { color: colors.textSub, marginTop: 4 }]}>{t('onboarding.nusachBody')}</Text>
+      <Text style={[typography.body, { color: colors.textSub, marginTop: spacing.xs }]}>
+        {t('onboarding.nusachBody')}
+      </Text>
       <ScrollView contentContainerStyle={styles.list}>
         {OPTIONS.map((option) => (
           <ChoiceRow
@@ -51,25 +54,25 @@ export default function NusachScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    padding: 18,
+    padding: spacing.xl,
   },
   list: {
-    paddingTop: 16,
-    gap: 8,
+    paddingTop: spacing.lg,
+    gap: spacing.sm,
     flexGrow: 1,
   },
   dots: {
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
   cta: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 13,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
   },
   backBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
 });

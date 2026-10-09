@@ -66,6 +66,18 @@ describe('mitzvot windows', () => {
     expect(omerDayFor(april12)).toBe(11);
   });
 
+  it('a reminder that rotates body variants shows its first variant as the label', () => {
+    const rotating = MITZVOT.flatMap((m) =>
+      m.defaultReminders.flatMap((reminder) =>
+        reminder.bodyVariants ? [{ id: m.id, label: reminder.label, first: reminder.bodyVariants[0] }] : [],
+      ),
+    );
+    expect(rotating.map((r) => r.id)).toContain('krias_shma_shacharit');
+    expect(rotating.map(({ id, label }) => ({ id, label }))).toEqual(
+      rotating.map(({ id, first }) => ({ id, label: first })),
+    );
+  });
+
   it('candle lighting returns null on non-Friday', () => {
     const monday = new Date('2026-04-20T12:00:00Z');
     const w = findMitzvah('candle_lighting')!.computeWindow(ctxFor(monday));

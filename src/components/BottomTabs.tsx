@@ -2,8 +2,10 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomTabBarProps, BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { MitzvahIcon } from '@/components/MitzvahIcon';
 import { useTheme } from '@/theme/ThemeProvider';
-import { typography } from '@/theme/typography';
+import { radius } from '@/theme/tokens';
+import { fontFamilies, typography } from '@/theme/typography';
 import { useI18n } from '@/i18n';
 
 type TabOptionsWithHref = BottomTabNavigationOptions & { href?: string | null };
@@ -23,19 +25,6 @@ function CalIcon({ color }: { color: string }) {
     <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
       <Rect x={3} y={4} width={18} height={18} rx={3} stroke={color} strokeWidth={2} />
       <Path d="M8 2V6M16 2V6M3 10H21" stroke={color} strokeWidth={2} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
-function ListIcon({ color }: { color: string }) {
-  return (
-    <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M9 6H20M9 12H20M9 18H20M4 6H4.01M4 12H4.01M4 18H4.01"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-      />
     </Svg>
   );
 }
@@ -76,14 +65,14 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
     home: t('nav.home'),
     schedule: t('nav.schedule'),
     history: t('nav.history'),
-    library: t('nav.library'),
+    siddur: t('nav.siddur'),
     settings: t('nav.settings'),
   };
   const icons: Record<string, (color: string) => React.ReactNode> = {
     home: (color) => <HomeIcon color={color} />,
     schedule: (color) => <CalIcon color={color} />,
     history: (color) => <HistoryIcon color={color} />,
-    library: (color) => <ListIcon color={color} />,
+    siddur: (color) => <MitzvahIcon name="siddur" size={19} color={color} />,
     settings: (color) => <SettingsIcon color={color} />,
   };
 
@@ -129,7 +118,10 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
             <Text
               numberOfLines={1}
               maxFontSizeMultiplier={1.4}
-              style={[typography.micro, { color, fontFamily: focused ? 'Heebo_700Bold' : 'Heebo_400Regular' }]}
+              style={[
+                typography.micro,
+                { color, fontFamily: focused ? fontFamilies.heebo.bold : fontFamilies.heebo.regular },
+              ]}
             >
               {label}
             </Text>
@@ -164,7 +156,7 @@ const styles = StyleSheet.create({
   homeBadge: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: radius.xxl,
     borderWidth: 3,
     marginTop: -14,
     alignItems: 'center',

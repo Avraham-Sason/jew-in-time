@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useUserStore } from '@/stores/useUserStore';
+import { useUserStore, type Gender } from '@/stores/useUserStore';
 import heTable from './he.json';
 import enTable from './en.json';
 
@@ -13,43 +13,56 @@ const tables: Record<AppLanguage, Dict> = {
 
 const defaultLocale: AppLanguage = 'he';
 let currentLocale: AppLanguage = useUserStore.getState().language;
+let currentGender: Gender | null = useUserStore.getState().gender;
 
 export function setLocale(language: AppLanguage): void {
   currentLocale = language;
 }
 
-// Non-React callers (the notification scheduler, most of all) read `currentLocale` directly, so it
-// has to track the store rather than wait for a component effect to push it.
-useUserStore.subscribe((state) => setLocale(state.language));
+// Non-React callers (the notification scheduler, most of all) read `currentLocale` and `currentGender`
+// directly, so they have to track the store rather than wait for a component effect to push them.
+useUserStore.subscribe((state) => {
+  setLocale(state.language);
+  currentGender = state.gender;
+});
 
 function interpolate(str: string, options?: Record<string, unknown>): string {
   if (!options) return str;
   return str.replace(/%\{(\w+)\}/g, (_, key) => (options[key] !== undefined ? String(options[key]) : `%{${key}}`));
 }
 
+// A female user reads `<scope>.f` when the table has one; every other case reads the base key.
+function lookup(locale: AppLanguage, scope: string, gender: Gender | null): string | undefined {
+  const table = tables[locale];
+  const feminine = gender === 'female' ? table?.[`${scope}.f`] : undefined;
+  return typeof feminine === 'string' ? feminine : table?.[scope];
+}
+
 export function translate(
   scope: string,
   options?: Record<string, unknown>,
   locale: AppLanguage = currentLocale,
+  gender: Gender | null = currentGender,
 ): string {
-  const primary = tables[locale]?.[scope];
+  const primary = lookup(locale, scope, gender);
   if (typeof primary === 'string') return interpolate(primary, options);
-  const fallback = tables[defaultLocale]?.[scope];
+  const fallback = lookup(defaultLocale, scope, gender);
   if (typeof fallback === 'string') return interpolate(fallback, options);
   return `[missing "${locale}.${scope}" translation]`;
 }
 
 export function t(scope: string, options?: Record<string, unknown>): string {
-  return translate(scope, options, currentLocale);
+  return translate(scope, options, currentLocale, currentGender);
 }
 
 export function useI18n() {
   const language = useUserStore((s) => s.language);
-  // Bound to this render's language, so a language switch cannot render one frame of stale copy,
+  const gender = useUserStore((s) => s.gender);
+  // Bound to this render's language and gender, so a switch cannot render one frame of stale copy,
   // and `useMemo`s keyed on `t` actually refresh.
   const boundT = useCallback(
-    (scope: string, options?: Record<string, unknown>) => translate(scope, options, language),
-    [language],
+    (scope: string, options?: Record<string, unknown>) => translate(scope, options, language, gender),
+    [language, gender],
   );
-  return { language, t: boundT };
+  return { language, gender, t: boundT };
 }

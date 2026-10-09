@@ -6,12 +6,12 @@
 
 ## Ownership
 
-- [[date].tsx](%5Bdate%5D.tsx) renders a single ISO-date route from schedule/history navigation.
+- [[date].tsx](%5Bdate%5D.tsx) renders a single ISO-date route from schedule/history navigation: a [ScreenHeader](../../components/ScreenHeader.tsx) titled with the formatted date, subtitled `day.title` only when the date is today, and one [Banner](../../components/Banner.tsx) above the cards. An invalid date shows `day.title` as the title.
 
 ## Local Contracts
 
 - Validate route dates before computing day content.
-- Past-day views are read-only and must not write completion state. A mitzvah waiting in an open check-in shows as waiting, not missed, with a banner into `/checkin`, where past days are marked.
+- Past-day views are read-only and must not write completion state. A mitzvah waiting in an open check-in shows as waiting, not missed, with an `accent` Banner into `/checkin`, where past days are marked; any other past or future day shows an `info` Banner saying it is read-only.
 - Day content should be built through [../../utils/buildDayTimeline.ts](../../utils/buildDayTimeline.ts), not duplicated in the route.
 
 ## Work Guidance
