@@ -45,15 +45,18 @@ jest.mock('expo-notifications', () => ({
   registerTaskAsync: jest.fn(async () => null),
   getPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
   requestPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
-  AndroidImportance: { HIGH: 'high' },
-  AndroidNotificationVisibility: { PUBLIC: 'public' },
+  AndroidImportance: { HIGH: 'high', DEFAULT: 'default' },
+  AndroidNotificationVisibility: { PUBLIC: 'public', PRIVATE: 'private' },
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
 
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
-jest.mock('expo-background-fetch', () => ({
+jest.mock('expo-background-task', () => ({
   registerTaskAsync: jest.fn(),
-  BackgroundFetchResult: { NewData: 1, Failed: 2 },
+  unregisterTaskAsync: jest.fn(),
+  getStatusAsync: jest.fn(),
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
 }));
 
 import { HDate } from '@hebcal/core';
@@ -188,7 +191,7 @@ describe('NotificationScheduler taharah reminders', () => {
     const shkia = zmanimOn('2026-11-12').shkia;
     const [reminder] = hefsek;
     expect(triggerOf(reminder)).toBe(minutes(shkia, -90));
-    expect(reminder.trigger!.channelId).toBe('default');
+    expect(reminder.trigger!.channelId).toBe('taharah');
     expect(reminder.content.title).toBe(t('taharah.notify.discreetTitle'));
     expect(reminder.content.body).toBe(t('taharah.notify.discreet.untilBody', { time: clock(shkia) }));
     expect(reminder.content.categoryIdentifier).toBeUndefined();
@@ -251,6 +254,8 @@ describe('NotificationScheduler taharah reminders', () => {
       expect(triggerOf(evening)).toBe(minutes(shkia, -60));
       expect(morning.content.categoryIdentifier).toBe(TAHARAH_BEDIKA_CATEGORY);
       expect(evening.content.categoryIdentifier).toBe(TAHARAH_BEDIKA_CATEGORY);
+      expect(morning.trigger!.channelId).toBe('taharah');
+      expect(evening.trigger!.channelId).toBe('taharah');
       expect(morning.content.data).toEqual({ kind: TAHARAH_KIND, taharah: { task: 'bedikaMorning', day: today } });
       expect(mockSetCategory).toHaveBeenCalledWith(TAHARAH_BEDIKA_CATEGORY, [
         {
@@ -754,6 +759,7 @@ ${t('taharah.disputed')}`,
         ),
       );
       expect(merged.content.categoryIdentifier).toBeUndefined();
+      expect(merged.trigger!.channelId).toBe('taharah');
       expect(merged.content.data).toEqual({ kind: TAHARAH_KIND, taharah: { task: 'preBlock', day } });
       expect(pendingOf(`taharah:bedikaMorning:${day}`)).toBeUndefined();
       expect(pendingOf(`taharah:bedikaEvening:${day}`)).toBeUndefined();
@@ -866,7 +872,7 @@ ${t('taharah.disputed')}`,
   describe('rebuilds', () => {
     it('12 raises the schedule format stamp so an update rebuilds once', async () => {
       await NotificationScheduler.rebuild();
-      expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBe(6);
+      expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBe(7);
     });
 
     it('13 the taharah store and the opt-in drive a rebuild, and the teardown unsubscribes them', () => {

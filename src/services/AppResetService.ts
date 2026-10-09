@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { storage } from '@/services/StorageService';
 import { clearTaharahStorage } from '@/services/TaharahStorage';
+import { clearLastError, reportError } from '@/services/errors';
 import { useUserStore } from '@/stores/useUserStore';
 import { useMitzvotStore } from '@/stores/useMitzvotStore';
 import { useCompletionsStore } from '@/stores/useCompletionsStore';
@@ -15,6 +16,7 @@ export const AppResetService = {
   async reset(): Promise<void> {
     setSchedulingSuspended(true);
     try {
+      clearLastError();
       useUserStore.getState().reset();
       useMitzvotStore.getState().reset();
       useCompletionsStore.getState().reset();
@@ -22,14 +24,20 @@ export const AppResetService = {
       useTaharahStore.getState().reset();
       try {
         await NotificationScheduler.cancelAll();
-      } catch {}
+      } catch (error) {
+        reportError('reset', error);
+      }
       if (Platform.OS !== 'web') {
         try {
           storage.clearAll();
-        } catch {}
+        } catch (error) {
+          reportError('reset', error);
+        }
         try {
           clearTaharahStorage();
-        } catch {}
+        } catch (error) {
+          reportError('reset', error);
+        }
       }
     } finally {
       setSchedulingSuspended(false);

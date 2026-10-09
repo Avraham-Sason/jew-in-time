@@ -6,7 +6,7 @@ Audit date: 2026-08-09 · Commit `edf9211` (+ the uncommitted `skipIfDone` work)
 
 ## Status
 
-All 63 findings below are annotated. **58 are fixed**, verified by `pnpm typecheck` plus the Jest
+All 63 findings below are annotated. **59 are fixed**, verified by `pnpm typecheck` plus the Jest
 suite in four timezones (`pnpm test:tz`: UTC, Asia/Jerusalem, America/Los_Angeles,
 Pacific/Kiritimati). The four-zone part was only genuine from 2026-10-04 (see §8.7 below). Each fix
 carries a note under its finding.
@@ -54,12 +54,12 @@ Still open, deliberately:
   device's civil date rather than a halachic day. Changing that key format rewrites every stored
   completion and invalidates every already-scheduled notification id, so it needs a migration
   rather than an edit. The zmanim half of §2.8 is fixed.
-- **§7.3** — `expo-background-fetch` is deprecated upstream; its config plugin is now registered,
-  but migrating to `expo-background-task` is an SDK move, not a bug fix.
 - **§7.6** — names are aligned across app.json, the store metadata and the privacy policy, but the
   support/marketing/privacy URLs are still placeholders. No URL can be invented here.
-- **§1.4** — a root `ErrorBoundary` now exists, but the ~40 `.catch(() => {})` sites still swallow
-  silently. Surfacing them needs a user-visible error channel that does not exist yet.
+- **§1.4** — a root `ErrorBoundary` now exists, and since 2026-10-09 the consequential failures
+  reach the user through the error channel (`src/services/errors.ts` and the banner on home) and
+  Sentry (`src/services/crashReporting.native.ts`). The cosmetic `.catch(() => {})` sites still
+  swallow, by design.
 - **§8.8** — no screen-render tests. That needs `@testing-library/react-native`, which is not
   installed and would need a network install.
 
@@ -158,7 +158,7 @@ The consequential ones:
 - `home.tsx:167/175/181` — `markDone` / `markSkipped` / `unmark`. A failed write is indistinguishable from a successful one.
 - `settings.tsx:77/80` — enabling/disabling notifications.
 
-There is not one user-visible error path in the whole notification subsystem, and no crash reporter.
+Update 2026-10-09: the notification subsystem now has a user-visible error path (`src/services/errors.ts`, shown as a banner on home) and a crash reporter (Sentry, `src/services/crashReporting.native.ts`). When this was written it had neither.
 
 Fix: keep the swallow for cosmetics (haptics, `openSettings`); persist a `lastScheduleError` in the user store and render it as a banner on Home/Settings.
 
@@ -722,12 +722,14 @@ Separately, a Play Console submission declaring `SCHEDULE_EXACT_ALARM` without t
 
 Fix: use `USE_EXACT_ALARM` — this *is* a reminder/alarm app, which is the sanctioned use case; it is granted at install with no user step and no Play declaration form. Keep `SCHEDULE_EXACT_ALARM` alongside it only for Android 12/13. Surface the state in Settings either way.
 
-### 7.3 `expo-background-fetch` is deprecated, and its config plugin isn't registered — ⚠️ PARTIAL
+### 7.3 `expo-background-fetch` is deprecated, and its config plugin isn't registered — ✅ FIXED
 `package.json`, `app.json` plugins
 
 The installed build prints `expo-background-fetch: This library is deprecated. Use expo-background-task instead.` on every call, in production. Expo will remove it — and the daily rebuild is the app's only unattended refresh path, so this is a scheduled outage.
 
 Neither `expo-background-fetch` nor `expo-task-manager` is listed in `plugins`, although both ship `app.plugin.js`. Their plugins add `UIBackgroundModes: ['fetch']` (already set manually) **and Android `WAKE_LOCK` + `RECEIVE_BOOT_COMPLETED`**. `RECEIVE_BOOT_COMPLETED` is declared manually; **`WAKE_LOCK` is not**. *(Update 2026-08-09: after the clean prebuild of §7.1, `WAKE_LOCK` does appear in the generated manifest via autolinked module plugins, so this half is moot. The deprecation of `expo-background-fetch` stands.)*
+
+> **Fixed 2026-10-09 (1.0.18).** The daily rebuild moved to `expo-background-task`: task `jew-in-time-daily-rebuild-v2`, `minimumInterval: 60` minutes, the package's config plugin (which adds the `processing` background mode and the `BGTaskSchedulerPermittedIdentifiers` entry), `app.json` no longer declaring `fetch` itself (`expo-task-manager`'s own auto-applied plugin still adds it to the Info.plist), and `registerDailyRebuildTask()` unregisters the legacy `jew-in-time-daily-rebuild` registration on an updated install. It is a native change, so it reaches users with the build.
 
 ### 7.4 AGENTS.md documents four scripts that don't exist **[verified]** — ✅ FIXED
 `AGENTS.md:27` vs `package.json`

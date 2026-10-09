@@ -36,15 +36,18 @@ jest.mock('expo-notifications', () => ({
   registerTaskAsync: jest.fn(async () => null),
   getPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
   requestPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
-  AndroidImportance: { HIGH: 'high' },
-  AndroidNotificationVisibility: { PUBLIC: 'public' },
+  AndroidImportance: { HIGH: 'high', DEFAULT: 'default' },
+  AndroidNotificationVisibility: { PUBLIC: 'public', PRIVATE: 'private' },
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
 
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
-jest.mock('expo-background-fetch', () => ({
+jest.mock('expo-background-task', () => ({
   registerTaskAsync: jest.fn(),
-  BackgroundFetchResult: { NewData: 1, Failed: 2 },
+  unregisterTaskAsync: jest.fn(),
+  getStatusAsync: jest.fn(),
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
 }));
 
 import { HDate, months } from '@hebcal/core';
@@ -123,7 +126,7 @@ describe('NotificationScheduler hilula notices', () => {
 
     const before = pendingOf(`hilula:${CHESHVAN_3}:before`)!;
     expect(before.trigger!.date.getTime()).toBe(shkiaOn('2026-10-12').getTime());
-    expect(before.trigger!.channelId).toBe('default');
+    expect(before.trigger!.channelId).toBe('hilulot');
     expect(before.content.title).toBe(t('hilulot.notice.before.title', { names: RUZHIN_AND_OVADIA }));
     expect(before.content.body).toBe(t('hilulot.notice.before.body', { date: 'ג׳ חשון' }));
     expect(before.content.categoryIdentifier).toBeUndefined();
@@ -134,6 +137,7 @@ describe('NotificationScheduler hilula notices', () => {
     expect(evening.content.title).toBe(t('hilulot.notice.evening.title', { names: RUZHIN_AND_OVADIA }));
     expect(evening.content.body).toBe(t('hilulot.notice.evening.body', { date: 'ג׳ חשון' }));
     expect(evening.content.categoryIdentifier).toBeUndefined();
+    expect(evening.trigger!.channelId).toBe('hilulot');
   });
 
   it('3 drops a notice whose shkia has passed', async () => {

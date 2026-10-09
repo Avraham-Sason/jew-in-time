@@ -16,9 +16,12 @@ jest.mock('expo-notifications', () => ({
 }));
 
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
-jest.mock('expo-background-fetch', () => ({
+jest.mock('expo-background-task', () => ({
   registerTaskAsync: jest.fn(),
-  BackgroundFetchResult: { NewData: 1, Failed: 2 },
+  unregisterTaskAsync: jest.fn(),
+  getStatusAsync: jest.fn(),
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
 }));
 
 import { AppResetService } from '../AppResetService';
@@ -37,7 +40,7 @@ describe('AppResetService.reset', () => {
 
   it('wipes the taharah log, settings and persisted bytes, and replaces the key', async () => {
     useUserStore.getState().setNusach('chabad');
-    useUserStore.getState().setTheme('blue');
+    useUserStore.getState().setTheme('plum');
     useUserStore.getState().setGender('female');
     useUserStore.getState().setMaritalStatus('married');
     useUserStore.getState().setTaharahEnabled(true);

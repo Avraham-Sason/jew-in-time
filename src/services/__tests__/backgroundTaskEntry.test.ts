@@ -19,4 +19,15 @@ describe('background task entry wiring', () => {
     expect(entry).toContain("import 'expo-router/entry'");
     expect(entry).toContain("import './src/services/NotificationScheduler'");
   });
+
+  // Sentry has to be initialised before the router tree or the scheduler module run, so a crash
+  // during a headless launch is reported too.
+  it('index.js imports crashReporting before the router entry and the scheduler module', () => {
+    const entry = fs.readFileSync(path.join(ROOT, 'index.js'), 'utf8');
+    const imports = [...entry.matchAll(/^import '([^']+)';?$/gm)].map((match) => match[1]);
+    const crashReporting = imports.indexOf('./src/services/crashReporting');
+    expect(crashReporting).toBeGreaterThanOrEqual(0);
+    expect(crashReporting).toBeLessThan(imports.indexOf('expo-router/entry'));
+    expect(crashReporting).toBeLessThan(imports.indexOf('./src/services/NotificationScheduler'));
+  });
 });

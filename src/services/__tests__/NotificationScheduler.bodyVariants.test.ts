@@ -17,12 +17,16 @@ jest.mock('expo-notifications', () => ({
 }));
 
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
-jest.mock('expo-background-fetch', () => ({
+jest.mock('expo-background-task', () => ({
   registerTaskAsync: jest.fn(),
-  BackgroundFetchResult: { NewData: 1, Failed: 2 },
+  unregisterTaskAsync: jest.fn(),
+  getStatusAsync: jest.fn(),
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
 }));
 
 import { pickBodyForReminder } from '../NotificationScheduler';
+import { MITZVOT } from '@/data/mitzvot';
 import { Mitzvah, Reminder } from '@/types/mitzvah';
 
 const baseMitzvah: Mitzvah = {
@@ -87,4 +91,39 @@ describe('pickBodyForReminder', () => {
     };
     expect(pickBodyForReminder(reminder, mitzvah, new Date('2026-05-06T00:00:00Z'))).toBe('fallback\nטקסט\nברכה');
   });
+});
+
+describe('registry body variants', () => {
+  const withVariants = MITZVOT.flatMap((mitzvah) =>
+    mitzvah.defaultReminders.filter((r) => r.bodyVariants).map((reminder) => ({ mitzvah, reminder })),
+  );
+
+  it('keeps variants on the opening reminder of every daily mitzvah and the Omer', () => {
+    const ids = withVariants.map(({ mitzvah }) => mitzvah.id);
+    for (const id of [
+      'tefillin',
+      'tzitzit',
+      'krias_shma_shacharit',
+      'shacharit',
+      'mincha',
+      'maariv',
+      'sefirat_haomer',
+    ]) {
+      expect(ids).toContain(id);
+    }
+  });
+
+  it.each(withVariants.map(({ mitzvah, reminder }) => [mitzvah.id, mitzvah, reminder] as const))(
+    '%s offers three distinct non-empty variants that rotate day by day',
+    (_id, mitzvah, reminder) => {
+      const variants = reminder.bodyVariants!;
+      expect(variants).toHaveLength(3);
+      expect(new Set(variants.map((variant) => variant.trim())).size).toBe(3);
+      expect(variants.every((variant) => variant.trim().length > 0)).toBe(true);
+
+      const days = [0, 1, 2].map((offset) => new Date(Date.UTC(2026, 4, 6 + offset)));
+      const bodies = days.map((day) => pickBodyForReminder(reminder, mitzvah, day).split('\n')[0]);
+      expect(new Set(bodies)).toEqual(new Set(variants));
+    },
+  );
 });

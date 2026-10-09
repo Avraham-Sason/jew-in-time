@@ -2,11 +2,15 @@
   "expo": {
     "name": "יהודי בזמן",
     "slug": "jew-in-time",
-    "version": "1.0.17",
+    "version": "1.0.18",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "jewintime",
     "userInterfaceStyle": "automatic",
+    "locales": {
+      "he": "./locales/he.json",
+      "en": "./locales/en.json"
+    },
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
@@ -19,7 +23,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "מיקום נדרש לחישוב זמני הלכה מדויקים לפי האזור שלך.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "מיקום נדרש לחישוב זמני הלכה מדויקים ולרענון יומי של התראות.",
-        "UIBackgroundModes": ["fetch"],
+        "UIBackgroundModes": ["processing"],
+        "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -51,7 +56,8 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "מיקום נדרש לחישוב זמני הלכה מדויקים."
+          "locationAlwaysAndWhenInUsePermission": "מיקום נדרש לחישוב זמני הלכה מדויקים ולרענון יומי של התראות.",
+          "locationAlwaysPermission": "מיקום נדרש לחישוב זמני הלכה מדויקים ולרענון יומי של התראות."
         }
       ],
       [
@@ -64,13 +70,21 @@
       "./scripts/withMitzvahNotificationAction",
       "./scripts/withExactAlarmPermissions",
       "expo-task-manager",
-      "expo-background-fetch",
+      "expo-background-task",
       "expo-asset",
       "expo-secure-store",
       [
         "expo-local-authentication",
         {
           "faceIDPermission": "זיהוי הפנים משמש לנעילת מסכי הטהרה בלבד"
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "<sentry-org>",
+          "project": "<sentry-project>",
+          "url": "https://sentry.io/"
         }
       ]
     ],

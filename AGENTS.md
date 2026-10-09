@@ -4,7 +4,7 @@ Canonical working notes for AI agents in this repository. Keep this file current
 
 ## Project Snapshot
 
-- App: Hebrew-first Expo/React Native mobile app for daily mitzvah reminders inside halachic time windows. The current display name is configured in [app.json](app.json); the package/slug remains `jew-in-time`.
+- App: Hebrew-first Expo/React Native mobile app for daily mitzvah reminders inside halachic time windows. The current display name is configured in [app.json](app.json); the package/slug remains `jew-in-time`. The English display name, "Jew in Time", comes from [locales/en.json](locales/en.json).
 - EAS project: `@avraham-sason/jew-in-time`, ID `8cc2a377-fcc9-4c78-bdde-ec0fc8f2a84e`.
 - Runtime model: local/offline first. Zmanim, Hebrew calendar, history, settings, completions, and reminders are computed on-device. There is no backend.
 - Primary platforms: iOS, Android, and a web build for smoke/headless checks. Native notification/MMKV behavior requires a dev client or native build, not plain Expo Go.
@@ -55,7 +55,8 @@ Two different mechanisms ship this app, and the choice is not stylistic: one rea
 - **Anything Metro bundles** — TypeScript, JSX, i18n strings, and bundled assets (fonts and the siddur texts included) — ships as an over-the-air update: `pnpm update:preview`, or `pnpm update:production` for real users.
 - **Anything native** — a dependency with native code, an Android permission, a config plugin under [scripts/](scripts), or an identity field in [app.json](app.json) — needs a build: `pnpm build:android:production`. EAS builds it on its own servers and runs prebuild there, which is why the native folders stay gitignored and are safe to delete locally.
 - A native module that `expo` already links transitively (`expo-file-system`, `expo-keep-awake`) may be added as a direct dependency over OTA only at the exact version the shipped binary carries. Check the committed lockfile before raising one.
-- The taharah feature added `expo-secure-store`, `expo-crypto` and `expo-local-authentication`, none of which the 1.0.16 binary carries, and set `android.allowBackup` to false so the scheduled reminders expo-notifications keeps in SharedPreferences (their ids name the taharah task and day) never ride a Google backup. Until a build with a version bump ships, nothing that imports those modules may go out as an update.
+- The taharah feature added `expo-secure-store`, `expo-crypto` and `expo-local-authentication`, none of which the 1.0.16 binary carries, and set `android.allowBackup` to false so the scheduled reminders expo-notifications keeps in SharedPreferences (their ids name the taharah task and day) never ride a Google backup. Until a build with a version bump ships, nothing that imports those modules may go out as an update; 1.0.18 is that build, and it also carries `@sentry/react-native` and `expo-background-task` (which replaced `expo-background-fetch`).
+- Crash reporting is Sentry ([src/services/crashReporting.native.ts](src/services/crashReporting.native.ts)). It is native, so it ships only in a build. It stays off without `EXPO_PUBLIC_SENTRY_DSN`, which Metro inlines at bundle time (see [.env.example](.env.example)); `SENTRY_AUTH_TOKEN`, which uploads source maps during an EAS build, is an EAS secret, never a file. `pnpm.onlyBuiltDependencies` in [package.json](package.json) allows the `postinstall` of `@sentry/cli`, which pnpm 10 would otherwise skip, and EAS needs it too for the `sentry-cli` binary the Sentry Expo plugin runs during a build. The `organization` and `project` of the `@sentry/react-native/expo` entry in [app.json](app.json) are placeholders until the user fills them, and the `development` profiles in [eas.json](eas.json) set `SENTRY_DISABLE_AUTO_UPLOAD`.
 
 An update carries no native code, so shipping a native change as an update produces a bundle that calls into something the installed binary does not have. Prefer an update; reach for a build only when the change is actually native.
 
@@ -93,12 +94,13 @@ Store copy lives in [release/](release).
 
 - [src/app/](src/app) - Expo Router routes. The router root is set in [app.json](app.json) via `extra.router.root`.
 - [src/app/_layout.tsx](src/app/_layout.tsx) - Root providers, font loading, onboarding redirect guard, RTL bootstrap, notification handler init, and the exported `ErrorBoundary`.
-- [src/app/(tabs)/](<src/app/(tabs)>) - Main tabs: home, schedule, history, library, settings; the hidden `index` redirects to home.
+- [src/app/(tabs)/](<src/app/(tabs)>) - Main tabs: schedule, history, home, siddur, settings; the hidden `index` redirects to home.
+- [src/app/mitzvot.tsx](src/app/mitzvot.tsx) - The mitzvot library as a stack screen, opened from Settings and the onboarding ready screen.
 - [src/app/onboarding/](src/app/onboarding) - Onboarding flow: welcome, profile (gender, marital status and the taharah opt-in), nusach, location/notifications, ready.
 - [src/app/taharah/](src/app/taharah) - Taharat hamishpacha: dashboard, event log, calendar and minhag settings, behind the biometric lock in its `_layout.tsx`.
 - [src/app/mitzvah/[id].tsx](<src/app/mitzvah/[id].tsx>) - Static and custom mitzvah details, reminders, content blocks.
 - [src/app/siddur/[id].tsx](<src/app/siddur/[id].tsx>) - Nusach reader: a mitzvah's or a standalone text in the user's nusach and language, resolved for the day, with optional auto-scroll.
-- [src/app/siddur/index.tsx](src/app/siddur/index.tsx) - Siddur catalog: the twelve standalone texts (meals, blessings, travel, night, festivals and celebrations) by group, each greyed out on a day it is not said, opened from home and the library header.
+- [src/app/(tabs)/siddur.tsx](<src/app/(tabs)/siddur.tsx>) - Siddur tab: today's texts first, then the twelve standalone texts (meals, blessings, travel, night, festivals and celebrations) by group, each greyed out on a day it is not said. [src/app/siddur/index.tsx](src/app/siddur/index.tsx) only redirects `/siddur` to it.
 - [src/app/day/[date].tsx](<src/app/day/[date].tsx>) - Read-only per-day route for schedule/history drilldown.
 - [src/app/custom-mitzvah.tsx](src/app/custom-mitzvah.tsx) - Create/edit custom mitzvot.
 - [src/app/checkin.tsx](src/app/checkin.tsx) - Post-block check-in: mark what was done during the Shabbat / Yom Tov block that just ended.
@@ -112,9 +114,10 @@ Store copy lives in [release/](release).
 - [src/hooks/](src/hooks) - Shared React hooks (`useNow`).
 - [src/i18n/](src/i18n) - Flat [he.json](src/i18n/he.json) and [en.json](src/i18n/en.json) dictionaries plus a tiny translation wrapper.
 - [src/testing/](src/testing) - Test-only fixture helpers. Never imported by shipped code.
+- [locales/](locales) - Native string tables (`he.json`, `en.json`) wired by `locales` in [app.json](app.json): the app's display name per language on iOS (`CFBundleDisplayName`) and Android (`app_name`), and the iOS location and Face ID permission prompts. They are native, so a change ships only in a build.
 - [scripts/](scripts) - Local workflow scripts and Expo config plugins.
 - [scripts/siddur/](scripts/siddur) - Build from pinned Sefaria and Wikisource sources to [assets/siddur/](assets/siddur), the generated nusach texts.
-- [design/jew-in-time/](design/jew-in-time) - Claude Design handoff. Use it only for UI/design work; read its README and Hi-Fi prototype before porting visuals.
+- [design/jew-in-time/](design/jew-in-time) - Claude Design handoff. Use it only for UI/design work; read its README and Hi-Fi prototype before porting visuals. [design/stage1-previews/index.html](design/stage1-previews/index.html) is the preview board for the shipped design system (logo, icon styles, palettes, type scale).
 - [docs/](docs) - Public site published through GitHub Pages: support page, the privacy policy both stores link to, and [taharah-review.html](docs/taharah-review.html), the rule table a rav reviews.
 - [release/](release) - Store listing and privacy policy drafts.
 - [AUDIT.md](AUDIT.md) - Failure-point audit with per-finding status. Read before assuming a known defect is still open.
@@ -191,12 +194,15 @@ Taharat hamishpacha (the niddah cycle) is tracked on the device only, behind an 
 
 ## Notification Engine
 
-[NotificationScheduler.ts](src/services/NotificationScheduler.ts) is the scheduling brain. Keep API parity with [NotificationScheduler.web.ts](src/services/NotificationScheduler.web.ts).
+[NotificationScheduler.ts](src/services/NotificationScheduler.ts) is the scheduling facade. Keep API parity with [NotificationScheduler.web.ts](src/services/NotificationScheduler.web.ts).
+
+Module layout: the schedule is built by a one-way pipeline in [src/services/notifications/](src/services/notifications) — `readPlanInput()` reads the stores once into a `PlanInput`, `buildPlan()` runs pure planners (mitzvot, holy-block notice, hilulot, check-in, taharah) over it and returns channel-tagged `ScheduleCandidate`s sorted and capped, and `os.schedule()` is the only code that hands them to expo-notifications. The facade keeps the public exports, the lock, suppression and mark-done, the update notice, permissions, the handlers and both `defineTask` calls. [src/services/notifications/AGENTS.md](src/services/notifications/AGENTS.md) holds the contract.
 
 Important constants and contracts:
 
 - Categories: `mitzvah_reminder` (mark-done only) and `mitzvah_reminder_text` (open text + mark done), chosen per reminder by `hasSiddurText()`, except that a trigger on a block's opening edge (candle lighting) gets mark-done only: every screen it could open is behind the Shabbat screen
 - Actions: `MARK_DONE` (background) and `OPEN_TEXT` (opens the app to `/siddur/[id]?date=`)
+- Android channels (`ANDROID_CHANNELS`, planned per candidate): `default` for mitzvah reminders and the pre-block notice (the id is kept so installs keep the sound the user chose), `hilulot`, `taharah` (private on the lock screen) and `system` for check-in reminders and the update notice. A reminder's `data.hasText` is the same decision as its category (`mitzvah_reminder_text` exactly when it is true) and sends the body tap to the reader. The channel table is in [src/services/AGENTS.md](src/services/AGENTS.md).
 - Scheduled identifier format: `${mitzvahId}__${YYYY-MM-DD}__${reminderIndex}`. A notification not tied to a mitzvah uses an id without `__` and carries `data.kind`: the pre-block notice is `blockNotice:<first holy day>`, with no category. The update notice is `update:<update id>`, `data.kind = 'update'` with `data.updateId`, presented at once, with no category. A hilula notice is `hilula:<hebrew abs day>:<before|evening>`, `data.kind = 'hilula'`, with no category.
 - Pending guard: `PENDING_LIMIT = 60`, `IOS_MAX = 64`
 - Horizon: the location's calendar days from today and tomorrow, then on through any holy block that is reached or starts the next day, up to the first weekday after it. Each step is the device-local midnight of that location date with its zmanim read at the location's noon, so ids and completion keys name the window's own day and a DST change in either zone cannot skip or repeat one. Candidates are ordered by trigger time and capped at `IOS_MAX - 4` on iOS / `PENDING_LIMIT` elsewhere, so an overflow drops the furthest-out reminders rather than all of tomorrow.
@@ -204,7 +210,7 @@ Important constants and contracts:
 - The pre-block notice fires an hour before candle lighting for every user with notifications on: title by block kind, lighting and exit times, the Omer counts of the block's nights when `sefirat_haomer` is enabled, and a line for each hilula whose notice the block swallows when `hilulotEnabled` is on.
 - Hilula notices (`hilula:<abs>:<before|evening>`) exist only while `useUserStore.hilulotEnabled`: one at the shkia a day before a tzaddik's date opens and one at the shkia that opens it, for the core list in [src/data/hilulot.ts](src/data/hilulot.ts). They are a setting, not a mitzvah: the library lists them as a row (the user's call, 2026-10-08), but they stay out of `MITZVOT`, so they never reach history, the streak, home, the check-in or `MARK_DONE`.
 - Taharah reminders (`taharah:<task>:<hebrew abs day>[:<onah>]`, `data.kind = 'taharah'`) are built from `taharahTasksFor()` for every horizon day when the feature is on: hefsek before shkia, the two daily bedikot (category `taharah_bedika`, whose `MARK_DONE` records a clean bedika), tevila prep and tevila at tzeit, perisha onot, the onah-beinonit bedika, "did the period arrive", a `postBlock` nudge after a block with unrecorded bedikot, and one merged `preBlock` notification for everything a block would have swallowed. Discreet wording is the default. [src/services/AGENTS.md](src/services/AGENTS.md) holds the details.
-- Daily rebuild task: `jew-in-time-daily-rebuild`, registered hourly. Its rebuild is gated by `notifications:last-rebuild-date` and intended to run once per local day at/after 00:15; every run also calls `notifyIfUpdateReady()`.
+- Daily rebuild task: `jew-in-time-daily-rebuild-v2`, an `expo-background-task` task registered with `minimumInterval: 60` (minutes; the OS decides the real cadence). Registering it first unregisters the legacy `jew-in-time-daily-rebuild` that an `expo-background-fetch` build left behind. Its rebuild is gated by `notifications:last-rebuild-date` and intended to run once per local day at/after 00:15; every run also calls `notifyIfUpdateReady()`.
 - Background notification action task: `jew-in-time-notification-actions`.
 - Delivery must stay EXACT. expo-notifications only calls `setExactAndAllowWhileIdle` when `AlarmManager.canScheduleExactAlarms()` is true, and there is no JS API to detect the fallback — so the manifest is the only guarantee. `USE_EXACT_ALARM` covers API 33+, `SCHEDULE_EXACT_ALARM` (capped at `maxSdkVersion=32` by [scripts/withExactAlarmPermissions.js](scripts/withExactAlarmPermissions.js)) covers Android 12. Pinned by [exactAlarmConfig.test.ts](src/services/__tests__/exactAlarmConfig.test.ts).
 
@@ -212,7 +218,7 @@ Behavior to preserve:
 
 - `scheduleAll()` and `rebuild()` go through `withLock()`, which coalesces on the trailing edge: a request arriving mid-run queues exactly one re-run so the newest state is always applied.
 - `rebuild()` cancels all scheduled notifications and schedules enabled mitzvot again. Only `rebuildForNewDay()` records the last rebuild date, so a settings-driven rebuild cannot suppress the nightly recovery run.
-- `scheduleOne()` skips disabled/no-permission cases, Shabbat/Yom Tov skips, `null` windows, skipped or completed mitzvot for that date, past triggers, and any trigger strictly inside a holy block.
+- A plan holds nothing for disabled or no-permission cases, Shabbat/Yom Tov skips, `null` windows, skipped or completed mitzvot for that date, past triggers, and any trigger strictly inside a holy block.
 - `cancelForMitzvah(id, date)` cancels all pending reminders for that mitzvah/date and dismisses the presented ones, so marking a mitzvah done anywhere clears it from the tray and prevents later same-day notifications.
 - A language change rebuilds the schedule, because notification text and button titles are translated at scheduling time.
 - `SCHEDULE_FORMAT` is raised whenever a scheduled notification changes shape, so the first foreground after an update rebuilds once.
@@ -220,7 +226,7 @@ Behavior to preserve:
 - `initNotificationHandlers()` is called from [_layout.tsx](src/app/_layout.tsx) after fonts load and returns a teardown the layout runs on unmount. It also calls `refreshSchedulingOnForeground()`, which home repeats on `AppState 'active'` so the horizon cannot silently expire. It sets the foreground handler, registers category/action tasks, syncs permission, dismisses already-completed presented notifications, subscribes to store changes, and registers the daily rebuild task.
 - Tapping the notification body routes to `/mitzvah/[id]`; tapping `OPEN_TEXT` routes to `/siddur/[id]` with the notification's `dateKey`, buffered like the body tap on a cold start; tapping `MARK_DONE` marks completion without foregrounding the app. The pre-block notice opens home, a check-in reminder opens `/checkin`, a hilula notice opens `/hilulot`, and an update notice reloads into its update, or opens home when that update, or a newer one, is already running (`isUpdateApplied()`). Inside a holy block a tap opens nothing (only `MARK_DONE` still runs), and a tap buffered on a cold start before the block is dropped rather than replayed into it.
 - [withMitzvahNotificationAction.js](scripts/withMitzvahNotificationAction.js) is an Expo config plugin that writes an Android Kotlin service to dismiss a notification after the mark-done action. Keep this in mind when changing notification action IDs.
-- Both `TaskManager.defineTask` calls live at [NotificationScheduler.ts](src/services/NotificationScheduler.ts) module scope, and the bundle entry is the root [index.js](index.js) (the `main` field in [package.json](package.json)), which imports that module. A killed-state `MARK_DONE` tap and background fetch arrive as headless launches that never load route modules — a `defineTask` reachable only through the router tree never runs and the OS-invoked event is silently dropped. Pinned by [backgroundTaskEntry.test.ts](src/services/__tests__/backgroundTaskEntry.test.ts).
+- Both `TaskManager.defineTask` calls live at [NotificationScheduler.ts](src/services/NotificationScheduler.ts) module scope, and the bundle entry is the root [index.js](index.js) (the `main` field in [package.json](package.json)), which imports [src/services/crashReporting.ts](src/services/crashReporting.ts) first, so Sentry is up in a headless launch too, then the router entry and that module. A killed-state `MARK_DONE` tap and a background task arrive as headless launches that never load route modules — a `defineTask` reachable only through the router tree never runs and the OS-invoked event is silently dropped. Pinned by [backgroundTaskEntry.test.ts](src/services/__tests__/backgroundTaskEntry.test.ts).
 
 The web scheduler file is intentionally a no-op shim. If adding exported scheduler helpers, add matching exports to both native and web files.
 
@@ -228,7 +234,7 @@ The web scheduler file is intentionally a no-op shim. If adding exported schedul
 
 All primary stores use Zustand with MMKV persistence through `StorageService.createZustandStorage()`, except `useTaharahStore`, which persists to its own encrypted instance. Every store passes `version` and the identity `migrate` from [persistOptions.ts](src/stores/persistOptions.ts): without a `migrate`, zustand discards the persisted state on a version mismatch.
 
-- `useUserStore` (`user-store`): nusach, location, theme (one of the six palette names), language, notification permission/toggle, profile fields, halachic opinions, in-Israel flag, onboarding flag, the reader's text size and auto-scroll (`siddurAutoScroll`, off by default, and `siddurScrollSpeed`, a level into `SIDDUR_SCROLL_SPEEDS`), the hilula notices switch (`hilulotEnabled`, off by default), `gender` and `maritalStatus` (`married` or `single`), each `null` until answered, taharah opt-in.
+- `useUserStore` (`user-store`): nusach, location, theme (one of the three palette names), language, notification permission/toggle, profile fields, halachic opinions, in-Israel flag, onboarding flag, the reader's text size and auto-scroll (`siddurAutoScroll`, off by default, and `siddurScrollSpeed`, a level into `SIDDUR_SCROLL_SPEEDS`), the hilula notices switch (`hilulotEnabled`, off by default), `gender` and `maritalStatus` (`married` or `single`), each `null` until answered, taharah opt-in.
 - `useMitzvotStore` (`mitzvot-store`): enabled state and custom reminders per mitzvah.
 - `useCompletionsStore` (`completions-store`): `completions[YYYY-MM-DD][mitzvahId] = timestamp` and parallel `skipped` map, `checkIns[firstHolyDay] = finishedAt`, and `archivedDays` — runs of kept days that retention pruned, so the streak reaches past 400 days.
 - `useCustomMitzvotStore` (`custom-mitzvot-store`): user-created mitzvah definitions.
@@ -242,12 +248,18 @@ All primary stores use Zustand with MMKV persistence through `StorageService.cre
 
 - The app loads Heebo font weights in [_layout.tsx](src/app/_layout.tsx).
 - Use `useTheme()` and `src/theme/*` tokens. Avoid hard-coded colors in new UI unless there is a narrow reason.
-- Six palettes live in [src/theme/colors.ts](src/theme/colors.ts): gold, pink, purple, blue, dark and plum (dark plum with a rose accent), chosen in Settings as colour circles with no visible labels. `gold` / `onGold` / `goldLight` are each palette's accent tokens, `goldText` is the accent as a text colour on light surfaces (gold itself reads 2.75:1 on white), `onUrgent` is the label colour on an `urgent` fill, `headerAccent` is the accent drawn on the header, and `isDark` is true for the two dark palettes (`DARK_THEMES`).
+- Three palettes live in [src/theme/colors.ts](src/theme/colors.ts): gold, dark and plum (dark plum with a rose accent), chosen in Settings as colour circles with no visible labels. `gold` / `onGold` / `goldLight` are each palette's accent tokens, `goldText` is the accent as a text colour on light surfaces (gold itself reads 2.75:1 on white), `onUrgent` is the label colour on an `urgent` fill, `headerAccent` is the accent drawn on the header, `overlay` is the scrim behind sheets and dialogs, and `isDark` is true for the two dark palettes (`DARK_THEMES`). `BRAND` (`navy`, `gold`, `parchment`, `white`) holds the palette-independent brand colours the logo, the provider-free error boundary and a Switch thumb use.
+- The type scale in [src/theme/typography.ts](src/theme/typography.ts) is display 28, title 22, heading 17, subheading / body / bodyBold 15, caption / captionBold 13, small 12 and micro 11. Spacing and radius come from [src/theme/tokens.ts](src/theme/tokens.ts) (`spacing` xs 4 to xxxl 40, `radius` xs 4 to xxl 24 and full).
 - Translation tables are flat JSON dictionaries in [he.json](src/i18n/he.json) and [en.json](src/i18n/en.json); tests enforce key parity and non-empty values.
 - `setLocale()` and `useI18n()` are lightweight wrappers. The `i18n-js` package is installed but the current app does not rely on the normal `i18n-js` runtime API.
 - RTL is dynamic based on `useUserStore.language`. `_layout.tsx` calls `I18nManager.allowRTL/forceRTL`; native language direction changes can require a reload.
 - Web also sets `document.documentElement.dir/lang` and `body.dir`.
-- Main reusable UI components: `MitzvahCard`, `CompletedRow`, `ReminderEditor`, `TimeRibbon`, `BottomTabs`, `NavBar`, `AppLogo`, `ShabbatScreen`, `ChipRow`, `SettingsSection`, `DayStepper`, `OnboardingDots`, `ChoiceRow`, `ThemeSwatchRow`, `ScrollSpeedStepper` and `TaharahLock`.
+- Main reusable UI components: `MitzvahCard`, `CompletedRow`, `ReminderEditor`, `TimeRibbon`, `BottomTabs`, `NavBar`, `AppLogo`, `ShabbatScreen`, `ChipRow`, `SettingsSection`, `DayStepper`, `OnboardingDots`, `ChoiceRow`, `ThemeSwatchRow`, `ScrollSpeedStepper`, `TaharahLock`, `ScreenHeader` / `HeaderPill`, `SegmentedControl`, `ConfirmDialog`, `BottomSheet` / `SheetAction`, `Banner`, `SectionLabel`, `ListRow`, `IconTile` and `MitzvahIcon`.
+- Design-system rules, each guarded by [designSystem.test.ts](src/app/__tests__/designSystem.test.ts) where a source scan can check it:
+  - A stack screen renders `ScreenHeader` (back pill, title, `actions`); a tab renders `NavBar`. Neither keeps a local back button or header style.
+  - Icons come from `MitzvahIcon` / `IconTile`, a mitzvah's through `iconFor(mitzvah.icon)`; no text glyph stands in for one.
+  - A segmented choice is `SegmentedControl`, a confirmation `ConfirmDialog`, an action sheet or picker `BottomSheet` with `SheetAction`, a status strip `Banner`, a list heading `SectionLabel`, an icon-title-caption row `ListRow`, and a pill row `ChipRow`; a screen never keeps a local copy and renders no `Modal` of its own.
+  - No spacing or radius literal where a token matches, no white literal (`onGold`, `onUrgent` or `BRAND.white`), and no `fontWeight` on Heebo text (a `typography` variant or `fontFamilies.heebo`).
 
 ## Tests
 
@@ -262,13 +274,15 @@ Coverage areas:
 - [src/i18n/__tests__/](src/i18n/__tests__) - translation parity and brand regression checks.
 - [src/theme/__tests__/](src/theme/__tests__) - token/key sanity.
 - [src/app/__tests__/routes.test.ts](src/app/__tests__/routes.test.ts) - Expo Router route discovery/regression tests.
+- [src/app/__tests__/designSystem.test.ts](src/app/__tests__/designSystem.test.ts) - Source-level design-system tripwires: no text glyph icons, white literals, `fontWeight` or Heebo font-name literals outside their one home, stack screens on `ScreenHeader` and tabs on `NavBar`, and one `settings.theme.<name>` label per palette.
 - [src/components/__tests__/](src/components/__tests__) - reusable component behavior.
+- [src/components/__tests__/](src/components/__tests__) `*.render.test.tsx` - render tests of the shared building blocks (`ConfirmDialog`, `BottomSheet`, `Banner`, `MitzvahCard`, `ScreenHeader`, `SegmentedControl`, `ListRow`) on `@testing-library/react-native`, rendered through `renderWithTheme()` from [src/testing/render.tsx](src/testing/render.tsx). They assert roles, labels, states, call counts and palette colours; there are no snapshots.
 
 Test rules that exist because the suite once passed while the app was broken:
 
 - A test must import the shipped implementation. Re-declaring the logic under test asserts only that the test agrees with itself.
 - Assert values, not types. `expect(typeof x).toBe('boolean')` passes for both answers.
-- A test must be able to fail for the reason it claims. `scheduleOne` compares triggers against the real clock, so fixtures in the past pass vacuously; derive dates from `Date.now()` instead.
+- A test must be able to fail for the reason it claims. `planMitzvot` (run through `buildPlan`) drops every trigger before `input.now`, which is the real clock unless a test passes one, so fixtures in the past pass vacuously; derive dates from `Date.now()` instead.
 - A fixture must mean the same moment in every zone. `new Date(2026, 3, 24, 20)` is 20:00 on the device's clock, so build an instant for an instant API with `at(location, '2026-04-24T20:00')` from [src/testing/zmanim.ts](src/testing/zmanim.ts). Calendar-day APIs (`dateKey`, `getHebrewDate`, `getHolidays`, and `isShabbat` / `omerDayFor` without a location) read device-local dates, so they take local-component dates.
 - Run [pnpm test:tz](scripts/test-timezones.js) after touching date or timezone logic. It runs every suite in four real zones, and a setup guard fails any run whose zone did not take effect.
 - A suite that schedules notifications pins `Date` (and only `Date`) to a fixed weekday. Nothing fires inside a holy block, so on the real clock the suite would fail every Shabbat. Faking timers or `queueMicrotask` too would stall the completion store's queued side effects.
@@ -296,12 +310,13 @@ pnpm typecheck
 ## Common Change Checklist
 
 - New route: add the file under [src/app/](src/app), update navigation/tabs if needed, then update [routes.test.ts](src/app/__tests__/routes.test.ts).
+- New screen: open two sibling screens of the same kind first. A stack screen takes `ScreenHeader`, a tab `NavBar`; build lists, sheets, dialogs, banners and segmented choices from the shared components, take every colour, spacing, radius and type style from the theme tokens, put its icons through `MitzvahIcon` / `IconTile`, add both dictionaries' keys, and document it in the closest AGENTS.md. [designSystem.test.ts](src/app/__tests__/designSystem.test.ts) must stay green.
 - New UI copy: update both [he.json](src/i18n/he.json) and [en.json](src/i18n/en.json), then run i18n tests.
 - New theme token: add it to every palette in `THEMES` in [colors.ts](src/theme/colors.ts), then run theme tests.
 - New mitzvah: update the registry, default enabled behavior, detail/schedule/history expectations, and tests. A mitzvah added after release needs the `merge` in [useMitzvotStore.ts](src/stores/useMitzvotStore.ts) to reach existing users.
 - New scheduler export: update [NotificationScheduler.web.ts](src/services/NotificationScheduler.web.ts) too; [schedulerWebParity.test.ts](src/services/__tests__/schedulerWebParity.test.ts) enforces it.
 - New notification action/category ID: update scheduler constants, response handling, the [Android config plugin](scripts/withMitzvahNotificationAction.js), and notification tests.
-- New notification not tied to a mitzvah: an id `parseId` rejects (no `__`), a `data.kind`, no mitzvah category (its "done" button would mark a fake mitzvah), the kind in both scheduler files' `PendingNotificationMeta`, and its tap route in [notificationResponseHandler.ts](src/services/notificationResponseHandler.ts).
+- New notification not tied to a mitzvah: an id `parseId` rejects (no `__`), a `data.kind`, no mitzvah category (its "done" button would mark a fake mitzvah), the kind in `PendingNotificationMeta` ([ids.ts](src/services/notifications/ids.ts) and the web shim), a planner candidate that names its channel, and its tap route in [notificationResponseHandler.ts](src/services/notificationResponseHandler.ts).
 - New decision about whether the app may act at an instant: extend `quietBlockAt()` in [skipRules.ts](src/utils/skipRules.ts). Never add a second copy of the quiet window.
 - New background task (`TaskManager.defineTask`): define it in a module imported from the root [index.js](index.js), never only behind a route module — headless launches do not load the router tree.
 - New persisted store field: add a default and reset behavior; a nested shape change bumps `STORE_VERSION` and replaces the identity `migrate` in [persistOptions.ts](src/stores/persistOptions.ts) with a step that transforms the old state.
@@ -312,7 +327,7 @@ pnpm typecheck
 - New or moved AGENTS.md: run [pnpm check:dox](scripts/check-dox.js) — it verifies links, section order, and every Child DOX Index.
 - Version bump: raise `version` in [app.json](app.json) and [package.json](package.json) in the same edit, and only in a change that also produces a native build. See [Release and Updates](#release-and-updates) for why a bump on its own strands every installed user.
 - New taharah rule or preset value: change [taharahPresets.ts](src/data/taharahPresets.ts), raise `TAHARAH_RULES_VERSION`, update the pinned values in its test and the same cell in [docs/taharah-review.html](docs/taharah-review.html), then run `pnpm test:tz -- src/utils/__tests__/taharah`.
-- New taharah event type or task kind: extend [taharah.ts](src/types/taharah.ts), the engine, the scheduler's `taharah.task` union in both scheduler files, and the log screen.
+- New taharah event type or task kind: extend [taharah.ts](src/types/taharah.ts), the engine, the `taharah.task` union of `PendingNotificationMeta` in [ids.ts](src/services/notifications/ids.ts) and the web shim, the taharah planner, and the log screen.
 
 ## Documentation Notes
 

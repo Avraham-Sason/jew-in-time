@@ -9,7 +9,13 @@ jest.mock('expo-notifications', () => ({
   AndroidNotificationVisibility: { PUBLIC: 'public' },
 }));
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
-jest.mock('expo-background-fetch', () => ({ registerTaskAsync: jest.fn(), BackgroundFetchResult: {} }));
+jest.mock('expo-background-task', () => ({
+  registerTaskAsync: jest.fn(),
+  unregisterTaskAsync: jest.fn(),
+  getStatusAsync: jest.fn(),
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
+}));
 
 // Previously this file re-declared its own copy of buildTriggerTime — the shipped one was not even
 // exported, so a sign flip in the real implementation could never fail a test here.

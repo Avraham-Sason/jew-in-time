@@ -1,7 +1,7 @@
 import type { OnahKind, TaharahTaskKind } from '@/types/taharah';
 import { useUserStore } from '@/stores/useUserStore';
 
-const DAILY_REBUILD_TASK = 'jew-in-time-daily-rebuild';
+const DAILY_REBUILD_TASK = 'jew-in-time-daily-rebuild-v2';
 const NOTIFICATION_ACTION_TASK = 'jew-in-time-notification-actions';
 const MITZVAH_REMINDER_CATEGORY = 'mitzvah_reminder';
 const MITZVAH_TEXT_CATEGORY = 'mitzvah_reminder_text';
@@ -11,6 +11,7 @@ const UPDATE_NOTIFIED_KEY = 'notifications:update-notified';
 const TAHARAH_BEDIKA_CATEGORY = 'taharah_bedika';
 const MARK_DONE_ACTION = 'MARK_DONE';
 const OPEN_TEXT_ACTION = 'OPEN_TEXT';
+const ANDROID_CHANNELS = { mitzvot: 'default', hilulot: 'hilulot', taharah: 'taharah', system: 'system' } as const;
 const PENDING_LIMIT = 60;
 const IOS_MAX = 64;
 const LAST_REBUILD_KEY = 'notifications:last-rebuild-date';
@@ -25,9 +26,11 @@ export type PendingNotificationMeta = {
   updateCreatedAt?: string;
   mitzvahId?: string;
   dateKey?: string;
+  windowEnd?: string;
   reminderIndex?: number;
   customId?: string;
   skipIfDone?: boolean;
+  hasText?: boolean;
   fullContent?: unknown[] | null;
 };
 
@@ -107,6 +110,7 @@ export function initNotificationHandlers(): () => void {
 }
 
 export {
+  ANDROID_CHANNELS,
   PENDING_LIMIT,
   IOS_MAX,
   DAILY_REBUILD_TASK,

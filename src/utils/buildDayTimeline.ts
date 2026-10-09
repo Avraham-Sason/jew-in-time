@@ -3,6 +3,7 @@ import { Location, Zmanim } from '@/types/zmanim';
 import { ZmanimService } from '@/services/ZmanimService';
 import { isSkippedAt } from '@/utils/skipRules';
 import { locationNoon } from '@/utils/locationDay';
+import { mitzvahName } from '@/utils/mitzvahName';
 import { Completions, dateKey } from '@/stores/useCompletionsStore';
 
 export type TimelineItem = {
@@ -79,7 +80,7 @@ export function buildDayTimeline(
     if (isSkippedAt(mitzvah, window.start, location, settings)) return;
     timeline.push({
       id: `${mitzvah.id}-${window.start.toISOString()}`,
-      name: language === 'en' && mitzvah.name.en ? mitzvah.name.en : mitzvah.name.he,
+      name: mitzvahName(mitzvah, language),
       time: window.start,
       type: 'mitzvah',
       done: Boolean(doneToday[mitzvah.id]),

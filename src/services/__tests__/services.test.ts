@@ -26,9 +26,12 @@ jest.mock('expo-notifications', () => ({
 }));
 
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
-jest.mock('expo-background-fetch', () => ({
+jest.mock('expo-background-task', () => ({
   registerTaskAsync: jest.fn(),
-  BackgroundFetchResult: { NewData: 1, Failed: 2 },
+  unregisterTaskAsync: jest.fn(),
+  getStatusAsync: jest.fn(),
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
 }));
 
 import { StorageService } from '../StorageService';

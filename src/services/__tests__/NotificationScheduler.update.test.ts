@@ -68,15 +68,18 @@ jest.mock('expo-notifications', () => ({
   registerTaskAsync: jest.fn(async () => null),
   getPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
   requestPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
-  AndroidImportance: { HIGH: 'high' },
-  AndroidNotificationVisibility: { PUBLIC: 'public' },
+  AndroidImportance: { HIGH: 'high', DEFAULT: 'default' },
+  AndroidNotificationVisibility: { PUBLIC: 'public', PRIVATE: 'private' },
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
 
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
-jest.mock('expo-background-fetch', () => ({
+jest.mock('expo-background-task', () => ({
   registerTaskAsync: jest.fn(),
-  BackgroundFetchResult: { NewData: 1, Failed: 2 },
+  unregisterTaskAsync: jest.fn(),
+  getStatusAsync: jest.fn(),
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
 }));
 
 import { Platform } from 'react-native';
@@ -182,7 +185,7 @@ describe('NotificationScheduler update notice', () => {
     expect(StorageService.get(UPDATE_NOTIFIED_KEY)).toBe('u1');
   });
 
-  it('2 on Android the notice goes to the default channel', async () => {
+  it('2 on Android the notice goes to the system channel', async () => {
     const restore = jest.replaceProperty(Platform, 'OS', 'android');
     try {
       await expect(notifyIfUpdateReady(PINNED_NOW)).resolves.toBe(true);
@@ -190,8 +193,11 @@ describe('NotificationScheduler update notice', () => {
       restore.restore();
     }
 
-    expect(pendingOf('update:u1')!.trigger).toEqual({ channelId: 'default' });
-    expect(mockSetChannel).toHaveBeenCalledWith('default', expect.objectContaining({ importance: 'high' }));
+    expect(pendingOf('update:u1')!.trigger).toEqual({ channelId: 'system' });
+    expect(mockSetChannel).toHaveBeenCalledWith(
+      'system',
+      expect.objectContaining({ name: he['notifications.channelSystem'], importance: 'default' }),
+    );
   });
 
   it('3 notifies once per update id', async () => {

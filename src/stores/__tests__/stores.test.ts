@@ -15,9 +15,12 @@ jest.mock('expo-notifications', () => ({
 }));
 
 jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
-jest.mock('expo-background-fetch', () => ({
+jest.mock('expo-background-task', () => ({
   registerTaskAsync: jest.fn(),
-  BackgroundFetchResult: { NewData: 1, Failed: 2 },
+  unregisterTaskAsync: jest.fn(),
+  getStatusAsync: jest.fn(),
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
 }));
 
 import { STORE_VERSION } from '../persistOptions';
@@ -174,14 +177,14 @@ describe('useUserStore theme', () => {
 
   it('defaults to gold and resets to it', () => {
     expect(useUserStore.getState().theme).toBe('gold');
-    useUserStore.getState().setTheme('pink');
-    expect(useUserStore.getState().theme).toBe('pink');
+    useUserStore.getState().setTheme('plum');
+    expect(useUserStore.getState().theme).toBe('plum');
     useUserStore.getState().reset();
     expect(useUserStore.getState().theme).toBe('gold');
   });
 
   it('a cold start keeps a saved palette name', () => {
-    expect(coldStart({ theme: 'purple' }).theme).toBe('purple');
+    expect(coldStart({ theme: 'plum' }).theme).toBe('plum');
   });
 
   it('a cold start maps the legacy light theme to gold', () => {
@@ -201,6 +204,13 @@ describe('useUserStore theme', () => {
     expect(coldStart({ theme: 'neon' }).theme).toBe('gold');
     expect(coldStart({ theme: 'toString' }).theme).toBe('gold');
     expect(coldStart({ theme: 7 }).theme).toBe('gold');
+  });
+
+  it('merge maps a retired palette to gold and keeps a live one', () => {
+    const { merge } = useUserStore.persist.getOptions();
+    const current = useUserStore.getState();
+    expect(merge!({ theme: 'pink' }, current).theme).toBe('gold');
+    expect(merge!({ theme: 'plum' }, current).theme).toBe('plum');
   });
 
   it('a payload without a theme keeps the default', () => {

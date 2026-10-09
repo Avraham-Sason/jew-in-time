@@ -38,6 +38,7 @@ const mockGetAll = jest.fn(async () => mockState.pending);
 const mockGetPresented = jest.fn(async () => mockState.presented);
 const mockDismiss = jest.fn(async (_id: string) => {});
 const mockSetCategory = jest.fn<Promise<unknown>, [string, unknown[]]>(async () => ({}));
+const mockSetChannel = jest.fn<Promise<unknown>, [string, unknown]>(async () => ({}));
 const mockRegisterNotificationTask = jest.fn(async (_name: string) => null);
 
 jest.mock('expo-notifications', () => ({
@@ -48,31 +49,42 @@ jest.mock('expo-notifications', () => ({
   getPresentedNotificationsAsync: () => mockGetPresented(),
   dismissNotificationAsync: (id: string) => mockDismiss(id),
   setNotificationHandler: jest.fn(),
-  setNotificationChannelAsync: jest.fn(async () => ({})),
+  setNotificationChannelAsync: (id: string, channel: unknown) => mockSetChannel(id, channel),
   setNotificationCategoryAsync: (identifier: string, actions: unknown[]) => mockSetCategory(identifier, actions),
   registerTaskAsync: (name: string) => mockRegisterNotificationTask(name),
   getPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
   requestPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
-  AndroidImportance: { HIGH: 'high' },
-  AndroidNotificationVisibility: { PUBLIC: 'public' },
+  AndroidImportance: { HIGH: 'high', DEFAULT: 'default' },
+  AndroidNotificationVisibility: { PUBLIC: 'public', PRIVATE: 'private' },
   SchedulableTriggerInputTypes: { DATE: 'date' },
 }));
 
-jest.mock('expo-task-manager', () => ({ defineTask: jest.fn() }));
-jest.mock('expo-background-fetch', () => ({
+jest.mock('expo-task-manager', () => ({
+  defineTask: jest.fn(),
+  isTaskRegisteredAsync: jest.fn(async () => false),
+  unregisterTaskAsync: jest.fn(async () => undefined),
+}));
+jest.mock('expo-background-task', () => ({
   registerTaskAsync: jest.fn(),
-  BackgroundFetchResult: { NewData: 1, Failed: 2 },
+  unregisterTaskAsync: jest.fn(),
+  getStatusAsync: jest.fn(),
+  BackgroundTaskResult: { Success: 1, Failed: 2 },
+  BackgroundTaskStatus: { Restricted: 1, Available: 2 },
 }));
 
+import { Platform } from 'react-native';
 import { DateTime } from 'luxon';
 import {
+  ANDROID_CHANNELS,
   MARK_DONE_ACTION,
   MITZVAH_REMINDER_CATEGORY,
   MITZVAH_TEXT_CATEGORY,
   OPEN_TEXT_ACTION,
   NotificationScheduler,
+  DAILY_REBUILD_TASK,
   NOTIFICATION_ACTION_TASK,
   PENDING_LIMIT,
+  registerDailyRebuildTask,
   registerNotificationActionTask,
   shouldSuppressForCompletion,
   initNotificationHandlers,
@@ -177,6 +189,7 @@ describe('NotificationScheduler', () => {
     mockGetPresented.mockClear();
     mockDismiss.mockClear();
     mockSetCategory.mockClear();
+    mockSetChannel.mockClear();
     mockRegisterNotificationTask.mockClear();
     useCompletionsStore.setState({ completions: {}, skipped: {}, checkIns: {}, archivedDays: [] });
     useUserStore.getState().reset();
@@ -279,7 +292,7 @@ describe('NotificationScheduler', () => {
     const running = NotificationScheduler.rebuild();
     expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBeUndefined();
     await running;
-    expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBe(6);
+    expect(StorageService.get(SCHEDULE_FORMAT_KEY)).toBe(7);
   });
 
   it('6.3 cancelAll empties pending', async () => {
@@ -398,6 +411,7 @@ describe('NotificationScheduler', () => {
     await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000));
     const tefillin = mockState.pending.find((p) => p.identifier.startsWith('tefillin__'));
     expect(tefillin?.content.categoryIdentifier).toBe(MITZVAH_TEXT_CATEGORY);
+    expect(tefillin?.content.data.hasText).toBe(true);
     expect(tefillin?.content.autoDismiss).toBe(true);
     expect(tefillin?.content.sticky).toBe(false);
     const markDone = { identifier: MARK_DONE_ACTION, buttonTitle: 'עשיתי', options: { opensAppToForeground: false } };
@@ -429,6 +443,11 @@ describe('NotificationScheduler', () => {
     expect(categoryOf('no_text')).toBe(MITZVAH_REMINDER_CATEGORY);
     expect(categoryOf('custom_text')).toBe(MITZVAH_TEXT_CATEGORY);
     expect(categoryOf('custom_link')).toBe(MITZVAH_REMINDER_CATEGORY);
+    const hasTextOf = (id: string) =>
+      mockState.pending.find((p) => p.identifier.startsWith(`${id}__`))?.content.data.hasText;
+    expect(hasTextOf('no_text')).toBe(false);
+    expect(hasTextOf('custom_text')).toBe(true);
+    expect(hasTextOf('custom_link')).toBe(false);
   });
 
   it('6.8d the open-text button label follows the app language', async () => {
@@ -444,6 +463,56 @@ describe('NotificationScheduler', () => {
   it('6.9 daily-rebuild task is registered (defineTask called)', () => {
     const tm = require('expo-task-manager');
     expect(tm.defineTask).toHaveBeenCalled();
+  });
+
+  describe('6.9a the daily rebuild background task', () => {
+    const LEGACY_TASK = 'jew-in-time-daily-rebuild';
+    const bg = require('expo-background-task');
+    const tm = require('expo-task-manager');
+
+    const restoreDefaults = () => {
+      tm.isTaskRegisteredAsync.mockReset().mockResolvedValue(false);
+      tm.unregisterTaskAsync.mockReset().mockResolvedValue(undefined);
+    };
+
+    beforeEach(() => {
+      bg.registerTaskAsync.mockClear();
+      restoreDefaults();
+    });
+    afterEach(restoreDefaults);
+
+    it('registers under the v2 name, every 60 minutes', async () => {
+      await registerDailyRebuildTask();
+
+      expect(DAILY_REBUILD_TASK).toBe('jew-in-time-daily-rebuild-v2');
+      expect(bg.registerTaskAsync).toHaveBeenCalledTimes(1);
+      expect(bg.registerTaskAsync).toHaveBeenCalledWith(DAILY_REBUILD_TASK, { minimumInterval: 60 });
+    });
+
+    it('drops the registration an older build left under the legacy name', async () => {
+      tm.isTaskRegisteredAsync.mockImplementation(async (name: string) => name === LEGACY_TASK);
+
+      await registerDailyRebuildTask();
+
+      expect(tm.unregisterTaskAsync).toHaveBeenCalledTimes(1);
+      expect(tm.unregisterTaskAsync).toHaveBeenCalledWith(LEGACY_TASK);
+      expect(bg.registerTaskAsync).toHaveBeenCalledWith(DAILY_REBUILD_TASK, { minimumInterval: 60 });
+    });
+
+    it('leaves a clean install alone', async () => {
+      await registerDailyRebuildTask();
+
+      expect(tm.isTaskRegisteredAsync).toHaveBeenCalledWith(LEGACY_TASK);
+      expect(tm.unregisterTaskAsync).not.toHaveBeenCalled();
+    });
+
+    it('still registers when the legacy cleanup throws', async () => {
+      tm.isTaskRegisteredAsync.mockRejectedValue(new Error('native module missing'));
+
+      await registerDailyRebuildTask();
+
+      expect(bg.registerTaskAsync).toHaveBeenCalledWith(DAILY_REBUILD_TASK, { minimumInterval: 60 });
+    });
   });
 
   it('6.9b registers the background notification action task', async () => {
@@ -668,8 +737,10 @@ describe('NotificationScheduler', () => {
     const [lighting] = mockState.pending.filter((p) => p.identifier.startsWith('candle_lighting__'));
     const [havdalah] = mockState.pending.filter((p) => p.identifier.startsWith('havdalah__'));
     expect(lighting.content.categoryIdentifier).toBe(MITZVAH_REMINDER_CATEGORY);
+    expect(lighting.content.data.hasText).toBe(false);
     // Havdalah fires at the block's end, when the app is open again, so it keeps its text.
     expect(havdalah.content.categoryIdentifier).toBe(MITZVAH_TEXT_CATEGORY);
+    expect(havdalah.content.data.hasText).toBe(true);
   });
 
   it('6.13g every location day of the horizon is visited once, keyed by its own date, whatever the device zone', async () => {
@@ -835,6 +906,48 @@ describe('NotificationScheduler', () => {
     for (const pending of mockState.pending) {
       expect(pending.trigger!.date.getTime()).toBeGreaterThan(Date.now());
     }
+  });
+
+  it('6.14b every kind of notification is routed to its own Android channel', async () => {
+    expect(ANDROID_CHANNELS).toEqual({ mitzvot: 'default', hilulot: 'hilulot', taharah: 'taharah', system: 'system' });
+    setupEnabled(['shacharit', 'mincha', 'candle_lighting']);
+    await scheduleAt(at(CITIES[0], '2026-11-13T06:00')); // Friday, so a block notice and check-in nudges exist
+    const channelsOf = (match: (p: ScheduleInput) => boolean) => [
+      ...new Set(mockState.pending.filter(match).map((p) => p.trigger!.channelId)),
+    ];
+
+    expect(channelsOf((p) => p.identifier.startsWith('shacharit__'))).toEqual(['default']);
+    expect(channelsOf((p) => p.identifier.startsWith('candle_lighting__'))).toEqual(['default']);
+    expect(channelsOf((p) => p.content.data.kind === 'blockNotice')).toEqual(['default']);
+    expect(channelsOf((p) => p.content.data.kind === 'checkin')).toEqual(['system']);
+  });
+
+  it('6.14c on Android all four channels exist, the mitzvot one under its original id', async () => {
+    const restore = jest.replaceProperty(Platform, 'OS', 'android');
+    try {
+      setupEnabled(['tefillin']);
+      await NotificationScheduler.scheduleAll(new Date(Date.now() + 1000));
+    } finally {
+      restore.restore();
+    }
+
+    expect(mockSetChannel.mock.calls.map(([id]) => id)).toEqual(['default', 'hilulot', 'taharah', 'system']);
+    const channels = Object.fromEntries(mockSetChannel.mock.calls) as Record<string, Record<string, unknown>>;
+    expect(channels.default).toMatchObject({
+      name: 'מצוות',
+      importance: 'high',
+      vibrationPattern: [0, 250, 250, 250],
+      lockscreenVisibility: 'public',
+    });
+    expect(channels.hilulot).toMatchObject({
+      name: 'הילולות צדיקים',
+      importance: 'default',
+      lockscreenVisibility: 'public',
+    });
+    expect(channels.hilulot).not.toHaveProperty('vibrationPattern');
+    expect(channels.taharah).toMatchObject({ name: 'טהרה', importance: 'high', lockscreenVisibility: 'private' });
+    expect(channels.taharah).not.toHaveProperty('lightColor');
+    expect(channels.system).toMatchObject({ name: 'מערכת', importance: 'default' });
   });
 
   it('6.15 a reminder whose trigger falls outside its own window is never scheduled', async () => {

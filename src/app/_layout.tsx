@@ -16,15 +16,14 @@ import {
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
+import * as Sentry from '@sentry/react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 // eslint-disable-next-line import/no-duplicates
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   useFonts,
-  Heebo_300Light,
   Heebo_400Regular,
-  Heebo_500Medium,
   Heebo_600SemiBold,
   Heebo_700Bold,
   Heebo_800ExtraBold,
@@ -32,8 +31,12 @@ import {
 } from '@expo-google-fonts/heebo';
 import { NotoSerifHebrew_400Regular, NotoSerifHebrew_700Bold } from '@expo-google-fonts/noto-serif-hebrew';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
+import { BRAND } from '@/theme/colors';
+import { radius, spacing } from '@/theme/tokens';
+import { fontFamilies } from '@/theme/typography';
 import { useUserStore } from '@/stores/useUserStore';
 import { initNotificationHandlers } from '@/services/NotificationScheduler';
+import { captureException } from '@/services/crashReporting';
 import {
   initNotificationResponseHandler,
   consumePendingNotificationRoute,
@@ -218,10 +221,8 @@ function RootInner() {
             <Stack.Screen name="custom-mitzvah" options={{ presentation: 'card' }} />
             <Stack.Screen name="checkin" options={{ presentation: 'card' }} />
             <Stack.Screen name="hilulot" options={{ presentation: 'card' }} />
-            <Stack.Screen name="taharah/index" options={{ presentation: 'card' }} />
-            <Stack.Screen name="taharah/log" options={{ presentation: 'card' }} />
-            <Stack.Screen name="taharah/settings" options={{ presentation: 'card' }} />
-            <Stack.Screen name="taharah/calendar" options={{ presentation: 'card' }} />
+            <Stack.Screen name="mitzvot" options={{ presentation: 'card' }} />
+            <Stack.Screen name="taharah" options={{ presentation: 'card' }} />
           </Stack>
         </View>
         <ShabbatScreen
@@ -234,8 +235,13 @@ function RootInner() {
 }
 
 // Picked up automatically by expo-router. Deliberately self-contained: it must render even when
-// ThemeProvider or a store is the thing that failed, so it uses no context and no hooks.
+// ThemeProvider or a store is the thing that failed, so it uses no context; its one hook reports
+// the error once.
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+  useEffect(() => {
+    captureException(error, { scope: 'render' });
+  }, [error]);
+
   return (
     <View style={errorStyles.wrap}>
       <Text style={errorStyles.title}>{t('errors.boundaryTitle')}</Text>
@@ -249,27 +255,37 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Pro
 }
 
 const errorStyles = StyleSheet.create({
-  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: '#F5EFE4' },
-  title: { fontSize: 20, fontWeight: '700', color: '#1C2B4A', textAlign: 'center' },
-  body: { fontSize: 15, color: '#42506B', textAlign: 'center', marginTop: 10, lineHeight: 22 },
-  detail: { fontSize: 12, color: '#8A93A6', textAlign: 'center', marginTop: 14 },
-  button: {
-    marginTop: 24,
-    borderRadius: 14,
-    paddingVertical: 13,
-    paddingHorizontal: 32,
-    backgroundColor: '#C9922A',
+  wrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xxl,
+    backgroundColor: BRAND.parchment,
   },
-  buttonLabel: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  title: { fontFamily: fontFamilies.heebo.bold, fontSize: 20, color: BRAND.navy, textAlign: 'center' },
+  body: {
+    fontSize: 15,
+    color: '#42506B',
+    textAlign: 'center',
+    marginTop: spacing.md,
+    lineHeight: 22,
+  },
+  detail: { fontSize: 12, color: '#8A93A6', textAlign: 'center', marginTop: spacing.lg },
+  button: {
+    marginTop: spacing.xxl,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xxxl,
+    backgroundColor: BRAND.gold,
+  },
+  buttonLabel: { fontFamily: fontFamilies.heebo.bold, fontSize: 16, color: BRAND.white },
 });
 
-export default function RootLayout() {
+function RootLayout() {
   // A failed font fetch must not brick the app: `loaded` would stay false forever, leaving a bare
   // spinner behind an un-hidden splash with notifications never initialised and no way out.
   const [loaded, fontError] = useFonts({
-    Heebo_300Light,
     Heebo_400Regular,
-    Heebo_500Medium,
     Heebo_600SemiBold,
     Heebo_700Bold,
     Heebo_800ExtraBold,
@@ -303,3 +319,5 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(RootLayout);

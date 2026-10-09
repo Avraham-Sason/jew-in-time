@@ -5,6 +5,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "channel": "development",
+      "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true" },
       "android": {
         "buildType": "apk"
       }
@@ -13,6 +14,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "channel": "development",
+      "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true" },
       "android": {
         "gradleCommand": ":app:assembleDebug -PreactNativeArchitectures=arm64-v8a"
       }
