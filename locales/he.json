@@ -1,0 +1,8 @@
+{
+  "CFBundleDisplayName": "יהודי בזמן",
+  "NSLocationWhenInUseUsageDescription": "מיקום נדרש לחישוב זמני הלכה מדויקים לפי האזור שלך.",
+  "NSLocationAlwaysAndWhenInUseUsageDescription": "מיקום נדרש לחישוב זמני הלכה מדויקים ולרענון יומי של התראות.",
+  "NSLocationAlwaysUsageDescription": "מיקום נדרש לחישוב זמני הלכה מדויקים ולרענון יומי של התראות.",
+  "NSFaceIDUsageDescription": "זיהוי הפנים משמש לנעילת מסכי הטהרה בלבד",
+  "app_name": "יהודי בזמן"
+}

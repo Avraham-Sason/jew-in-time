@@ -6,26 +6,31 @@
 
 ## Ownership
 
-- [APP_STORE_METADATA_HE.md](APP_STORE_METADATA_HE.md) and [APP_STORE_METADATA_EN.md](APP_STORE_METADATA_EN.md) own App Store listing copy.
-- [PLAY_CONSOLE_METADATA.md](PLAY_CONSOLE_METADATA.md) owns Google Play listing copy.
+- [APP_STORE_METADATA_HE.md](APP_STORE_METADATA_HE.md) and [APP_STORE_METADATA_EN.md](APP_STORE_METADATA_EN.md) own App Store listing copy. The English file also holds the App Privacy answers.
+- [PLAY_CONSOLE_METADATA.md](PLAY_CONSOLE_METADATA.md) owns Google Play listing copy (English default, Hebrew localization), the Data safety answers and the content rating notes.
 - The published privacy policy lives in [../docs/privacy/index.html](../docs/privacy/index.html) and [../docs/privacy/en/index.html](../docs/privacy/en/index.html), not here. This folder owns store copy only.
 
 ## Local Contracts
 
 - Keep release copy aligned with the current display name, package identifiers, privacy behavior, and offline-only architecture described in [../AGENTS.md](../AGENTS.md) and [../app.json](../app.json).
-- Do not claim backend, account, sync, analytics, or cloud behavior unless current source code and config prove it.
+- Names and tagline: the Hebrew store name is `יהודי בזמן` with the subtitle `כל מצווה בזמנה`; the English store name is `Jew in Time` with the subtitle `Every mitzvah in its time`.
+- Do not claim backend, account, sync, analytics, or cloud behavior unless current source code and config prove it. The one outbound data flow in the copy is crash reporting to Sentry (Functional Software, Inc.) from production builds, and the store forms must say so: App Store Connect lists Crash Data, not linked to the user, not used for tracking; Play Data safety lists crash logs and diagnostics, shared with Sentry, not linked to identity. The published policy names every third party the app talks to, and the store forms must match it.
+- The optional taharah tracker keeps menstrual-cycle related dates on the device only and never collects them. Say exactly that wherever a store form asks about health information.
+- The same tracker sets the App Store age-rating questionnaire to Infrequent/Mild Medical/Treatment Information, and the rating is whatever App Store Connect computes from its questionnaire. Never submit `4+`. Answer the Play content rating questionnaire from the same facts.
 - Hebrew copy should preserve Hebrew-first product positioning; English copy should be a faithful market-facing equivalent, not a literal machine translation.
+- The feature list in the copy is the shipped feature list: ten built-in mitzvot, custom mitzvot, notification buttons, the siddur (the mitzvah texts plus twelve standalone texts, four nuschaot, auto-scroll), schedule and history, the Shabbat and Yom Tov rest with the check-in and the pre-block notice, hilulot of 57 tzaddikim, the optional taharah tracker, three palettes, twenty cities or GPS. A feature that is added or removed changes every listing in the same edit.
 
 ## Work Guidance
 
 - Update release documents when app behavior, permissions, data collection, branding, or store-visible features change.
 - Store URLs and contact details must be real values. A placeholder in a field a store form consumes is a release blocker, not a note for later.
+- Field limits: Apple subtitle 30 characters, promotional text 170, keywords 100 with no space after the commas, description 4000; Play short description 80, full description 4000.
 
 ## Verification
 
 - Run `pnpm test -- src/i18n/__tests__/i18n.test.ts` after changing the app name, which the brand regression test pins.
 - Cross-check any permission or data claim against [../app.json](../app.json), the published policy in [../docs/](../docs), and the privacy behavior described in [../src/services/AGENTS.md](../src/services/AGENTS.md) before publishing.
-- Confirm the display name here matches [../app.json](../app.json); the store listing, the on-device name and this copy must agree.
+- Confirm the display name here matches [../app.json](../app.json) and `app.name` in [../src/i18n/en.json](../src/i18n/en.json); the store listing, the on-device name and this copy must agree.
 
 ## Child DOX Index
 

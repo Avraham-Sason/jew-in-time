@@ -3,20 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Privacy Policy — Jewish Time</title>
+<title>Privacy Policy — Jew in Time</title>
+<link rel="icon" href="../../favicon.png">
 <link rel="stylesheet" href="../../style.css">
 </head>
 <body>
 <header>
-  <a class="brand" href="../../">Jewish Time</a>
+  <a class="brand" href="../../">Jew in Time</a>
   <a href="../">עברית</a>
 </header>
 
 <main>
   <h1>Privacy Policy</h1>
-  <p class="meta">Effective 1 September 2026 · Developer: Avraham Sason · App: Jewish Time / יהודי בזמן (com.jewintime.app)</p>
+  <p class="meta">Effective 9 October 2026 · Developer: Avraham Sason · App: Jew in Time / יהודי בזמן (com.jewintime.app)</p>
 
-  <p class="lead">The app runs entirely on your device. There is no account, no server, and no collection of personal data. Nothing you enter and nothing the app computes is sent to us or to any third party.</p>
+  <p class="lead">The app runs entirely on your device. There is no account, no server, and no collection of personal data. Nothing you enter and nothing the app computes is sent to us or to any third party. The one exception is a technical crash report that carries no personal data, described below.</p>
 
   <h2>What the app stores</h2>
   <p>Every item below is kept only in the app's local storage on your device:</p>
@@ -26,19 +27,51 @@
     <li><strong>Preferences</strong> — nusach, language, theme, Israel/Diaspora, halachic opinions, which mitzvot are enabled, and their reminder settings.</li>
     <li><strong>Completion history</strong> — which mitzvot you marked done or skipped, and when.</li>
     <li><strong>Custom mitzvot</strong> you create.</li>
-    <li><strong>Name and phone number</strong> — fully optional fields. You may skip them; they are not validated, are displayed nowhere, and are never transmitted.</li>
+    <li><strong>Name and phone number</strong> — fully optional fields. You may skip them; they are not validated and are never transmitted. They are shown in the app's Settings, and no other feature uses them.</li>
+    <li><strong>Gender and marital status</strong> — see the next section.</li>
+    <li><strong>Family purity tracking data</strong>, if you turn that feature on — see the section after it.</li>
   </ul>
+
+  <h2>Profile answers: gender and marital status</h2>
+  <p>When you start using the app, and in Settings, you can answer two questions: gender (male or female) and marital status (married or single). You can change the answers at any time in Settings. They are stored only on your device. They are used to tailor the wording of the interface and the default settings, and to decide whether to offer you family purity tracking. They are never sent anywhere, and resetting the app deletes them.</p>
+
+  <h2>Family purity tracking</h2>
+  <p>An optional feature. It is off by default and is offered only to users who state that they are married and have chosen a gender; a single user does not see it.</p>
+  <ul>
+    <li><strong>What is stored</strong> — the events you enter (onset, hefsek, bedikot, tevila, pauses and a rav's rulings) and your minhag settings. The count, the tasks and the reminders are calculated from them on the device.</li>
+    <li><strong>Where</strong> — on your device only, in a separate encrypted database. The encryption key is held in the operating system's secure storage (Keychain on iOS, Android Keystore on Android) and is never included in a backup or a transfer to another device. On Android the app is excluded from Google backup. If the system does not let the app read the key, the data is kept in a separate file that is not encrypted, also on the device only.</li>
+    <li><strong>Where it never goes</strong> — the data is not sent anywhere and is not part of crash reports.</li>
+    <li><strong>Notifications</strong> — worded discreetly by default.</li>
+    <li><strong>Deletion</strong> — resetting the app deletes all of it, along with the encryption key.</li>
+    <li><strong>Halacha</strong> — the app does not rule on halacha. In any doubt, ask a rav.</li>
+  </ul>
+
+  <h2>Biometric lock</h2>
+  <p>The family purity screens are locked by default with your device's authentication: face recognition, fingerprint or the device passcode. The authentication is performed entirely by the operating system. The app receives only a "succeeded" or "failed" answer and never sees, stores or transmits biometric data. If the device has no biometrics set up, the lock does not apply. You can turn it off in the tracking settings.</p>
 
   <h2>Where data is stored</h2>
   <p>Data lives in the app's private storage on your device, protected by the operating system's app sandbox. We keep no cloud backup and perform no cross-device sync.</p>
 
   <h2>What does leave the device</h2>
-  <p>The app's own code makes no network requests. The only outbound traffic comes from Expo's update mechanism (EAS Update): the app asks Expo's servers whether a newer JavaScript bundle exists. That check transmits technical values only — app version, platform, and update identifier. It carries no personal data, no location, and no mitzvah history.</p>
+  <p>The app has no server of its own, so there is nowhere to send personal data. Only two technical components reach outward:</p>
+  <ul>
+    <li><strong>Update checks (EAS Update) with Expo's servers</strong> — the app asks whether a newer JavaScript bundle exists when it opens, when you return to it, and in the hourly background refresh. The check transmits technical values only: app version, platform, and update identifier. It carries no personal data, no location, and no mitzvah history.</li>
+    <li><strong>Crash reports to Sentry</strong> — see the next section.</li>
+  </ul>
+
+  <h2>Crash reports</h2>
+  <p>In the release builds of the app (not in development builds), when the app crashes it sends a technical report to Sentry, a crash-monitoring service of Functional Software, Inc. (sentry.io), which processes the report on our behalf. Sentry is the only outside party that receives reports about what happens inside the app.</p>
+  <ul>
+    <li><strong>What is sent</strong> — the stack trace of the crash, the device model, the operating system version, the app version and the update identifier.</li>
+    <li><strong>What is not sent</strong> — personal data, family purity data and screen content. IP addresses are not stored.</li>
+    <li><strong>Control</strong> — the app has no switch to turn reporting off. Uninstalling the app stops it. Reports already sent are not linked to you, so resetting or uninstalling the app does not delete them.</li>
+    <li>Sentry's privacy policy: <a href="https://sentry.io/privacy/">sentry.io/privacy</a></li>
+  </ul>
 
   <h2>What the app does not do</h2>
   <ul>
     <li>No advertising and no ad networks.</li>
-    <li>No analytics, no behavioural tracking, no crash reporting.</li>
+    <li>No analytics and no behavioural tracking.</li>
     <li>No sale or sharing of personal data with third parties.</li>
     <li>No sign-up, no login, no cloud profile.</li>
   </ul>
@@ -49,13 +82,15 @@
     <li><strong>Notifications</strong> — to show local reminders at the times you configured.</li>
     <li><strong>Exact alarms</strong> — halachic times are exact moments; without this permission Android may delay a reminder by tens of minutes.</li>
     <li><strong>Run at boot</strong> — so scheduled reminders survive a device restart.</li>
-    <li><strong>Background refresh</strong> — to rebuild the day's reminders once every 24 hours.</li>
+    <li><strong>Background refresh</strong> — a background task that runs about once an hour when the system allows it. It rebuilds the reminders for the coming days and checks whether a code update exists. The system may postpone it.</li>
+    <li><strong>Biometrics / Face ID</strong> — to lock the family purity screens only, as described above.</li>
+    <li><strong>Keep the screen awake (wake lock)</strong> — only while the siddur reader is open, so the screen does not turn off in the middle of reading.</li>
   </ul>
 
   <h2>Deleting your data</h2>
   <p>Two ways, both entirely under your control:</p>
   <ul>
-    <li>In the app: Settings → Reset the app. This clears all preferences, history, custom mitzvot, and scheduled reminders.</li>
+    <li>In the app: Settings → Privacy and reset → Reset the app. This clears all preferences, history, custom mitzvot, profile answers, family purity tracking data and scheduled reminders.</li>
     <li>Uninstall the app. Since no copy exists on any server, uninstalling deletes everything.</li>
   </ul>
 
@@ -69,6 +104,6 @@
   <p>Privacy questions: <a href="mailto:avisason9314@gmail.com">avisason9314@gmail.com</a></p>
 </main>
 
-<footer>Jewish Time · Updated 1 September 2026</footer>
+<footer>Jew in Time · Updated 9 October 2026</footer>
 </body>
 </html>

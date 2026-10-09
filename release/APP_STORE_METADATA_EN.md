@@ -2,35 +2,49 @@
 
 ## App Name
 
-Jewish Time
+Jew in Time
 
 ## Subtitle
 
-Smart mitzvah reminders by halachic time
+Every mitzvah in its time
 
 ## Promotional Text
 
-See what matters now, get timely reminders, and track daily mitzvot with accurate zmanim.
+Accurate zmanim, a reminder inside each mitzvah's exact window, a siddur in four nusachim, and an app that rests on Shabbat and Yom Tov. All on your device, no account.
 
 ## Description
 
-Jewish Time helps you stay on top of daily mitzvot without losing track of changing halachic times.
+Jew in Time: every mitzvah in its time. The app calculates halachic times on your device from your location and reminds you inside each mitzvah's exact window.
 
-The app calculates zmanim from your location, shows what is relevant right now, and sends smart reminders based on each mitzvah's time window.
+Mitzvot, on time
+- Ten time-bound mitzvot: tefillin, tzitzit, Shema, Shacharit, Mincha, Maariv, morning blessings, candle lighting, Havdalah and the Omer
+- Add your own mitzvot, with reminders you set
+- Two buttons on the notification itself: "Done" and "Open text"
+- A home screen sorted by urgency: what is open now, what comes next, what has passed
+- Day, week and month schedule, and a history with a day streak
+- Hebrew calendar, parasha, holidays and halachic opinions, set for Israel or the Diaspora
 
-Features:
+A siddur in four nusachim
+The prayer text for each mitzvah, plus 12 more blessings and prayers: Grace After Meals, Me'ein Shalosh, Borei Nefashot, the Traveler's Prayer, Asher Yatzar, blessings on food and fragrance, blessings on sights and sounds, the bedtime Shema, Kiddush Levana, affixing a mezuzah, Sheva Berachot and Chanukah candle lighting. Ashkenaz, Sefard, Edot HaMizrach or Chabad, adjusted to the day, with auto-scroll so you can read without touching the screen.
 
-- Home screen sorted by urgency
-- Day, week, and month schedule views
-- Personal mitzvah library with per-mitzvah enable/disable
-- Custom reminders and reset-to-default flows
-- Nusach, language, theme, Israel/Diaspora, and Shema-opinion settings
-- Hebrew calendar, holidays, parasha, and Omer awareness
-- Local-first design with no account required for core use
+Shabbat and Yom Tov
+The app rests on Shabbat and Yom Tov: no notifications and a quiet screen. When it ends, mark what you did so your streak holds. An hour before it begins, a notice gives candle-lighting and exit times.
+
+Hilulot of tzaddikim
+Optional notices for the hilulot of 57 tzaddikim: the evening before and the evening it begins.
+
+Family purity tracking (optional)
+Track the count, the bedikot and the mikveh night, with reminders by halachic times and the minhag you choose. Offered to married users only and off until you turn it on. Notification wording is discreet, the screens are locked with biometrics, and the data is kept encrypted on your device only. The app does not rule on halacha; in any doubt, ask a rav.
+
+Private by design
+- No account and no server: your settings, history and data stay on your device
+- 20 cities to choose from, or GPS
+- Hebrew and English, and three themes: gold, dark and plum
+- The app sends only technical crash reports, with no personal information
 
 ## Keywords
 
-mitzvah, zmanim, tefillin, shema, shacharit, mincha, maariv, omer, jewish calendar, prayer reminders
+mitzvah,zmanim,tefillin,siddur,birkat hamazon,hilula,mikvah,shema,mincha,maariv,omer,jewish calendar
 
 ## Support URL
 
@@ -46,14 +60,29 @@ https://avraham-sason.github.io/jew-in-time/privacy/en/
 
 ## Age Rating Draft
 
-Suggested draft: `4+`
+- No user-generated content
+- No unrestricted web access
+- No gambling
+- No alcohol, tobacco, or drug references
+- No sexual content
+- Religious content only
+- Medical/Treatment Information: Infrequent/Mild. The optional taharah tracker records menstrual-cycle related dates on the device; it gives no medical advice, diagnosis or treatment.
+
+Expected rating: the rating App Store Connect computes from its questionnaire, driven by the Medical/Treatment Information answer. Do not submit `4+`; take the rating it computes.
+
+## App Privacy Answers
+
+- Data collected: Diagnostics, Crash Data. Not linked to the user. Not used for tracking. Processor: Functional Software, Inc. (Sentry).
+- Not collected: location, contact info (the optional name and phone stay on the device), health data (the taharah tracker keeps cycle-related dates on the device only), usage data, identifiers, purchases.
+- Tracking: none.
 
 ## Screenshot Plan
 
-- Home light
-- Home dark
-- Schedule day
-- Library
+- Home (gold)
+- Home (dark)
+- Siddur tab
+- Reader
+- Schedule (day)
 - Mitzvah detail
 - Settings
 

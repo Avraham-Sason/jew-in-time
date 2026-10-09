@@ -1,20 +1,39 @@
+@font-face {
+  font-family: "Heebo";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/Heebo-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Heebo";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/Heebo-Bold.ttf") format("truetype");
+}
+
 :root {
+  color-scheme: light dark;
   --bg: #f5efe4;
   --surface: #fffdf8;
-  --text: #2a2620;
-  --text-sub: #6b6255;
+  --text: #1c2b4a;
+  --text-sub: #5b6472;
   --gold: #c9922a;
-  --border: #e2d8c6;
+  --gold-text: #7f5a0f;
+  --border: #ddd5c5;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #17150f;
-    --surface: #211e17;
-    --text: #f0ebe1;
-    --text-sub: #a89e8d;
-    --gold: #e0ad46;
-    --border: #322d23;
+    --bg: #0d1925;
+    --surface: #18293c;
+    --text: #ede7db;
+    --text-sub: #8c9aa8;
+    --gold: #d4a030;
+    --gold-text: #d4a030;
+    --border: #253547;
   }
 }
 
@@ -54,7 +73,7 @@ header {
 .brand {
   font-size: 20px;
   font-weight: 700;
-  color: var(--gold);
+  color: var(--gold-text);
   text-decoration: none;
 }
 
@@ -97,7 +116,15 @@ li {
 }
 
 a {
-  color: var(--gold);
+  color: var(--gold-text);
+}
+
+.en-summary {
+  margin: 32px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--text-sub);
+  font-size: 15px;
 }
 
 footer {
