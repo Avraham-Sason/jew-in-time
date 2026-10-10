@@ -4,13 +4,13 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { radius, spacing } from '@/theme/tokens';
 import { typography } from '@/theme/typography';
 
-type Props = { title?: string; children: React.ReactNode };
+type Props = { title: string; children: React.ReactNode };
 
 export function SettingsSection({ title, children }: Props) {
   const { colors } = useTheme();
   return (
     <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      {title ? <Text style={[typography.subheading, styles.title, { color: colors.text }]}>{title}</Text> : null}
+      <Text style={[typography.subheading, styles.title, { color: colors.text }]}>{title}</Text>
       {children}
     </View>
   );

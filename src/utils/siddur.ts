@@ -11,6 +11,7 @@ import {
   SiddurSegment,
   SiddurText,
 } from '@/types/siddur';
+import type { PrayerMode } from '@/stores/useUserStore';
 
 const SHEHECHEYANU_DAYS: readonly (readonly [month: number, day: number])[] = [
   [months.TISHREI, 1],
@@ -282,4 +283,27 @@ export function segmentBlocks(segments: SiddurSegment[], field: keyof Labeled, o
     else blocks.push({ start: offset + index, ...(label ? { label } : {}), segments: [segment] });
   });
   return blocks;
+}
+
+export type MinyanBlock = SegmentBlock & { folded: boolean };
+export type OptionalBlock = SegmentBlock & { openByDefault: boolean; minyanBlocks: MinyanBlock[] };
+export type SectionFolds = { minyanFolded: boolean; optionalOpen: boolean; blocks: OptionalBlock[] };
+
+// What the reader folds in a section for a prayer mode: grouped by optional label first, then each block
+// by minyan label, as the reader draws it. Praying alone folds the minyan-only section and every minyan
+// block, and opens an optional passage that is said when praying alone; with a minyan nothing is folded.
+export function aloneFolds(section: SiddurSection, mode: PrayerMode): SectionFolds {
+  const alone = mode === 'alone';
+  return {
+    minyanFolded: alone && Boolean(section.minyanOnly),
+    optionalOpen: alone && Boolean(section.optional?.alone),
+    blocks: segmentBlocks(section.segments, 'optional').map((block) => ({
+      ...block,
+      openByDefault: alone && Boolean(block.label?.alone),
+      minyanBlocks: segmentBlocks(block.segments, 'minyan', block.start).map((inner) => ({
+        ...inner,
+        folded: alone && Boolean(inner.label),
+      })),
+    })),
+  };
 }

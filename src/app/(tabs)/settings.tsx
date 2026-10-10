@@ -20,7 +20,7 @@ import {
   taharahOffered,
 } from '@/stores/taharahOptIn';
 import { useMitzvotStore, type ActiveMitzvahState } from '@/stores/useMitzvotStore';
-import { useUserStore } from '@/stores/useUserStore';
+import { useUserStore, type PrayerMode } from '@/stores/useUserStore';
 import { useShallow } from 'zustand/react/shallow';
 import { BRAND } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -43,6 +43,7 @@ const LANGS = ['he', 'en'] as const;
 const OPINIONS = ['GRA', 'MA'] as const;
 const GENDERS = ['male', 'female'] as const;
 const MARITAL_STATUSES = ['married', 'single'] as const;
+const PRAYER_MODES: readonly PrayerMode[] = ['minyan', 'alone'];
 const CITY_INDEXES = CITIES.map((_, index) => index);
 
 // Returns a number, so the subscription re-renders only when the count itself changes.
@@ -67,6 +68,7 @@ export default function SettingsScreen() {
       nusach: s.nusach,
       siddurAutoScroll: s.siddurAutoScroll,
       siddurScrollSpeed: s.siddurScrollSpeed,
+      prayerMode: s.prayerMode,
       taharahEnabled: s.taharahEnabled,
       location: s.location,
       locationStatus: s.locationStatus,
@@ -81,6 +83,7 @@ export default function SettingsScreen() {
       setProfilePhone: s.setProfilePhone,
       setSiddurAutoScroll: s.setSiddurAutoScroll,
       setSiddurScrollSpeed: s.setSiddurScrollSpeed,
+      setPrayerMode: s.setPrayerMode,
       setTheme: s.setTheme,
       setLanguage: s.setLanguage,
       setKsOpinion: s.setKsOpinion,
@@ -154,124 +157,13 @@ export default function SettingsScreen() {
 
   const permGranted = user.notificationPermission === 'granted';
   const notifActive = user.notificationsEnabled && permGranted;
+  const subHeadingTone = { color: colors.goldText, borderTopColor: colors.border };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top']}>
       <NavBar title={t('settings.title')} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <SettingsSection title={t('settings.notifications')}>
-          <SwitchRow
-            label={t('settings.notificationsToggle')}
-            hint={
-              notifActive
-                ? t('settings.notificationsActiveHint')
-                : user.notificationsEnabled && !permGranted
-                  ? t('settings.notificationsBlockedHint')
-                  : t('settings.notificationsOffHint')
-            }
-            value={user.notificationsEnabled}
-            onValueChange={onToggleNotifications}
-          />
-          <Row
-            label={t('settings.notificationsOsStatus')}
-            value={permGranted ? t('settings.notificationsGranted') : t('settings.notificationsDenied')}
-          />
-          {!permGranted ? <PrimaryButton label={t('settings.openOsSettings')} onPress={openOsSettings} /> : null}
-          {/* Exact alarms are declared in the manifest, but OEM battery managers can still defer
-              them. Exempting the app is the one part only the user can do. */}
-          {supportsBatteryOptimizationSettings() ? (
-            <>
-              <Text style={[typography.small, styles.groupGap, { color: colors.textMuted }]}>
-                {t('settings.batteryHint')}
-              </Text>
-              <PrimaryButton label={t('settings.batteryAction')} onPress={() => openBatteryOptimizationSettings()} />
-            </>
-          ) : null}
-          <SwitchRow
-            style={styles.groupGap}
-            label={t('hilulot.notifications')}
-            hint={t('hilulot.caption')}
-            value={user.hilulotEnabled}
-            onValueChange={user.setHilulotEnabled}
-          />
-          <Text style={[typography.small, styles.note, { color: colors.textMuted }]}>
-            {Platform.OS === 'ios' ? t('settings.iosHint') : t('settings.androidHint')}
-          </Text>
-        </SettingsSection>
-
-        <SettingsSection title={t('settings.zmanim')}>
-          <Text style={[typography.bodyBold, { color: colors.text }]}>{getLocationName(user.location, language)}</Text>
-          <Text style={[typography.small, styles.hint, { color: colors.textMuted }]}>
-            {t(`settings.locationStatus.${user.locationStatus}`)}
-          </Text>
-          <PrimaryButton label={t('settings.useCurrentLocation')} onPress={refreshLocation} />
-          {statusText ? (
-            <Text style={[typography.small, styles.note, { color: colors.textMuted }]}>{statusText}</Text>
-          ) : null}
-          <SectionLabel text={t('settings.pickCity')} style={styles.fieldLabel} />
-          <ChipRow
-            values={CITY_INDEXES}
-            selected={CITIES.findIndex((city) => city.name === user.location.name)}
-            onSelect={(index) => user.setLocationState(CITIES[index], 'ready', 'manual')}
-            renderLabel={(index) => getLocationName(CITIES[index], language)}
-          />
-          <SectionLabel text={t('settings.nusach')} style={styles.fieldLabel} />
-          <ChipRow
-            values={NUSACHAOT}
-            selected={user.nusach}
-            onSelect={chooseNusach}
-            renderLabel={(value) => t(`nusach.${value}`)}
-          />
-          <SectionLabel text={t('settings.opinion')} style={styles.fieldLabel} />
-          <ChipRow
-            values={OPINIONS}
-            selected={user.halachicOpinions.ksSofZman}
-            onSelect={(value) => user.setKsOpinion(value)}
-            renderLabel={(value) => t(`settings.opinion.${value}`)}
-          />
-        </SettingsSection>
-
-        <SettingsSection title={t('settings.display')}>
-          <SectionLabel text={t('settings.theme')} style={styles.firstFieldLabel} />
-          <ThemeSwatchRow
-            selected={user.theme}
-            onSelect={(value) => user.setTheme(value)}
-            labelFor={(value) => t(`settings.theme.${value}`)}
-          />
-          <SectionLabel text={t('settings.language')} style={styles.fieldLabel} />
-          <ChipRow
-            values={LANGS}
-            selected={user.language}
-            onSelect={(value) => user.setLanguage(value)}
-            renderLabel={(value) => t(`settings.language.${value}`)}
-          />
-          <SectionLabel text={t('settings.reading')} style={styles.fieldLabel} />
-          <SwitchRow
-            label={t('settings.autoScroll')}
-            hint={t('settings.autoScrollHint')}
-            value={user.siddurAutoScroll}
-            onValueChange={user.setSiddurAutoScroll}
-          />
-          <View style={[styles.row, styles.speedRow]}>
-            <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.autoScrollSpeed')}</Text>
-            <ScrollSpeedStepper tone="surface" level={user.siddurScrollSpeed} onChange={user.setSiddurScrollSpeed} />
-          </View>
-        </SettingsSection>
-
-        <SettingsSection>
-          <ListRow
-            icon="custom"
-            title={t('settings.mitzvot')}
-            caption={t('settings.mitzvotCaption', { count: enabledMitzvotCount })}
-            onPress={() => router.push('/mitzvot')}
-            trailing={
-              <Text style={[typography.bodyBold, { color: colors.textMuted }]}>{language === 'he' ? '‹' : '›'}</Text>
-            }
-            style={styles.embeddedRow}
-          />
-        </SettingsSection>
-
-        <SettingsSection title={t('settings.privacy')}>
+        <SettingsSection title={t('settings.profile')}>
           <SectionLabel text={t('settings.profileName')} style={styles.firstFieldLabel} />
           <TextInput
             value={nameDraft}
@@ -340,7 +232,135 @@ export default function SettingsScreen() {
               </Text>
             </>
           ) : null}
+        </SettingsSection>
 
+        <SettingsSection title={t('settings.prayer')}>
+          <SectionLabel text={t('settings.nusach')} style={styles.firstFieldLabel} />
+          <ChipRow
+            values={NUSACHAOT}
+            selected={user.nusach}
+            onSelect={chooseNusach}
+            renderLabel={(value) => t(`nusach.${value}`)}
+          />
+          <SectionLabel text={t('settings.prayerMode')} style={styles.fieldLabel} />
+          <ChipRow
+            values={PRAYER_MODES}
+            selected={user.prayerMode}
+            onSelect={user.setPrayerMode}
+            renderLabel={(value) => t(`prayerMode.${value}`)}
+          />
+          <Text style={[typography.small, styles.note, { color: colors.textMuted }]}>
+            {t('settings.prayerModeHint')}
+          </Text>
+          <SectionLabel text={t('settings.reading')} style={styles.fieldLabel} />
+          <SwitchRow
+            label={t('settings.autoScroll')}
+            hint={t('settings.autoScrollHint')}
+            value={user.siddurAutoScroll}
+            onValueChange={user.setSiddurAutoScroll}
+          />
+          <View style={[styles.row, styles.speedRow]}>
+            <Text style={[typography.bodyBold, { color: colors.text }]}>{t('settings.autoScrollSpeed')}</Text>
+            <ScrollSpeedStepper tone="surface" level={user.siddurScrollSpeed} onChange={user.setSiddurScrollSpeed} />
+          </View>
+        </SettingsSection>
+
+        <SettingsSection title={t('settings.mitzvot')}>
+          <ListRow
+            icon="custom"
+            title={t('settings.mitzvotRow')}
+            caption={t('settings.mitzvotCaption', { count: enabledMitzvotCount })}
+            onPress={() => router.push('/mitzvot')}
+            trailing={
+              <Text style={[typography.bodyBold, { color: colors.textMuted }]}>{language === 'he' ? '‹' : '›'}</Text>
+            }
+            style={styles.embeddedRow}
+          />
+          <SwitchRow
+            style={styles.groupGap}
+            label={t('hilulot.notifications')}
+            hint={t('hilulot.caption')}
+            value={user.hilulotEnabled}
+            onValueChange={user.setHilulotEnabled}
+          />
+        </SettingsSection>
+
+        <SettingsSection title={t('settings.device')}>
+          <SectionLabel
+            text={t('settings.zmanim')}
+            style={[styles.subHeading, styles.firstSubHeading, subHeadingTone]}
+          />
+          <Text style={[typography.bodyBold, { color: colors.text }]}>{getLocationName(user.location, language)}</Text>
+          <Text style={[typography.small, styles.hint, { color: colors.textMuted }]}>
+            {t(`settings.locationStatus.${user.locationStatus}`)}
+          </Text>
+          <PrimaryButton label={t('settings.useCurrentLocation')} onPress={refreshLocation} />
+          {statusText ? (
+            <Text style={[typography.small, styles.note, { color: colors.textMuted }]}>{statusText}</Text>
+          ) : null}
+          <SectionLabel text={t('settings.pickCity')} style={styles.fieldLabel} />
+          <ChipRow
+            values={CITY_INDEXES}
+            selected={CITIES.findIndex((city) => city.name === user.location.name)}
+            onSelect={(index) => user.setLocationState(CITIES[index], 'ready', 'manual')}
+            renderLabel={(index) => getLocationName(CITIES[index], language)}
+          />
+          <SectionLabel text={t('settings.opinion')} style={styles.fieldLabel} />
+          <ChipRow
+            values={OPINIONS}
+            selected={user.halachicOpinions.ksSofZman}
+            onSelect={(value) => user.setKsOpinion(value)}
+            renderLabel={(value) => t(`settings.opinion.${value}`)}
+          />
+
+          <SectionLabel text={t('settings.notifications')} style={[styles.subHeading, subHeadingTone]} />
+          <SwitchRow
+            label={t('settings.notificationsToggle')}
+            hint={
+              notifActive
+                ? t('settings.notificationsActiveHint')
+                : user.notificationsEnabled && !permGranted
+                  ? t('settings.notificationsBlockedHint')
+                  : t('settings.notificationsOffHint')
+            }
+            value={user.notificationsEnabled}
+            onValueChange={onToggleNotifications}
+          />
+          <Row
+            label={t('settings.notificationsOsStatus')}
+            value={permGranted ? t('settings.notificationsGranted') : t('settings.notificationsDenied')}
+          />
+          {!permGranted ? <PrimaryButton label={t('settings.openOsSettings')} onPress={openOsSettings} /> : null}
+          {/* Exact alarms are declared in the manifest, but OEM battery managers can still defer
+              them. Exempting the app is the one part only the user can do. */}
+          {supportsBatteryOptimizationSettings() ? (
+            <>
+              <Text style={[typography.small, styles.groupGap, { color: colors.textMuted }]}>
+                {t('settings.batteryHint')}
+              </Text>
+              <PrimaryButton label={t('settings.batteryAction')} onPress={() => openBatteryOptimizationSettings()} />
+            </>
+          ) : null}
+          <Text style={[typography.small, styles.note, { color: colors.textMuted }]}>
+            {Platform.OS === 'ios' ? t('settings.iosHint') : t('settings.androidHint')}
+          </Text>
+
+          <SectionLabel text={t('settings.display')} style={[styles.subHeading, subHeadingTone]} />
+          <SectionLabel text={t('settings.theme')} style={styles.firstFieldLabel} />
+          <ThemeSwatchRow
+            selected={user.theme}
+            onSelect={(value) => user.setTheme(value)}
+            labelFor={(value) => t(`settings.theme.${value}`)}
+          />
+          <SectionLabel text={t('settings.language')} style={styles.fieldLabel} />
+          <ChipRow
+            values={LANGS}
+            selected={user.language}
+            onSelect={(value) => user.setLanguage(value)}
+            renderLabel={(value) => t(`settings.language.${value}`)}
+          />
+
+          <SectionLabel text={t('settings.app')} style={[styles.subHeading, subHeadingTone]} />
           <Pressable
             onPress={() => setResetVisible(true)}
             accessibilityRole="button"
@@ -473,6 +493,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     paddingHorizontal: 0,
   },
+  subHeading: {
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+    paddingTop: spacing.lg,
+    paddingHorizontal: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  firstSubHeading: {
+    marginTop: 0,
+    paddingTop: 0,
+    borderTopWidth: 0,
+  },
   embeddedRow: {
     paddingHorizontal: 0,
     paddingVertical: 0,
@@ -491,7 +523,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing.xl,
   },
   versionText: {
     textAlign: 'center',

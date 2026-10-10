@@ -1,5 +1,6 @@
 import { HDate, months } from '@hebcal/core';
 import {
+  aloneFolds,
   autoScrollPixelsPerSecond,
   dayFeatures,
   liturgicalDay,
@@ -8,7 +9,8 @@ import {
   segmentBlocks,
   siddurLineHeight,
 } from '../siddur';
-import { DayFeatures, DayFlag, PassageLabel, Place, SiddurText } from '@/types/siddur';
+import { DayFeatures, DayFlag, PassageLabel, Place, SiddurSection, SiddurSegment, SiddurText } from '@/types/siddur';
+import type { PrayerMode } from '@/stores/useUserStore';
 
 const ISRAEL: Place = { inIsrael: true, jerusalem: false };
 const DIASPORA: Place = { inIsrael: false, jerusalem: false };
@@ -443,6 +445,26 @@ describe('resolveSiddurText', () => {
     expect(said([])).toEqual([]);
   });
 
+  it('keeps a minyan-only section flag and a praying-alone label through resolution', () => {
+    const alone: PassageLabel = { he: 'המתפלל ביחיד אומר', en: 'Said when praying alone', alone: true };
+    const flagged: SiddurText = {
+      nusach: 'ashkenaz',
+      id: 'shacharit',
+      credits: [],
+      sections: [
+        { title: { he: 'קדיש', en: 'Kaddish' }, minyanOnly: true, segments: [{ he: [[{ t: 'יתגדל' }]] }] },
+        {
+          title: { he: 'שמע', en: 'Shema' },
+          segments: [{ he: [[{ t: 'אל מלך נאמן' }]], optional: alone }, { he: [[{ t: 'שמע ישראל' }]] }],
+        },
+      ],
+    };
+    const [kaddish, shema] = resolveSiddurText(flagged, features([]));
+    expect(kaddish.minyanOnly).toBe(true);
+    expect(shema.minyanOnly).toBeUndefined();
+    expect(shema.segments[0].optional).toEqual(alone);
+  });
+
   it('leaves no stray space at the edges of a paragraph whose alternative was filtered out', () => {
     const alternatives: SiddurText = {
       ...text,
@@ -593,5 +615,94 @@ describe('passage labels', () => {
       { start: 3, label: null, text: ['רופא חולי עמו ישראל'] },
       { start: 4, label: 'יש אומרים עננו', text: ['ענינו'] },
     ]);
+  });
+});
+
+describe('aloneFolds', () => {
+  const withMinyan: PassageLabel = { he: 'נאמר רק במניין', en: 'Said only with a minyan' };
+  const aloneOnly: PassageLabel = { he: 'המתפלל ביחיד אומר', en: 'Said when praying alone', alone: true };
+  const someSay: PassageLabel = { he: 'יש אומרים', en: 'Some say' };
+  const said = (t: string, labels: Partial<Pick<SiddurSegment, 'optional' | 'minyan'>> = {}): SiddurSegment => ({
+    he: [[{ t }]],
+    ...labels,
+  });
+  const kaddish: SiddurSection = {
+    title: { he: 'קדיש', en: 'Kaddish' },
+    minyanOnly: true,
+    segments: [said('יתגדל')],
+  };
+  const amidah: SiddurSection = {
+    title: { he: 'עמידה', en: 'Amidah' },
+    segments: [
+      said('מודים'),
+      said('קדושה', { minyan: withMinyan }),
+      said('נקדש', { minyan: withMinyan }),
+      said('רפאנו', { optional: aloneOnly }),
+      said('אומרים', { optional: someSay }),
+      said('ברכו', { optional: someSay, minyan: withMinyan }),
+    ],
+  };
+  const outline = (section: SiddurSection, mode: PrayerMode) =>
+    aloneFolds(section, mode).blocks.map((block) => ({
+      start: block.start,
+      openByDefault: block.openByDefault,
+      minyanBlocks: block.minyanBlocks.map((inner) => [inner.start, inner.folded]),
+    }));
+
+  it('folds nothing and opens nothing by default when praying with a minyan', () => {
+    expect(aloneFolds(kaddish, 'minyan')).toMatchObject({ minyanFolded: false, optionalOpen: false });
+    expect(outline(amidah, 'minyan')).toEqual([
+      {
+        start: 0,
+        openByDefault: false,
+        minyanBlocks: [
+          [0, false],
+          [1, false],
+        ],
+      },
+      { start: 3, openByDefault: false, minyanBlocks: [[3, false]] },
+      {
+        start: 4,
+        openByDefault: false,
+        minyanBlocks: [
+          [4, false],
+          [5, false],
+        ],
+      },
+    ]);
+  });
+
+  it('folds a minyan-only section when praying alone, and only that one', () => {
+    expect(aloneFolds(kaddish, 'alone').minyanFolded).toBe(true);
+    expect(aloneFolds(amidah, 'alone').minyanFolded).toBe(false);
+  });
+
+  it('folds each minyan block when praying alone, also inside an optional block, by section-relative start', () => {
+    expect(outline(amidah, 'alone')).toEqual([
+      {
+        start: 0,
+        openByDefault: false,
+        minyanBlocks: [
+          [0, false],
+          [1, true],
+        ],
+      },
+      { start: 3, openByDefault: true, minyanBlocks: [[3, false]] },
+      {
+        start: 4,
+        openByDefault: false,
+        minyanBlocks: [
+          [4, false],
+          [5, true],
+        ],
+      },
+    ]);
+  });
+
+  it('opens by default only an optional passage said when praying alone, and only in that mode', () => {
+    const optionalSection: SiddurSection = { ...kaddish, minyanOnly: undefined, optional: aloneOnly };
+    expect(aloneFolds(optionalSection, 'alone').optionalOpen).toBe(true);
+    expect(aloneFolds(optionalSection, 'minyan').optionalOpen).toBe(false);
+    expect(aloneFolds({ ...optionalSection, optional: someSay }, 'alone').optionalOpen).toBe(false);
   });
 });

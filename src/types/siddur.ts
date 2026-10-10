@@ -78,7 +78,7 @@ export type Condition = {
 
 export type Run = { t: string; s?: 'b' | 'n'; when?: Condition };
 
-export type PassageLabel = { he: string; en: string; when?: Condition };
+export type PassageLabel = { he: string; en: string; when?: Condition; alone?: boolean };
 
 export type SiddurSegment = {
   he: Run[][];
@@ -91,6 +91,7 @@ export type SiddurSegment = {
 export type SiddurSection = {
   title: { he: string; en: string };
   optional?: PassageLabel;
+  minyanOnly?: boolean;
   segments: SiddurSegment[];
 };
 

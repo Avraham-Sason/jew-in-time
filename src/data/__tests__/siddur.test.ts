@@ -25,6 +25,7 @@ import { findMitzvah } from '../mitzvot';
 import { Mitzvah, Nusach } from '@/types/mitzvah';
 import { DayFeatures, DayFlag, MitzvahTextId, Run, SiddurText, SiddurTextId, StandaloneTextId } from '@/types/siddur';
 import { dayFeatures, liturgicalDay, matchesCondition, resolveSiddurText, segmentBlocks } from '@/utils/siddur';
+import { keepsCholHamoed } from '@/utils/skipRules';
 
 const NUSCHAOT: Nusach[] = ['ashkenaz', 'sefard', 'edot_hamizrach', 'chabad'];
 const TEXT_IDS = SIDDUR_TEXT_IDS;
@@ -774,6 +775,148 @@ describe('weekday shacharit', () => {
   });
 });
 
+describe('tallit and tefillin in shacharit', () => {
+  const TITLE = 'עטיפת טלית והנחת תפילין';
+  const weekday = day(9, months.CHESHVAN, 5787);
+  const weekdayAbroad = day(9, months.CHESHVAN, 5787, DIASPORA);
+  const tishaBav = day(9, months.AV, 5786);
+  const cholHamoedPesach = day(18, months.NISAN, 5786);
+  const cholHamoedPesachAbroad = day(18, months.NISAN, 5786, DIASPORA);
+  const cholHamoedSukkot = day(18, months.TISHREI, 5787);
+  const cholHamoedSukkotAbroad = day(17, months.TISHREI, 5787, DIASPORA);
+  const TALLIT = /וצונו להתעטף בציצית/;
+  const TEFILLIN_HAND = /וצונו להניח תפלין/;
+  const TEFILLIN_HEAD = /וצונו על מצות תפלין/;
+  const BARUCH_SHEM = /ברוך שם כבוד מלכותו לעולם ועד/;
+  const ASHKENAZ_NOTE = /בחול המועד המניחים תפילין מברכים בלחש/;
+  const section = (nusach: Nusach, features: DayFeatures) =>
+    resolveSiddurText(load(nusach, 'shacharit'), features).find((candidate) => candidate.title.he === TITLE);
+  const wording = (nusach: Nusach, features: DayFeatures, keep: (run: Run) => boolean) =>
+    letters(
+      (section(nusach, features)?.segments ?? [])
+        .flatMap((segment) => segment.he.flat().filter(keep))
+        .map((run) => run.t)
+        .join(' '),
+    );
+  const saidIn = (nusach: Nusach, features: DayFeatures) => wording(nusach, features, (run) => run.s !== 'n');
+  const shownIn = (nusach: Nusach, features: DayFeatures) => wording(nusach, features, () => true);
+  const neighbours = (nusach: Nusach, features: DayFeatures) => {
+    const titles = resolveSiddurText(load(nusach, 'shacharit'), features).map((candidate) => candidate.title.he);
+    const at = titles.indexOf(TITLE);
+    return { titles, before: titles[at - 1], after: titles[at + 1] };
+  };
+
+  it('falls on the days its fixtures claim', () => {
+    for (const fixture of [weekday, weekdayAbroad, tishaBav, cholHamoedPesach, cholHamoedSukkot]) {
+      expect(fixture.flags.has('shabbat') || fixture.flags.has('yomTov') || fixture.flags.has('yomKippur')).toBe(false);
+    }
+    expect(tishaBav.flags.has('tishaBav')).toBe(true);
+    for (const fixture of [cholHamoedPesach, cholHamoedPesachAbroad]) {
+      expect(fixture.flags.has('cholHamoedPesach')).toBe(true);
+    }
+    for (const fixture of [cholHamoedSukkot, cholHamoedSukkotAbroad]) {
+      expect(fixture.flags.has('cholHamoedSukkot')).toBe(true);
+    }
+    expect(cholHamoedPesach.flags.has('inIsrael')).toBe(true);
+    expect(cholHamoedPesachAbroad.flags.has('inIsrael')).toBe(false);
+    expect(cholHamoedSukkotAbroad.flags.has('inIsrael')).toBe(false);
+  });
+
+  it('puts the tallit blessing and both tefillin blessings in every nusach, ahead of the Korbanot', () => {
+    for (const nusach of NUSCHAOT) {
+      for (const features of [weekday, weekdayAbroad]) {
+        const said = saidIn(nusach, features);
+        expect(said).toMatch(TALLIT);
+        expect(said).toMatch(TEFILLIN_HAND);
+        expect(said).toMatch(TEFILLIN_HEAD);
+        const { titles } = neighbours(nusach, features);
+        expect(titles.filter((title) => title === TITLE)).toHaveLength(1);
+        expect(titles.indexOf(TITLE)).toBeLessThan(titles.indexOf('קרבנות'));
+        expect(titles.indexOf(TITLE)).toBeLessThan(titles.indexOf('פסוקי דזמרה'));
+      }
+    }
+  });
+
+  it('says Baruch Shem after the head tefillin where the nusach prints it', () => {
+    for (const nusach of ['ashkenaz', 'sefard'] as const) expect(saidIn(nusach, weekday)).toMatch(BARUCH_SHEM);
+    for (const nusach of ['edot_hamizrach', 'chabad'] as const)
+      expect(saidIn(nusach, weekday)).not.toMatch(BARUCH_SHEM);
+  });
+
+  it('places the section where each nusach prints it', () => {
+    expect(neighbours('ashkenaz', weekday)).toMatchObject({ before: 'ברכות התורה', after: 'מה טובו' });
+    expect(neighbours('sefard', weekday)).toMatchObject({ before: 'ברכות התורה', after: 'מה טובו' });
+    expect(neighbours('edot_hamizrach', weekday)).toMatchObject({ before: 'פתח אליהו', after: 'תפילת חנה' });
+    expect(neighbours('chabad', weekday)).toMatchObject({ before: 'ברכות התורה', after: 'מה טובו' });
+  });
+
+  it('leaves both out on Tisha B’Av', () => {
+    for (const nusach of NUSCHAOT) {
+      expect(neighbours(nusach, tishaBav).titles).not.toContain(TITLE);
+      expect(neighbours(nusach, weekday).titles).toContain(TITLE);
+    }
+  });
+
+  it('drops the tefillin on Chol HaMoed where keepsCholHamoed() does, and keeps the tallit', () => {
+    const places = [
+      { features: cholHamoedPesach, inIsrael: true },
+      { features: cholHamoedSukkot, inIsrael: true },
+      { features: cholHamoedPesachAbroad, inIsrael: false },
+      { features: cholHamoedSukkotAbroad, inIsrael: false },
+    ];
+    for (const nusach of NUSCHAOT) {
+      for (const { features, inIsrael } of places) {
+        const said = saidIn(nusach, features);
+        const keeps = keepsCholHamoed({ nusach, inIsrael });
+        expect(said).toMatch(TALLIT);
+        expect({ nusach, inIsrael, hand: TEFILLIN_HAND.test(said), head: TEFILLIN_HEAD.test(said) }).toEqual({
+          nusach,
+          inIsrael,
+          hand: keeps,
+          head: keeps,
+        });
+      }
+    }
+    expect(keepsCholHamoed({ nusach: 'ashkenaz', inIsrael: false })).toBe(true);
+    expect(keepsCholHamoed({ nusach: 'ashkenaz', inIsrael: true })).toBe(false);
+    expect(keepsCholHamoed({ nusach: 'sefard', inIsrael: false })).toBe(false);
+  });
+
+  it('shows Ashkenaz abroad its tefillin once, with the quiet-blessing note on Chol HaMoed only', () => {
+    for (const features of [weekday, weekdayAbroad, cholHamoedPesachAbroad, cholHamoedSukkotAbroad]) {
+      expect(count(saidIn('ashkenaz', features), TEFILLIN_HAND)).toBe(1);
+      expect(count(saidIn('ashkenaz', features), TEFILLIN_HEAD)).toBe(1);
+    }
+    for (const features of [cholHamoedPesachAbroad, cholHamoedSukkotAbroad]) {
+      expect(shownIn('ashkenaz', features)).toMatch(ASHKENAZ_NOTE);
+    }
+    for (const features of [weekday, weekdayAbroad, cholHamoedPesach, cholHamoedSukkot, tishaBav]) {
+      expect(shownIn('ashkenaz', features)).not.toMatch(ASHKENAZ_NOTE);
+    }
+  });
+
+  it('reads the same passages as the standalone tallit and tefillin texts', () => {
+    const wholeText = (nusach: Nusach, id: SiddurTextId, features: DayFeatures, title?: string) =>
+      letters(
+        resolveSiddurText(load(nusach, id), features)
+          .filter((candidate) => !title || candidate.title.he === title)
+          .flatMap((candidate) => candidate.segments.flatMap((segment) => segment.he.flat()))
+          .filter((run) => run.s !== 'n')
+          .map((run) => run.t)
+          .join(' '),
+      );
+    for (const nusach of NUSCHAOT) {
+      const inShacharit = saidIn(nusach, weekdayAbroad);
+      const standalone = [
+        wholeText(nusach, 'tzitzit', weekdayAbroad, 'טלית גדול'),
+        wholeText(nusach, 'tefillin', weekdayAbroad, 'הנחת תפילין'),
+      ];
+      expect(standalone.every((text) => text.length > 0)).toBe(true);
+      expect(inShacharit).toBe(letters(standalone.join(' ')));
+    }
+  });
+});
+
 describe('passages only some say', () => {
   const weekday = day(9, months.CHESHVAN, 5787);
   const roshChodesh = day(1, months.CHESHVAN, 5787);
@@ -1070,6 +1213,110 @@ describe('passages said only with a minyan', () => {
       );
       const amidah = minyanBlocks(nusach, 'mincha', weekday, 'תפילת העמידה').filter((block) => block.label === null);
       expect(amidah.map((block) => block.all).join(' ')).toMatch(/רפאנו \S+ ונרפא/);
+    }
+  });
+});
+
+describe('sections and passages that depend on praying with or without a minyan', () => {
+  const MINYAN_ONLY_TITLES = [
+    'חצי קדיש',
+    'קדיש',
+    'קדיש שלם',
+    'קדיש יתום',
+    'קדיש דרבנן',
+    'ברכו',
+    'ברכו לסיום',
+    'קריאת התורה',
+    'הכנסת ספר התורה',
+  ];
+  const WITH_MINYAN = 'נאמר רק במניין';
+  const ALONE = 'המתפלל ביחיד אומר';
+  const monday = day(8, months.CHESHVAN, 5787);
+  const tzomGedaliah = day(3, months.TISHREI, 5787);
+  const asaraBTevet = day(10, months.TEVET, 5787);
+  const taanitEsther = day(13, months.ADAR_II, 5787);
+  const tzomTammuz = day(17, months.TAMUZ, 5786);
+  const everySection = () =>
+    NUSCHAOT.flatMap((nusach) =>
+      TEXT_IDS.flatMap((id) => load(nusach, id).sections.map((section) => ({ nusach, id, section }))),
+    );
+  const VAYAAVOR = /ויעבר \S+ על ?פניו ויקרא/;
+  const saidText = (segment: { he: Run[][] }) =>
+    letters(
+      segment.he
+        .flat()
+        .filter((run) => run.s !== 'n')
+        .map((run) => run.t)
+        .join(' '),
+    );
+
+  it('flags every Kaddish, Barchu and Torah-reading section as minyan-only, and no other section', () => {
+    const wrong = everySection()
+      .filter(({ section }) => (section.minyanOnly === true) !== MINYAN_ONLY_TITLES.includes(section.title.he))
+      .map(({ nusach, id, section }) => `${nusach}/${id}: ${section.title.he}`);
+    expect(wrong).toEqual([]);
+    expect(
+      everySection().filter(({ section }) => section.minyanOnly !== undefined && section.minyanOnly !== true),
+    ).toEqual([]);
+  });
+
+  it('flags each of those titles somewhere, so the list cannot go stale', () => {
+    const flagged = new Set(
+      everySection()
+        .filter(({ section }) => section.minyanOnly)
+        .map(({ section }) => section.title.he),
+    );
+    expect([...flagged].sort()).toEqual([...MINYAN_ONLY_TITLES].sort());
+  });
+
+  it('keeps the flag through a day’s resolution, on the sections a Monday reads', () => {
+    for (const nusach of NUSCHAOT) {
+      const resolved = resolveSiddurText(load(nusach, 'shacharit'), monday);
+      const flagged = resolved.filter((section) => section.minyanOnly).map((section) => section.title.he);
+      expect(flagged).toContain('קריאת התורה');
+      expect(flagged).toContain('חצי קדיש');
+      expect(resolved.filter((section) => !section.minyanOnly).length).toBeGreaterThan(flagged.length);
+    }
+  });
+
+  it('marks the praying-alone fold with alone: true, and no other label', () => {
+    const labels = everySection().flatMap(({ nusach, id, section }) => [
+      ...(section.optional ? [{ nusach, id, label: section.optional }] : []),
+      ...section.segments.flatMap((segment) =>
+        [segment.optional, segment.minyan].filter(Boolean).map((label) => ({ nusach, id, label: label! })),
+      ),
+    ]);
+    const alone = labels.filter(({ label }) => label.he === ALONE);
+    expect(alone.length).toBeGreaterThan(0);
+    expect(alone.every(({ label }) => label.alone === true)).toBe(true);
+    expect(labels.filter(({ label }) => label.alone !== undefined && label.he !== ALONE)).toEqual([]);
+    const where = new Set(alone.map(({ nusach, id }) => `${nusach}/${id}`));
+    for (const nusach of ['ashkenaz', 'sefard'] as const) {
+      for (const id of ['shacharit', 'maariv', 'krias_shma_shacharit'] as const)
+        expect(where).toContain(`${nusach}/${id}`);
+    }
+  });
+
+  it('labels every 13 Middot verse in every nusach as said only with a minyan', () => {
+    const unlabeled = everySection().flatMap(({ nusach, id, section }) =>
+      section.segments
+        .filter((segment) => VAYAAVOR.test(saidText(segment)) && !segment.minyan)
+        .map((segment) => `${nusach}/${id} [${section.title.he}]: ${saidText(segment).slice(0, 40)}`),
+    );
+    expect(unlabeled).toEqual([]);
+  });
+
+  it('labels the 13 Middot of Edot HaMizrach inside the Monday and Thursday Tachanun and every Selichot repetition', () => {
+    const verses = (features: DayFeatures, title: string) =>
+      resolveSiddurText(load('edot_hamizrach', 'shacharit'), features)
+        .filter((section) => section.title.he === title)
+        .flatMap((section) => section.segments)
+        .filter((segment) => VAYAAVOR.test(saidText(segment)))
+        .map((segment) => segment.minyan?.he ?? null);
+    expect(verses(monday, 'תחנון')).toEqual(Array(4).fill(WITH_MINYAN));
+    expect(verses(day(9, months.CHESHVAN, 5787), 'תחנון')).toEqual([WITH_MINYAN]);
+    for (const fast of [tzomGedaliah, asaraBTevet, taanitEsther, tzomTammuz]) {
+      expect(verses(fast, 'סליחות')).toEqual(Array(4).fill(WITH_MINYAN));
     }
   });
 });

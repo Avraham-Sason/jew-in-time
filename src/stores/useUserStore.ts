@@ -13,11 +13,12 @@ export type Language = 'he' | 'en';
 export type NotificationPermissionStatus = 'unknown' | 'granted' | 'denied';
 export type Gender = 'male' | 'female';
 export type MaritalStatus = 'married' | 'single';
+export type PrayerMode = 'minyan' | 'alone';
 
 export const SIDDUR_FONT_SIZES = [18, 20, 22, 25, 28, 32] as const;
 const DEFAULT_SIDDUR_FONT_SIZE = 22;
 // Reading pace of each auto-scroll speed level, in lines per minute, slowest first.
-export const SIDDUR_SCROLL_SPEEDS = [5, 7, 9, 12, 15, 19, 24, 30, 38, 48] as const;
+export const SIDDUR_SCROLL_SPEEDS = [5, 7, 9, 12, 15, 19, 24, 30, 38, 48, 60, 75, 95, 120, 150] as const;
 const DEFAULT_SIDDUR_SCROLL_SPEED = 5;
 
 export function scrollSpeedLevel(level: number): number {
@@ -42,6 +43,7 @@ type UserState = {
   siddurFontSize: number;
   siddurAutoScroll: boolean;
   siddurScrollSpeed: number;
+  prayerMode: PrayerMode;
   hilulotEnabled: boolean;
   gender: Gender | null;
   maritalStatus: MaritalStatus | null;
@@ -62,6 +64,7 @@ type UserState = {
   setSiddurFontSize: (size: number) => void;
   setSiddurAutoScroll: (v: boolean) => void;
   setSiddurScrollSpeed: (level: number) => void;
+  setPrayerMode: (mode: PrayerMode) => void;
   setHilulotEnabled: (v: boolean) => void;
   setGender: (g: Gender | null) => void;
   setMaritalStatus: (m: MaritalStatus | null) => void;
@@ -107,6 +110,7 @@ export const useUserStore = create<UserState>()(
       siddurFontSize: DEFAULT_SIDDUR_FONT_SIZE,
       siddurAutoScroll: false,
       siddurScrollSpeed: DEFAULT_SIDDUR_SCROLL_SPEED,
+      prayerMode: 'minyan',
       hilulotEnabled: false,
       gender: null,
       maritalStatus: null,
@@ -129,6 +133,7 @@ export const useUserStore = create<UserState>()(
       setSiddurFontSize: (size) => set({ siddurFontSize: size }),
       setSiddurAutoScroll: (v) => set({ siddurAutoScroll: v }),
       setSiddurScrollSpeed: (level) => set({ siddurScrollSpeed: scrollSpeedLevel(level) }),
+      setPrayerMode: (mode) => set({ prayerMode: mode }),
       setHilulotEnabled: (v) => set({ hilulotEnabled: v }),
       setGender: (g) => set({ gender: g }),
       setMaritalStatus: (m) => set({ maritalStatus: m }),
@@ -151,6 +156,7 @@ export const useUserStore = create<UserState>()(
           siddurFontSize: DEFAULT_SIDDUR_FONT_SIZE,
           siddurAutoScroll: false,
           siddurScrollSpeed: DEFAULT_SIDDUR_SCROLL_SPEED,
+          prayerMode: 'minyan',
           hilulotEnabled: false,
           gender: null,
           maritalStatus: null,

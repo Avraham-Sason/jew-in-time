@@ -49,22 +49,31 @@ import { HDate } from '@hebcal/core';
 import { loadSiddurText } from '@/services/SiddurService';
 import { HebcalService } from '@/services/HebcalService';
 import { useCompletionsStore, dateKey } from '@/stores/useCompletionsStore';
-import { SIDDUR_FONT_SIZES, SIDDUR_SCROLL_SPEEDS, scrollSpeedLevel, useUserStore } from '@/stores/useUserStore';
+import {
+  PrayerMode,
+  SIDDUR_FONT_SIZES,
+  SIDDUR_SCROLL_SPEEDS,
+  scrollSpeedLevel,
+  useUserStore,
+} from '@/stores/useUserStore';
 import { useTheme } from '@/theme/ThemeProvider';
 import { BottomSheet, SheetAction } from '@/components/BottomSheet';
 import { HEADER_PILL_BG, ScreenHeader } from '@/components/ScreenHeader';
 import { ScrollSpeedStepper } from '@/components/ScrollSpeedStepper';
+import { SegmentedControl } from '@/components/SegmentedControl';
 import { useQuietBlock } from '@/components/ShabbatScreen';
 import { shadowPresets, shadowStyle } from '@/theme/shadowStyle';
 import { radius, spacing } from '@/theme/tokens';
 import { fontFamilies, typography } from '@/theme/typography';
-import { PassageLabel, Run, SegmentBlock, SiddurSection, SiddurSegment, SiddurText } from '@/types/siddur';
+import { PassageLabel, Run, SiddurSection, SiddurSegment, SiddurText } from '@/types/siddur';
 import {
+  OptionalBlock,
+  SectionFolds,
+  aloneFolds,
   autoScrollPixelsPerSecond,
   dayFeatures,
   liturgicalDay,
   resolveSiddurText,
-  segmentBlocks,
   siddurLineHeight,
 } from '@/utils/siddur';
 import { useI18n } from '@/i18n';
@@ -82,6 +91,9 @@ const AUTO_SCROLL_DRIFT_PX = 24;
 const AUTO_SCROLL_MAX_FRAME_MS = 100;
 const PIXEL_RATIO = PixelRatio.get();
 const PILL_BORDER = 'rgba(255,255,255,0.18)';
+const PRAYER_MODES: readonly PrayerMode[] = ['minyan', 'alone'];
+// Both options get an equal share, so the track needs twice the longest label ("With a minyan" in English).
+const PRAYER_MODE_MIN_WIDTH = { he: 120, en: 208 } as const;
 // iOS reports every non-animated scrollTo as the end of a fling, and the JS ScrollView then counts
 // itself as animating and swallows the next tap. Moving the contentOffset prop scrolls without that.
 const SCROLLS_BY_PROP = Platform.OS === 'ios';
@@ -252,6 +264,8 @@ export default function SiddurScreen() {
   const setAutoScroll = useUserStore((s) => s.setSiddurAutoScroll);
   const scrollSpeed = useUserStore((s) => s.siddurScrollSpeed);
   const setScrollSpeed = useUserStore((s) => s.setSiddurScrollSpeed);
+  const prayerMode = useUserStore((s) => s.prayerMode);
+  const setPrayerMode = useUserStore((s) => s.setPrayerMode);
   const standalone = mitzvah ? null : standaloneTextId(params.id);
   const requestedDate = useMemo(() => parseDateParam(params.date), [params.date]);
   const windowDate = useMemo(() => requestedDate ?? new Date(), [requestedDate]);
@@ -284,13 +298,20 @@ export default function SiddurScreen() {
   const [renderingAll, setRenderingAll] = useState(false);
   const jumpMissed = useRef(false);
   const jumpTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const [openedOptional, setOpenedOptional] = useState<ReadonlySet<string>>(() => new Set());
-  const toggleOptional = (key: string) =>
-    setOpenedOptional((opened) => {
-      const next = new Set(opened);
+  // Keys of the blocks the reader flipped away from their default (closed, or open for a passage said
+  // alone), so a mode switch clears it and every default applies again.
+  const [toggled, setToggled] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleBlock = (key: string) =>
+    setToggled((flipped) => {
+      const next = new Set(flipped);
       if (!next.delete(key)) next.add(key);
       return next;
     });
+  const isOpen = (key: string, openByDefault = false) => openByDefault !== toggled.has(key);
+  const changePrayerMode = (mode: PrayerMode) => {
+    setPrayerMode(mode);
+    setToggled(new Set());
+  };
   const cancelJump = useCallback(() => {
     clearTimeout(jumpTimer.current);
     setRenderingAll(false);
@@ -352,6 +373,11 @@ export default function SiddurScreen() {
     [load, features],
   );
 
+  const hasMinyanPassages = useMemo(
+    () => sections.some((section) => section.minyanOnly || section.segments.some((segment) => segment.minyan)),
+    [sections],
+  );
+
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/home'));
   // Done ends the session with the text: mark it, then land on home whatever opened the reader (a
   // home card, the mitzvah screen, a notification on a cold start).
@@ -371,8 +397,8 @@ export default function SiddurScreen() {
   const occasions = HebcalService.getHolidays(hebrewDay.greg(), location, language);
   const subtitle = [t(`nusach.${nusach}`), hebrewDateLabel, ...occasions].join(' · ');
   const listExtraData = useMemo(
-    () => ({ fontSize, language, colors, openedOptional }),
-    [fontSize, language, colors, openedOptional],
+    () => ({ fontSize, language, colors, toggled, prayerMode }),
+    [fontSize, language, colors, toggled, prayerMode],
   );
   const titleOf = (section: SiddurSection) => (language === 'en' ? section.title.en : section.title.he);
   const labelOf = (label: PassageLabel) => (language === 'en' ? label.en : label.he);
@@ -409,30 +435,44 @@ export default function SiddurScreen() {
       ];
     });
   };
-  const minyanViews = (section: SiddurSection, block: SegmentBlock, color: string) =>
-    segmentBlocks(block.segments, 'minyan', block.start).flatMap((inner) =>
-      inner.label
-        ? [
-            <View
-              key={`minyan#${inner.start}`}
-              style={[styles.labeledBody, labeledEdge, { borderColor: colors.minyan }]}
-            >
-              <Text style={[typography.captionBold, styles.minyanLabel, { color: colors.minyan }]}>
-                {labelOf(inner.label)}
-              </Text>
-              {segmentViews(section, inner.segments, inner.start, colors.minyan)}
-            </View>,
-          ]
-        : segmentViews(section, inner.segments, inner.start, color),
-    );
-  const sectionBody = (section: SiddurSection) =>
-    segmentBlocks(section.segments, 'optional').flatMap((block) => {
-      if (!block.label) return minyanViews(section, block, section.optional ? colors.optional : colors.text);
-      const key = `${section.title.he}#${block.start}`;
-      const expanded = openedOptional.has(key);
+  const minyanViews = (section: SiddurSection, block: OptionalBlock, color: string) =>
+    block.minyanBlocks.flatMap((inner) => {
+      if (!inner.label) return segmentViews(section, inner.segments, inner.start, color);
+      const minyanText = () => segmentViews(section, inner.segments, inner.start, colors.minyan);
+      if (!inner.folded) {
+        return [
+          <View key={`minyan#${inner.start}`} style={[styles.labeledBody, labeledEdge, { borderColor: colors.minyan }]}>
+            <Text style={[typography.captionBold, styles.minyanLabel, { color: colors.minyan }]}>
+              {labelOf(inner.label)}
+            </Text>
+            {minyanText()}
+          </View>,
+        ];
+      }
+      const key = `minyan:${section.title.he}#${inner.start}`;
+      const expanded = isOpen(key);
       return [
         <View key={key}>
-          <OptionalToggle label={labelOf(block.label)} expanded={expanded} onPress={() => toggleOptional(key)} />
+          <OptionalToggle
+            tone="minyan"
+            label={labelOf(inner.label)}
+            expanded={expanded}
+            onPress={() => toggleBlock(key)}
+          />
+          {expanded ? (
+            <View style={[styles.labeledBody, labeledEdge, { borderColor: colors.minyan }]}>{minyanText()}</View>
+          ) : null}
+        </View>,
+      ];
+    });
+  const sectionBody = (section: SiddurSection, folds: SectionFolds, color: string) =>
+    folds.blocks.flatMap((block) => {
+      if (!block.label) return minyanViews(section, block, color);
+      const key = `${section.title.he}#${block.start}`;
+      const expanded = isOpen(key, block.openByDefault);
+      return [
+        <View key={key}>
+          <OptionalToggle label={labelOf(block.label)} expanded={expanded} onPress={() => toggleBlock(key)} />
           {expanded ? (
             <View style={[styles.labeledBody, labeledEdge, { borderColor: colors.optional }]}>
               {minyanViews(section, block, colors.optional)}
@@ -441,6 +481,59 @@ export default function SiddurScreen() {
         </View>,
       ];
     });
+  const optionalSection = (section: SiddurSection, optional: PassageLabel, folds: SectionFolds) => {
+    const expanded = isOpen(section.title.he, folds.optionalOpen);
+    return (
+      <>
+        <OptionalToggle
+          large
+          label={labelOf(optional)}
+          expanded={expanded}
+          onPress={() => toggleBlock(section.title.he)}
+        />
+        {expanded ? (
+          <View style={[styles.labeledBody, labeledEdge, { borderColor: colors.optional }]}>
+            {sectionBody(section, folds, colors.optional)}
+          </View>
+        ) : null}
+      </>
+    );
+  };
+  const sectionCard = (section: SiddurSection) => {
+    const folds = aloneFolds(section, prayerMode);
+    if (folds.minyanFolded) {
+      const key = `minyan:${section.title.he}`;
+      const expanded = isOpen(key);
+      return (
+        <>
+          <OptionalToggle
+            large
+            tone="minyan"
+            label={titleOf(section)}
+            caption={t('siddur.minyanOnly')}
+            expanded={expanded}
+            onPress={() => toggleBlock(key)}
+          />
+          {expanded ? (
+            <View style={[styles.labeledBody, labeledEdge, { borderColor: colors.minyan }]}>
+              {section.optional
+                ? optionalSection(section, section.optional, folds)
+                : sectionBody(section, folds, colors.minyan)}
+            </View>
+          ) : null}
+        </>
+      );
+    }
+    if (section.optional) return optionalSection(section, section.optional, folds);
+    return (
+      <>
+        <Text style={[typography.heading, { color: colors.goldText, marginBottom: spacing.sm }]}>
+          {titleOf(section)}
+        </Text>
+        {sectionBody(section, folds, colors.text)}
+      </>
+    );
+  };
   const currentSection = sections[Math.min(shownSection, sections.length - 1)];
   const jumpTo = (index: number, deadline = Date.now() + JUMP_TIMEOUT_MS) => {
     const list = listRef.current;
@@ -535,7 +628,7 @@ export default function SiddurScreen() {
           </View>
         }
       >
-        <View style={styles.headerControls}>
+        <View style={styles.bodyRow}>
           {sections.length > 1 && currentSection ? (
             <Pressable
               onPress={() => setPickerOpen(true)}
@@ -560,18 +653,31 @@ export default function SiddurScreen() {
               </Svg>
             </Pressable>
           ) : null}
-          <SizeButton
-            label="A−"
-            accessibilityLabel={t('siddur.smaller')}
-            disabled={currentIndex === 0}
-            onPress={() => setFontSize(SIDDUR_FONT_SIZES[Math.max(0, currentIndex - 1)])}
-          />
-          <SizeButton
-            label="A+"
-            accessibilityLabel={t('siddur.larger')}
-            disabled={currentIndex === SIDDUR_FONT_SIZES.length - 1}
-            onPress={() => setFontSize(SIDDUR_FONT_SIZES[Math.min(SIDDUR_FONT_SIZES.length - 1, currentIndex + 1)])}
-          />
+          <View style={styles.headerControls}>
+            {hasMinyanPassages ? (
+              <View accessibilityRole="radiogroup" accessibilityLabel={t('settings.prayerMode')}>
+                <SegmentedControl
+                  tone="header"
+                  options={PRAYER_MODES.map((mode) => ({ value: mode, label: t(`prayerMode.${mode}`) }))}
+                  value={prayerMode}
+                  onChange={changePrayerMode}
+                  style={{ minWidth: PRAYER_MODE_MIN_WIDTH[language] }}
+                />
+              </View>
+            ) : null}
+            <SizeButton
+              label="A−"
+              accessibilityLabel={t('siddur.smaller')}
+              disabled={currentIndex === 0}
+              onPress={() => setFontSize(SIDDUR_FONT_SIZES[Math.max(0, currentIndex - 1)])}
+            />
+            <SizeButton
+              label="A+"
+              accessibilityLabel={t('siddur.larger')}
+              disabled={currentIndex === SIDDUR_FONT_SIZES.length - 1}
+              onPress={() => setFontSize(SIDDUR_FONT_SIZES[Math.min(SIDDUR_FONT_SIZES.length - 1, currentIndex + 1)])}
+            />
+          </View>
         </View>
       </ScreenHeader>
 
@@ -595,41 +701,17 @@ export default function SiddurScreen() {
           scrollEventThrottle={16}
           onLayout={autoScroll.onLayout}
           onContentSizeChange={autoScroll.onContentSizeChange}
-          renderItem={({ item: section }) => {
-            const expanded = openedOptional.has(section.title.he);
-            return (
-              <View
-                style={[
-                  styles.card,
-                  { backgroundColor: colors.surface },
-                  shadowStyle(colors.shadow, shadowPresets.cardSoft),
-                ]}
-              >
-                {section.optional ? (
-                  <>
-                    <OptionalToggle
-                      large
-                      label={labelOf(section.optional)}
-                      expanded={expanded}
-                      onPress={() => toggleOptional(section.title.he)}
-                    />
-                    {expanded ? (
-                      <View style={[styles.labeledBody, labeledEdge, { borderColor: colors.optional }]}>
-                        {sectionBody(section)}
-                      </View>
-                    ) : null}
-                  </>
-                ) : (
-                  <>
-                    <Text style={[typography.heading, { color: colors.goldText, marginBottom: spacing.sm }]}>
-                      {titleOf(section)}
-                    </Text>
-                    {sectionBody(section)}
-                  </>
-                )}
-              </View>
-            );
-          }}
+          renderItem={({ item: section }) => (
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: colors.surface },
+                shadowStyle(colors.shadow, shadowPresets.cardSoft),
+              ]}
+            >
+              {sectionCard(section)}
+            </View>
+          )}
           ListFooterComponent={
             <>
               {mitzvah ? (
@@ -744,16 +826,21 @@ function SizeButton({
 
 function OptionalToggle({
   label,
+  caption,
   expanded,
   onPress,
   large = false,
+  tone = 'optional',
 }: {
   label: string;
+  caption?: string;
   expanded: boolean;
   onPress: () => void;
   large?: boolean;
+  tone?: 'optional' | 'minyan';
 }) {
   const { colors } = useTheme();
+  const accent = tone === 'minyan' ? colors.minyan : colors.optional;
   return (
     <Pressable
       onPress={onPress}
@@ -761,18 +848,17 @@ function OptionalToggle({
       aria-expanded={expanded}
       style={({ pressed }) => [
         styles.optionalToggle,
-        { backgroundColor: colors.optionalBg, opacity: pressed ? 0.75 : 1 },
+        { backgroundColor: tone === 'minyan' ? colors.surface2 : colors.optionalBg, opacity: pressed ? 0.75 : 1 },
       ]}
     >
-      <Text
-        style={[large ? typography.heading : typography.bodyBold, styles.optionalLabel, { color: colors.optional }]}
-      >
-        {label}
-      </Text>
+      <View style={styles.optionalLabel}>
+        <Text style={[large ? typography.heading : typography.bodyBold, { color: accent }]}>{label}</Text>
+        {caption ? <Text style={[typography.caption, { color: accent }]}>{caption}</Text> : null}
+      </View>
       <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
         <Path
           d={expanded ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}
-          stroke={colors.optional}
+          stroke={accent}
           strokeWidth={2.5}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -856,8 +942,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
   },
+  bodyRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   picker: {
     flex: 1,
+    minWidth: 96,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,

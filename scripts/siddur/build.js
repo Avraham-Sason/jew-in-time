@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { HDate, OmerEvent } = require('@hebcal/core');
-const { SOURCES, TEXTS, CONDITIONAL_INSTRUCTION, ALWAYS_SAID, RULES } = require('./manifest');
+const { SOURCES, TEXTS, CONDITIONAL_INSTRUCTION, ALWAYS_SAID, RULES, MINYAN_ONLY_TITLES } = require('./manifest');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const CACHE_DIR = path.join(__dirname, '.cache');
@@ -698,9 +698,13 @@ async function buildSection(spec, ctx) {
       ctx.unreviewed.push(`${label} #${segment.index}: small vocalized text "${plain(segment.he).slice(0, 90)}"`);
   }
 
+  const minyanOnly = MINYAN_ONLY_TITLES.includes(spec.title.he);
+  if (minyanOnly) ctx.minyanOnlyTitles.add(spec.title.he);
+
   return {
     title: spec.title,
     ...(spec.optional ? { optional: spec.optional } : {}),
+    ...(minyanOnly ? { minyanOnly } : {}),
     segments: segments.map(({ he, en, when, optional, minyan }) => ({
       he,
       ...(en ? { en } : {}),
@@ -769,6 +773,7 @@ function assetMapSource(built) {
 async function main() {
   const memory = await buildTranslationMemory();
   const unreviewed = [];
+  const minyanOnlyTitles = new Set();
   const built = {};
   const report = [];
   const outputs = new Map();
@@ -778,7 +783,7 @@ async function main() {
       const specs = byNusach[nusach];
       if (!specs) continue;
       const credits = new Set();
-      const ctx = { nusach, textId, credits, unreviewed };
+      const ctx = { nusach, textId, credits, unreviewed, minyanOnlyTitles };
       const parts = [];
       for (const spec of specs) parts.push(await buildSection(spec, ctx));
       const sections = mergeSameTitledSections(parts);
@@ -803,6 +808,8 @@ async function main() {
   }
   const unused = RULES.filter((entry) => !entry.hits).map((entry) => entry.name);
   if (unused.length) throw new Error(`manifest rules that never matched:\n${unused.join('\n')}`);
+  const missing = MINYAN_ONLY_TITLES.filter((title) => !minyanOnlyTitles.has(title));
+  if (missing.length) throw new Error(`minyan-only titles that no section carries:\n${missing.join('\n')}`);
   outputs.set(ASSET_MAP, assetMapSource(built));
   writeOutputs(outputs);
   console.log(report.join('\n'));

@@ -139,6 +139,8 @@ describe('useUserStore auto-scroll', () => {
     expect(scrollSpeedLevel(Number.POSITIVE_INFINITY)).toBe(5);
     expect(scrollSpeedLevel(-4)).toBe(1);
     expect(scrollSpeedLevel(10)).toBe(10);
+    expect(scrollSpeedLevel(15)).toBe(15);
+    expect(scrollSpeedLevel(16)).toBe(15);
   });
 
   it('keeps hilula notices off until switched on, and reset turns them off', () => {
@@ -153,6 +155,38 @@ describe('useUserStore auto-scroll', () => {
     SIDDUR_SCROLL_SPEEDS.forEach((pace, index) => {
       if (index > 0) expect(pace).toBeGreaterThan(SIDDUR_SCROLL_SPEEDS[index - 1]);
     });
+  });
+
+  it('offers fifteen levels from 5 to 150 lines per minute', () => {
+    expect(SIDDUR_SCROLL_SPEEDS).toHaveLength(15);
+    expect(SIDDUR_SCROLL_SPEEDS[0]).toBe(5);
+    expect(SIDDUR_SCROLL_SPEEDS[14]).toBe(150);
+  });
+
+  it('clamps the speed at the fifteenth level', () => {
+    useUserStore.getState().setSiddurScrollSpeed(15);
+    expect(useUserStore.getState().siddurScrollSpeed).toBe(15);
+    useUserStore.getState().setSiddurScrollSpeed(16);
+    expect(useUserStore.getState().siddurScrollSpeed).toBe(15);
+  });
+});
+
+describe('useUserStore prayer mode', () => {
+  beforeEach(() => useUserStore.getState().reset());
+
+  it('starts with a minyan, switches to alone and resets to a minyan', () => {
+    expect(useUserStore.getState().prayerMode).toBe('minyan');
+    useUserStore.getState().setPrayerMode('alone');
+    expect(useUserStore.getState().prayerMode).toBe('alone');
+    useUserStore.getState().reset();
+    expect(useUserStore.getState().prayerMode).toBe('minyan');
+  });
+
+  it('keeps the default for a payload saved before the field existed', () => {
+    const { merge } = useUserStore.persist.getOptions();
+    const current = useUserStore.getState();
+    expect(merge!({ nusach: 'sefard' }, current).prayerMode).toBe('minyan');
+    expect(merge!({ prayerMode: 'alone' }, current).prayerMode).toBe('alone');
   });
 });
 

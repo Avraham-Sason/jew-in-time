@@ -181,6 +181,7 @@ const T = {
   rabbenuTam: { he: 'תפילין דרבנו תם', en: 'Rabbeinu Tam Tefillin' },
   tallitKatan: { he: 'טלית קטן', en: 'Tallit Katan' },
   tallitGadol: { he: 'טלית גדול', en: 'Tallit' },
+  tallitAndTefillin: { he: 'עטיפת טלית והנחת תפילין', en: 'Tallit and Tefillin' },
   modehAni: { he: 'מודה אני', en: 'Modeh Ani' },
   netilatYadayim: { he: 'נטילת ידיים', en: 'Washing the Hands' },
   asherYatzar: { he: 'אשר יצר', en: 'Asher Yatzar' },
@@ -610,7 +611,7 @@ const WHEN_SAID = {
     he: 'אבי בר המצווה אומר בעליית בנו הראשונה',
     en: "Said by a bar mitzvah boy's father at his son's first aliyah",
   },
-  alone: { he: 'המתפלל ביחיד אומר', en: 'Said when praying without a minyan' },
+  alone: { he: 'המתפלל ביחיד אומר', en: 'Said when praying without a minyan', alone: true },
   women: { he: 'נשים אומרות', en: 'Said by women' },
   noKohanim: {
     he: 'כשאין כהנים נושאים כפיים, שליח הציבור אומר',
@@ -1154,35 +1155,74 @@ const EDOT_ASHER_YATZAR_NOTE_EN = {
 };
 const CHABAD = { he: 'chabadHe', en: 'chabadEn' };
 
+// The tallit and tefillin leaves of each nusach, shared by the standalone texts and by the section
+// Shacharit prints them in, so the two never drift apart.
+const TALLIT_GADOL = {
+  ashkenaz: { ...ASHKENAZ, path: ashkenazPrep('Tallit') },
+  sefard: { ...SEFARD, path: 'Upon Arising > Tallit' },
+  edot_hamizrach: { ...EDOT, path: 'Weekday Shacharit > Order of Talit', from: 1 },
+  chabad: { ...CHABAD, path: 'Shacharit > Tzitzit and Tallit', from: 3, to: 9 },
+};
+const TEFILLIN = {
+  ashkenaz: { ...ASHKENAZ, path: ashkenazPrep('Tefillin') },
+  sefard: { ...SEFARD, path: 'Upon Arising > Tefilin' },
+  edot_hamizrach: {
+    ...EDOT,
+    path: 'Weekday Shacharit > Order of Tefillin',
+    from: 1,
+    reviewed: [2],
+    optionalParts: [{ from: 2, paragraph: 1, label: WHEN_SAID.tefillinInterruption }],
+  },
+  chabad: {
+    ...CHABAD,
+    path: 'Shacharit > Tefillin',
+    from: 4,
+    optionalParts: [{ from: 7, label: WHEN_SAID.tefillinInterruption }],
+  },
+};
+const ASHKENAZ_TEFILLIN_CHOL_HAMOED = { at: 0, ...NOTES.tefillinCholHamoed };
+
+// Neither tallit nor tefillin at Shacharit on Tisha B'Av. Tefillin on Chol HaMoed follows
+// keepsCholHamoed() in src/utils/skipRules.ts: Ashkenaz abroad keeps it, every other case skips it.
+// A condition cannot say "not (Chol HaMoed and Israel)", so Ashkenaz carries its tefillin twice,
+// once for ordinary days and once, with the Chol HaMoed note, for Chol HaMoed abroad.
+function tallitAndTefillin(nusach) {
+  const title = T.tallitAndTefillin;
+  const ordinaryDay = { none: ['tishaBav', ...CHOL_HAMOED.any] };
+  const specs = [
+    { ...TALLIT_GADOL[nusach], title, when: NOT_TISHA_BAV },
+    { ...TEFILLIN[nusach], title, when: ordinaryDay },
+  ];
+  if (nusach === 'ashkenaz') {
+    specs.push({
+      ...TEFILLIN.ashkenaz,
+      title,
+      when: { any: CHOL_HAMOED.any, none: ['tishaBav', 'inIsrael'] },
+      insert: [ASHKENAZ_TEFILLIN_CHOL_HAMOED],
+    });
+  }
+  return specs;
+}
+
+const MINYAN_ONLY_TITLES = [
+  T.halfKaddish,
+  T.kaddish,
+  T.kaddishAfterAdditions,
+  T.mournersKaddish,
+  T.kaddishDerabbanan,
+  T.barchu,
+  T.closingBarchu,
+  T.torahReading,
+  T.returningTorah,
+].map((title) => title.he);
+
 const TEXTS = {
   tefillin: {
-    ashkenaz: [
-      {
-        ...ASHKENAZ,
-        title: T.tefillin,
-        path: ashkenazPrep('Tefillin'),
-        insert: [{ at: 0, ...NOTES.tefillinCholHamoed }],
-      },
-    ],
-    sefard: [{ ...SEFARD, title: T.tefillin, path: 'Upon Arising > Tefilin' }],
-    edot_hamizrach: [
-      {
-        ...EDOT,
-        title: T.tefillin,
-        path: 'Weekday Shacharit > Order of Tefillin',
-        from: 1,
-        reviewed: [2],
-        optionalParts: [{ from: 2, paragraph: 1, label: WHEN_SAID.tefillinInterruption }],
-      },
-    ],
+    ashkenaz: [{ ...TEFILLIN.ashkenaz, title: T.tefillin, insert: [ASHKENAZ_TEFILLIN_CHOL_HAMOED] }],
+    sefard: [{ ...TEFILLIN.sefard, title: T.tefillin }],
+    edot_hamizrach: [{ ...TEFILLIN.edot_hamizrach, title: T.tefillin }],
     chabad: [
-      {
-        ...CHABAD,
-        title: T.tefillin,
-        path: 'Shacharit > Tefillin',
-        from: 4,
-        optionalParts: [{ from: 7, label: WHEN_SAID.tefillinInterruption }],
-      },
+      { ...TEFILLIN.chabad, title: T.tefillin },
       {
         ...CHABAD,
         title: T.rabbenuTam,
@@ -1196,16 +1236,16 @@ const TEXTS = {
   tzitzit: {
     ashkenaz: [
       { ...ASHKENAZ, title: T.tallitKatan, path: ashkenazPrep('Tzitzit') },
-      { ...ASHKENAZ, title: T.tallitGadol, path: ashkenazPrep('Tallit') },
+      { ...TALLIT_GADOL.ashkenaz, title: T.tallitGadol },
     ],
     sefard: [
       { ...SEFARD, title: T.tallitKatan, path: 'Upon Arising > Modeh Ani', from: 4, to: 6 },
-      { ...SEFARD, title: T.tallitGadol, path: 'Upon Arising > Tallit' },
+      { ...TALLIT_GADOL.sefard, title: T.tallitGadol },
     ],
-    edot_hamizrach: [{ ...EDOT, title: T.tallitGadol, path: 'Weekday Shacharit > Order of Talit', from: 1 }],
+    edot_hamizrach: [{ ...TALLIT_GADOL.edot_hamizrach, title: T.tallitGadol }],
     chabad: [
       { ...CHABAD, title: T.tallitKatan, path: 'Shacharit > Tzitzit and Tallit', from: 1, to: 1 },
-      { ...CHABAD, title: T.tallitGadol, path: 'Shacharit > Tzitzit and Tallit', from: 3, to: 9 },
+      { ...TALLIT_GADOL.chabad, title: T.tallitGadol },
     ],
   },
   birchot_hashachar: {
@@ -1727,6 +1767,7 @@ function chabadShacharit() {
   const festivalMusaf = 'Musaf for Festivals';
   return [
     ...chabadBirchot(),
+    ...tallitAndTefillin('chabad'),
     {
       ...heOnly,
       title: T.lulav,
@@ -2024,6 +2065,7 @@ function ashkenazShacharit() {
   const morningBlessings = birchot.pop();
   return [
     ...birchot,
+    ...tallitAndTefillin('ashkenaz'),
     { ...base, title: T.maTovu, path: ashkenazPrep('Ma Tovu') },
     { ...base, title: T.adonOlam, path: ashkenazPrep('Adon Olam'), groups: [[0, 9]] },
     { ...base, title: T.yigdal, path: ashkenazPrep('Yigdal') },
@@ -2387,6 +2429,7 @@ function sefardShacharit() {
   const morningBlessings = birchot.pop();
   return [
     ...birchot,
+    ...tallitAndTefillin('sefard'),
     { ...enteringSynagogue, title: T.maTovu, to: 3 },
     { ...enteringSynagogue, title: T.adonOlam, from: 4, to: 14, groups: [[5, 14]] },
     {
@@ -2750,9 +2793,11 @@ function edotShacharit() {
   const songs = at('Song of the Day');
   const rcSongs = 'Rosh Hodesh > Song of the Day';
   const barchiNafshi = 'Rosh Hodesh > Barchi Nafshi';
+  const withMinyanAt = (indices) => indices.map((from) => ({ from, label: SAID_BY.withMinyan }));
   return [
     ...edotBirchot(),
     { ...base, title: T.petichatEliyahu, path: at('Petichat Eliyahu'), from: 2, reviewed: [8] },
+    ...tallitAndTefillin('edot_hamizrach'),
     {
       ...base,
       title: T.hannah,
@@ -2864,19 +2909,28 @@ function edotShacharit() {
       insert: [{ at: 1, ...NOTES.tachanunDisputedShacharit }],
       minyanParts: [{ from: 3, label: SAID_BY.withMinyan }],
     },
-    { ...heOnly, title: T.tachanun, path: vidui, from: 13, to: 32, when: { ...LONG_TACHANUN, none: ['publicFast'] } },
+    {
+      ...heOnly,
+      title: T.tachanun,
+      path: vidui,
+      from: 13,
+      to: 32,
+      when: { ...LONG_TACHANUN, none: ['publicFast'] },
+      minyanParts: withMinyanAt([15, 18, 21]),
+    },
     ...[
-      ['Fast of Gedalya', 3, 28, 'tzomGedaliah'],
-      ['Tenth of Tevet', 2, 35, 'asaraBTevet'],
-      ['Fast of Esther', 2, 33, 'taanitEsther'],
-      ['Seventeenth of Tammuz', 3, 38, 'tzomTammuz'],
-    ].map(([leaf, from, to, fast]) => ({
+      ['Fast of Gedalya', 3, 28, 'tzomGedaliah', [4, 7, 11, 15]],
+      ['Tenth of Tevet', 2, 35, 'asaraBTevet', [8, 14, 18, 22]],
+      ['Fast of Esther', 2, 33, 'taanitEsther', [3, 12, 16, 20]],
+      ['Seventeenth of Tammuz', 3, 38, 'tzomTammuz', [10, 17, 21, 25]],
+    ].map(([leaf, from, to, fast, thirteenMiddot]) => ({
       ...heOnly,
       title: T.selichot,
       path: `Fast Days and Mourning > ${leaf}`,
       from,
       to,
       when: { all: [fast, 'tachanunShacharit'] },
+      minyanParts: withMinyanAt(thirteenMiddot),
     })),
     {
       ...heOnly,
@@ -5042,4 +5096,4 @@ function chabadChanukahCandles() {
   ];
 }
 
-module.exports = { SOURCES, TEXTS, CONDITIONAL_INSTRUCTION, ALWAYS_SAID, RULES };
+module.exports = { SOURCES, TEXTS, CONDITIONAL_INSTRUCTION, ALWAYS_SAID, RULES, MINYAN_ONLY_TITLES };
