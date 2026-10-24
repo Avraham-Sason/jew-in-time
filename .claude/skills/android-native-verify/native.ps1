@@ -411,7 +411,8 @@ function Get-DisplayIds {
     $ids = [Collections.Generic.List[string]]::new()
     foreach ($line in $text -split "`r?`n") {
         if ($line -match '^Display (\d+)') {
-            if ($line -match 'HWC display 0\b') { $ids.Insert(0, $Matches[1]) } else { $ids.Add($Matches[1]) }
+            $id = $Matches[1]
+            if ($line -match 'HWC display 0\b') { $ids.Insert(0, $id) } else { $ids.Add($id) }
         }
     }
     return $ids
