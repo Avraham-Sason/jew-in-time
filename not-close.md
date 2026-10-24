@@ -16,7 +16,7 @@ The user's batch of fifteen requests, all decisions taken in the session of 2026
 - **New mitzvot are on by default**, except the ids in `MENS_MITZVOT` ([src/stores/taharahOptIn.ts](src/stores/taharahOptIn.ts)) for a user whose gender is `female`.
 - **Gender changes are automatic:** `chooseGender()` is the one place a gender change fans out (mitzvot defaults, palette, taharah role, and from this batch the siddur voice).
 - **Declined on 2026-10-24:** offering Tehillim as a download (0.4 MB, not worth the step), and installing only the user's nusach (it would make the first launch depend on the network).
-- **Done means:** both dictionaries updated, a DOX pass on every touched AGENTS.md, and `pnpm typecheck`, `pnpm lint`, `pnpm check:dox`, `pnpm test:tz` green. No commit and no OTA without the user's per-action approval.
+- **Done means:** both dictionaries updated, a DOX pass on every touched AGENTS.md, once the user guide exists its topic and a `WHATS_NEW` item updated, and `pnpm typecheck`, `pnpm lint`, `pnpm check:dox`, `pnpm test:tz` green. No commit and no OTA without the user's per-action approval.
 
 ### High — Requests of 2026-10-24
 
@@ -566,6 +566,48 @@ The user's batch of fifteen requests, all decisions taken in the session of 2026
   - **Expected result:**
     - [settings.contact.render.test.tsx](src/app/__tests__/settings.contact.render.test.tsx) shows the title, the version and each link opening its URL per platform and language, and the contact form unchanged.
     - Search "גרסה" opens this section.
+
+- [ ] Add a user guide that stays current with every change
+  - **Flag:** `OTA` — bundled content; the web copy ships with a push to `main`.
+  - **What it is:**
+    - (1) **One source:** `src/data/guide.ts`, an ordered list of topics. Each topic has `{ id, title: {he, en}, body: {he, en}[] (paragraphs), routes: string[], action?: { label: {he, en}, href } }`. `routes` names the screens it explains (e.g. `/mitzvot`, `/siddur/[id]`), and `action` adds an "open" button that takes the user there.
+      - **Topics, in this order:**
+        - getting started;
+        - home and marking a mitzvah;
+        - reminders and the reminder editor;
+        - the mitzvot library and custom mitzvot;
+        - Shabbat and Yom Tov (the quiet block and the check-in);
+        - the siddur, with prayer mode, folds, auto-scroll, bookmarks and the last position;
+        - Tehillim and Tikkun HaKlali;
+        - Chok LeYisrael and its download;
+        - history, the streak and the weekly report;
+        - the schedule;
+        - Rosh Chodesh and hilulot;
+        - taharah, shown only when `taharahOffered()` holds;
+        - settings: search, backup, restore and reset;
+        - updates;
+        - about and contact.
+      - **Derived content:** lists that change with the app are read from their own homes at render, so they can never go stale: the mitzvot by group from `MITZVOT`, the siddur texts from `STANDALONE_TEXTS`, and the palettes from `THEME_NAMES`.
+    - (2) **What's new:** `src/data/guide.ts` also exports `WHATS_NEW: { label: '<version>-<n>', date, items: {he, en}[] }[]`, newest first. The guide screen shows the latest three entries at its top.
+    - (3) **The screen:** a new stack route `src/app/guide.tsx`, using `ScreenHeader`, with a `SettingsSection`-style collapsible `Card` per topic and the action as a `Button`. It opens from:
+      - a More tab row "מדריך למשתמש" / "User guide" (icon `siddur`, or a new `guide` icon);
+      - a link row in Settings › About and contact;
+      - a settings-search route item.
+    - (4) **Web copy:** `pnpm guide:build` (a new script under [scripts/](scripts)) renders the same source into `docs/guide/index.html` (Hebrew) and `docs/guide/en/index.html` (English), in the style of [docs/index.html](docs/index.html). The support page links to it. Add the pair to `mirrors` in [.claude/done-gate.json](.claude/done-gate.json).
+    - (5) **Keeping it current, enforced rather than remembered:**
+      - (a) [scripts/publish-update.js](scripts/publish-update.js) refuses to publish a production update unless `WHATS_NEW` has an entry whose label is the `<version>-<n>` it is about to publish. The message names the missing label. `--skip-whats-new` is allowed only for a rollback republish.
+      - (b) A Jest test `guide.test.ts` fails when any screen file under [src/app/](src/app) (excluding layouts, redirects and onboarding) is named by no topic's `routes`. A new screen therefore cannot ship undocumented.
+      - (c) The test also checks that every topic has non-empty Hebrew and English text and a unique id, and that `docs/guide/` matches what `pnpm guide:build` produces now (a stale web copy fails).
+      - (d) Root [AGENTS.md](AGENTS.md) Common Change Checklist gains "User-visible change: update its topic in `src/data/guide.ts`, add the `WHATS_NEW` item, run `pnpm guide:build`". The batch rules above gain the same line under "Done means".
+  - **What it solves:** Users get one place that explains every feature, and it cannot fall behind the app.
+  - **Expected result:**
+    - The guide opens from the More tab, from Settings and from search, in Hebrew and English.
+    - Its mitzvot list matches the library.
+    - The live page is at `https://jew-365.github.io/jew-365/guide/`.
+    - `pnpm update:production` without a `WHATS_NEW` entry stops with a clear message.
+    - Adding a dummy route without a topic fails `guide.test.ts`.
+    - [routes.test.ts](src/app/__tests__/routes.test.ts) and [screens.smoke.render.test.tsx](src/app/__tests__/screens.smoke.render.test.tsx) gain `/guide`.
+    - [docs/AGENTS.md](docs/AGENTS.md) lists the pages.
 
 ### Low — Requests of 2026-10-24
 
